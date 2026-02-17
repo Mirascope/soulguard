@@ -14,8 +14,6 @@ export const soulguardConfigSchema = z.object({
   vault: z.array(z.string()),
   /** File patterns tracked as ledger items (agent writes freely, changes recorded) */
   ledger: z.array(z.string()),
-  /** Additional OS-protected paths beyond vault files */
-  protectedPaths: z.array(z.string()).optional(),
 });
 
 export type SoulguardConfigParsed = z.infer<typeof soulguardConfigSchema>;
