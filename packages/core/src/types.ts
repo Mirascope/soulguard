@@ -44,10 +44,7 @@ export const DEFAULT_VAULT_PATHS = [
 ] as const;
 
 /** Default ledger patterns */
-export const DEFAULT_LEDGER_PATTERNS = [
-  "memory/**",
-  "skills/**",
-] as const;
+export const DEFAULT_LEDGER_PATTERNS = ["memory/**", "skills/**"] as const;
 
 // ── Proposals ──────────────────────────────────────────────────────────
 

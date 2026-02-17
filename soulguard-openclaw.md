@@ -102,12 +102,12 @@ This is injected into the agent's context window every session.
 
 The plugin extends `soulguard init` to protect OpenClaw-specific paths:
 
-| Path                                  | What              | Protection      |
-|---------------------------------------|-------------------|-----------------|
-| `~/.openclaw/openclaw.json`           | Gateway config    | Vault (444)     |
-| `~/.openclaw/extensions/`             | Global plugins    | Protected (444) |
-| `~/.openclaw/cron/jobs.json`          | Scheduled jobs    | Protected (444) |
-| `<workspace>/.openclaw/extensions/`   | Workspace plugins | Protected (444) |
+| Path                                | What              | Protection      |
+| ----------------------------------- | ----------------- | --------------- |
+| `~/.openclaw/openclaw.json`         | Gateway config    | Vault (444)     |
+| `~/.openclaw/extensions/`           | Global plugins    | Protected (444) |
+| `~/.openclaw/cron/jobs.json`        | Scheduled jobs    | Protected (444) |
+| `<workspace>/.openclaw/extensions/` | Workspace plugins | Protected (444) |
 
 ### Why Each Path Matters
 
@@ -122,17 +122,17 @@ The plugin extends `soulguard init` to protect OpenClaw-specific paths:
 OpenClaw injects these files into the agent's context window every session:
 
 | File         | Auto-injected | Default tier |
-|--------------|:-------------:|:------------:|
-| SOUL.md      | ✅            | Vault        |
-| AGENTS.md    | ✅            | Vault        |
-| IDENTITY.md  | ✅            | Vault        |
-| USER.md      | ✅            | Vault        |
-| TOOLS.md     | ✅            | Vault        |
-| HEARTBEAT.md | ✅            | Vault        |
-| MEMORY.md    | ✅            | Vault        |
-| BOOT.md      | ✅            | Vault        |
-| memory/*.md  | ❌ on demand  | Ledger       |
-| skills/      | ❌ on demand  | Ledger       |
+| ------------ | :-----------: | :----------: |
+| SOUL.md      |      ✅       |    Vault     |
+| AGENTS.md    |      ✅       |    Vault     |
+| IDENTITY.md  |      ✅       |    Vault     |
+| USER.md      |      ✅       |    Vault     |
+| TOOLS.md     |      ✅       |    Vault     |
+| HEARTBEAT.md |      ✅       |    Vault     |
+| MEMORY.md    |      ✅       |    Vault     |
+| BOOT.md      |      ✅       |    Vault     |
+| memory/\*.md | ❌ on demand  |    Ledger    |
+| skills/      | ❌ on demand  |    Ledger    |
 
 Everything auto-injected → vault. Everything on-demand → ledger.
 
@@ -156,7 +156,6 @@ In the workspace's `soulguard.json`:
 ```
 
 All protections on by default. `auto_redirect_writes` silently redirects vault writes to staging (off by default — explicit errors are clearer for the agent). `openclaw_config_path` overrides the default `~/.openclaw/openclaw.json` path.
-
 
 Note: Plugin will also support allowlisting/blocklisting of tools, so this can also be used to intentionally restrict access (e.g. a claw that has no access to the ability to run custom code, or to interact with the shell beyond reading downloaded files).
 

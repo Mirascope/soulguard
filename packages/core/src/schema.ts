@@ -19,9 +19,7 @@ export const soulguardConfigSchema = z.object({
       "BOOTSTRAP.md",
       "soulguard.json",
     ]),
-  ledger: z
-    .array(z.string())
-    .default(["memory/**", "skills/**"]),
+  ledger: z.array(z.string()).default(["memory/**", "skills/**"]),
   protectedPaths: z
     .array(z.string())
     .optional()

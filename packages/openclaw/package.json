@@ -13,7 +13,7 @@
     "@soulguard/core": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "typescript": "^5.7.0"
   }
 }
