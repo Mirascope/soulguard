@@ -1,36 +1,27 @@
 /**
  * Soulguard config schema — runtime validation + type inference via Zod.
  * This validates soulguard.json files.
+ *
+ * Core is framework-agnostic: no default vault/ledger paths.
+ * Framework plugins (e.g. @soulguard/openclaw) provide templates
+ * with sensible defaults for their file conventions.
  */
 
 import { z } from "zod";
 
 export const soulguardConfigSchema = z.object({
-  vault: z
-    .array(z.string())
-    .default([
-      "SOUL.md",
-      "AGENTS.md",
-      "IDENTITY.md",
-      "USER.md",
-      "TOOLS.md",
-      "HEARTBEAT.md",
-      "MEMORY.md",
-      "BOOTSTRAP.md",
-      "soulguard.json",
-    ]),
-  ledger: z.array(z.string()).default(["memory/**", "skills/**"]),
-  protectedPaths: z
-    .array(z.string())
-    .optional()
-    .describe("Additional OS-protected paths beyond vault files"),
+  /** Files protected as vault items (require owner approval to modify) */
+  vault: z.array(z.string()),
+  /** File patterns tracked as ledger items (agent writes freely, changes recorded) */
+  ledger: z.array(z.string()),
+  /** Additional OS-protected paths beyond vault files */
+  protectedPaths: z.array(z.string()).optional(),
 });
 
 export type SoulguardConfigParsed = z.infer<typeof soulguardConfigSchema>;
 
 /**
  * Parse and validate a soulguard.json config object.
- * Returns the validated config with defaults applied.
  */
 export function parseConfig(raw: unknown): SoulguardConfigParsed {
   return soulguardConfigSchema.parse(raw);

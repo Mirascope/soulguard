@@ -28,24 +28,6 @@ export type LedgerItem = {
   pattern: string;
 };
 
-// ── Defaults ───────────────────────────────────────────────────────────
-
-/** Default vault paths (auto-injected identity files) */
-export const DEFAULT_VAULT_PATHS = [
-  "SOUL.md",
-  "AGENTS.md",
-  "IDENTITY.md",
-  "USER.md",
-  "TOOLS.md",
-  "HEARTBEAT.md",
-  "MEMORY.md",
-  "BOOTSTRAP.md",
-  "soulguard.json",
-] as const;
-
-/** Default ledger patterns */
-export const DEFAULT_LEDGER_PATTERNS = ["memory/**", "skills/**"] as const;
-
 // ── Proposals ──────────────────────────────────────────────────────────
 
 export type ProposalStatus = "pending" | "approved" | "rejected" | "expired";
