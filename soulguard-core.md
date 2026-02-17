@@ -16,6 +16,7 @@ The soulguard daemon and CLI — vault enforcement, ledger tracking, proposal ma
 ## Daemon
 
 The daemon runs as the `_soulguard` (macOS) or `soulguard` (Linux) system user. It's the only process that can:
+
 - Write to vault files
 - Read the password hash
 - Modify soulguard.json
@@ -141,6 +142,7 @@ Approval channels subscribe to events over the socket connection (e.g. WebSocket
 ## File Watching (Ledger)
 
 The daemon uses `chokidar` to watch ledger files. On change:
+
 1. Compute sha256 of new content
 2. Generate diff against previous version
 3. Append entry to `changelog.jsonl`
@@ -182,6 +184,8 @@ On approval:
 8. Emit `proposal:approved` event
 
 If vault changed since proposal (hash mismatch), reject the approval and require agent to re-propose.
+
+**Note: Needs to be atomic for proposals that may include multiple files.**
 
 ## Config Management
 

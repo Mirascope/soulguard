@@ -11,6 +11,7 @@ AI agents have filesystem access and can modify their own identity files. If a p
 Not all files are equal. Identity files change rarely and define who the agent is. Memory and log files change constantly and are operationally necessary. Blocking all writes makes the agent static — no longer learning, adapting, or remembering. Blocking none leaves it defenseless.
 
 Soulguard provides two protection tiers:
+
 - **Vault 🔒** — locked files that require owner approval to modify
 - **Ledger 📒** — tracked files where the agent writes freely but every change is recorded
 
@@ -48,7 +49,7 @@ Here's what happens with soulguard installed:
 | 7. Edit framework config | **Permission denied** (config is vaulted, 444) |
 | 8. Read system state to find workarounds | Password hash unreadable (mode 600); no sudo; daemon auto-restarts if killed |
 
-The persuasion lands, but the action fails. The lock holds even when the person holding the key has been charmed.
+The prompt injection may succeed, but the damage is contained. The agent cannot modify its own core instructions, its plugins, its extensions, or its configuration. Soulguard provides security guarantees where the LLM cannot.
 
 ### In Scope
 
@@ -73,17 +74,17 @@ The persuasion lands, but the action fails. The lock holds even when the person 
 
 **Vault 🔒 — Locked. Requires owner approval.**
 
-Vault files are owned by the soulguard system user with mode 444 (read-only for everyone). The agent can read them but cannot write to them — OS file permissions enforce this. No race conditions, no revert windows, no software bypass.
+Vault files are owned by the soulguard system user with mode 444 (read-only for everyone). The agent can read them but cannot write to them — OS file permissions enforce this. 
 
 To modify a vault file, the agent edits a staging copy and proposes the change. The owner reviews the diff and approves with a password. Only then does the daemon write the change.
 
-Rule of thumb: everything injected into the agent's context window every session goes in vault.
+Rule of thumb: everything used to construct the agent's baseline context window (SOUL.md, AGENTS.md, etc) goes into vault. Depending on the user's security preference, vault can also include skills, tools, and even memory—in which case every modification to the agent's persistent state requires approval. However, there is a tradeoff here, as agents are most useful when they update their own memories and skills with less friction. So, there is a second tier:
 
 **Ledger 📒 — Tracked. Agent writes freely.**
 
 Ledger files are agent-owned and writable. The agent operates normally. But soulguard records every change and surfaces diffs for async owner review.
 
-This catches the memory persistence attack: a compromised agent writes injection instructions into a memory file. Ledger doesn't prevent the write, but it makes it **visible and reversible**.
+This catches the memory persistence attack: a compromised agent writes injection instructions into a memory file. Ledger doesn't prevent the write, but it makes it **visible and reversible**. This also provides hooks that allow a user (or another agent) to actively monitor ledger changes and flag if an attack is underway.
 
 ### Two Enforcement Layers
 
@@ -187,9 +188,10 @@ Templates provide pre-configured vault/ledger mappings for common agent framewor
 sudo soulguard init ~/my-workspace
 
 OpenClaw detected. Choose a protection template:
-  1. Default (identity in vault, memory in ledger)
+  1. Default (core session files in vault, memory in ledger)
   2. Paranoid (identity + memory in vault, skills in ledger)
-  3. Custom (manual configuration)
+  3. Relaxed (everything in ledger)
+  4. Custom (manual configuration)
 
 Choice [1]: 1
 ```
@@ -352,14 +354,11 @@ sequenceDiagram
     Note over H,L: Manual revert (edit file) if needed
 ```
 
-Ledger changes are tracked but not blocked. The
-human reviews async and can manually revert by
-editing the file if needed.
+Ledger changes are tracked but not blocked. The human reviews async and can manually revert by editing the file if needed.
 
 ### Config Modification: Two-Phase Workflow
 
-Modifying `soulguard.json` (adding/removing
-protected files) is a two-phase process:
+Modifying `soulguard.json` (adding/removing protected files) is a two-phase process:
 
 #### Phase 1: Config change (via proposal)
 
@@ -409,9 +408,7 @@ Run 'sudo soulguard sync' to apply config changes.
 
 ## Core API (Socket Interface)
 
-The daemon exposes a Unix domain socket API that
-all approval channels connect to. This is the
-single entry point for all interactions.
+The daemon exposes a Unix domain socket API that all approval channels connect to. This is the single entry point for all interactions.
 
 ### Queries (no auth)
 
@@ -441,32 +438,21 @@ on('proposal:withdrawn', callback)
 on('ledger:changed', callback)
 ```
 
-All approval channels — CLI, web server, Discord
-bot — are different UIs over this same API. The
-daemon is the only process that validates passwords
-and writes to vault files.
+All approval channels — CLI, web server, Discord bot — are different UIs over this same API. The daemon is the only process that validates passwords and writes to vault files.
 
 ## Password Security
 
 The password is the single credential that
 separates "propose" from "approve."
 
-- **Stored as:** argon2 hash in
-  `.soulguard/.secret` (mode 600,
-  soulguard-owned — agent cannot read)
-- **Entered via:** interactive stdin (CLI) or
-  web form — never as a CLI argument, never in
-  env vars, never in shell history
-- **Not committed:** `.secret` is gitignored.
-  A weak password could be cracked if the hash
+- **Stored as:** argon2 hash in `.soulguard/.secret` (mode 600, soulguard-owned — agent cannot read)
+- **Entered via:** interactive stdin (CLI) or web form — never as a CLI argument, never in env vars, never in shell history
+- **Not committed:** `.secret` is gitignored.  A weak password could be cracked if the hash
   is exposed.
 - **Recovery:** `sudo soulguard reset-password`
   (proves machine ownership)
 
-The password only flows through the daemon's
-`approve`/`reject`/`revert` methods. Approval
-channels receive it from the user and pass it
-to the daemon — they never store or log it.
+The password only flows through the daemon's `approve`/`reject`/`revert` methods. Approval channels receive it from the user and pass it to the daemon — they never store or log it.
 
 ## Changelog
 
@@ -488,20 +474,13 @@ append-only audit trail:
 - **Ledger tracking:** Lightweight (timestamp + hash only)
 - **Vault tracking:** Records proposal lifecycle (proposed, approved, rejected, withdrawn)
 
-The audit log provides the timeline. Proposal files
-provide the content. Together they enable complete
-forensics.
+The audit log provides the timeline. Proposal files provide the content. Together they enable complete forensics.
 
-Readable by the agent and human. Written only
-by the daemon. `soulguard log` formats it and can
-optionally fetch diffs from proposal files.
+Readable by the agent and human. Written only by the daemon. `soulguard log` formats it and can optionally fetch diffs from proposal files.
 
 ## Process Resilience
 
-The daemon runs as a launchd (macOS) or systemd
-(Linux) service. If killed, the OS restarts it
-automatically. The agent cannot permanently
-disable it without root access.
+The daemon runs as a launchd (macOS) or systemd (Linux) service. If killed, the OS restarts it automatically. The agent cannot permanently disable it without root access.
 
 ## CLI Reference
 
@@ -571,11 +550,8 @@ When the guardian detects an active attack:
    (full lockdown — agent can read, can't write
    anything)
 2. Alert the owner immediately
-3. Agent is frozen until owner reviews and
-   manually stands down
+3. Agent remains active (no downtime) but memory-frozen until owner reviews and manually stands down
 
-Automated incident response — the attack is
-contained before the owner even sees the alert.
 
 #### Multiple Concurrent Proposals
 

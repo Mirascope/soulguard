@@ -157,6 +157,9 @@ In the workspace's `soulguard.json`:
 
 All protections on by default. `auto_redirect_writes` silently redirects vault writes to staging (off by default — explicit errors are clearer for the agent). `openclaw_config_path` overrides the default `~/.openclaw/openclaw.json` path.
 
+
+Note: Plugin will also support allowlisting/blocklisting of tools, so this can also be used to intentionally restrict access (e.g. a claw that has no access to the ability to run custom code, or to interact with the shell beyond reading downloaded files).
+
 ## No OpenClaw Code Changes Required
 
 The plugin uses OpenClaw's existing extension points:
