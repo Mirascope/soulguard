@@ -1,0 +1,15 @@
+{
+  "name": "soulguard",
+  "version": "0.0.0",
+  "description": "Identity protection for AI agents.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mirascope/soulguard.git"
+  },
+  "author": "Mirascope Team",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Mirascope/soulguard/issues"
+  },
+  "homepage": "https://github.com/Mirascope/soulguard#readme"
+}
