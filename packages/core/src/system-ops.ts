@@ -1,0 +1,76 @@
+/**
+ * SystemOperations — abstraction over OS-level file operations.
+ *
+ * Takes a workspace root at construction time; all paths are relative.
+ * Each method declares exactly which errors it can return.
+ */
+
+import type {
+  Result,
+  FileOwnership,
+  FileInfo,
+  NotFoundError,
+  PermissionDeniedError,
+  IOError,
+} from "./types.js";
+import { ok } from "./result.js";
+
+export type FileStat = {
+  path: string;
+  ownership: FileOwnership;
+};
+
+export interface SystemOperations {
+  /** The workspace root this instance operates on */
+  readonly workspace: string;
+
+  /** Check if a system user exists */
+  userExists(name: string): Promise<Result<boolean, IOError>>;
+
+  /** Check if a system group exists */
+  groupExists(name: string): Promise<Result<boolean, IOError>>;
+
+  /** Get file stat info (relative path) */
+  stat(path: string): Promise<Result<FileStat, NotFoundError | PermissionDeniedError | IOError>>;
+
+  /** Change file owner and group (relative path) */
+  chown(
+    path: string,
+    ownership: FileOwnership,
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
+
+  /** Change file permissions (relative path) */
+  chmod(
+    path: string,
+    mode: string,
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
+
+  /** Read file contents (relative path) */
+  readFile(path: string): Promise<Result<string, NotFoundError | PermissionDeniedError | IOError>>;
+
+  /** Compute SHA-256 hash of file contents (relative path) */
+  hashFile(path: string): Promise<Result<string, NotFoundError | PermissionDeniedError | IOError>>;
+}
+
+/** Common error type for stat/hash operations */
+type FileInfoError = NotFoundError | PermissionDeniedError | IOError;
+
+/**
+ * Get FileInfo for a relative path (stat + hash combined). DRY helper.
+ */
+export async function getFileInfo(
+  path: string,
+  ops: SystemOperations,
+): Promise<Result<FileInfo, FileInfoError>> {
+  const statResult = await ops.stat(path);
+  if (!statResult.ok) return statResult;
+
+  const hashResult = await ops.hashFile(path);
+  if (!hashResult.ok) return hashResult;
+
+  return ok({
+    path,
+    ownership: statResult.value.ownership,
+    hash: hashResult.value,
+  });
+}

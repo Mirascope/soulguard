@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseConfig, soulguardConfigSchema } from "./schema.js";
+import { parseConfig } from "./schema.js";
 
 describe("soulguardConfigSchema", () => {
   test("parses valid config", () => {

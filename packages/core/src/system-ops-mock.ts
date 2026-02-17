@@ -1,0 +1,137 @@
+/**
+ * Mock SystemOperations for testing.
+ *
+ * Takes a workspace root; all paths are relative (resolved internally).
+ * Records all mutation operations for assertion.
+ */
+
+import { resolve } from "node:path";
+import type { FileStat, SystemOperations } from "./system-ops.js";
+import type {
+  FileOwnership,
+  Result,
+  NotFoundError,
+  PermissionDeniedError,
+  IOError,
+} from "./types.js";
+import { ok, err } from "./result.js";
+
+/**
+ * Records what the mock *did*. Intentionally parallel to SyncAction
+ * (which records what sync *decided*) — they track different things.
+ */
+export type RecordedOp =
+  | { kind: "chown"; path: string; ownership: FileOwnership }
+  | { kind: "chmod"; path: string; mode: string };
+
+type MockFile = {
+  content: string;
+  owner: string;
+  group: string;
+  mode: string;
+};
+
+export class MockSystemOps implements SystemOperations {
+  public readonly workspace: string;
+  private files: Map<string, MockFile> = new Map();
+  private users: Set<string> = new Set();
+  private groups: Set<string> = new Set();
+  public ops: RecordedOp[] = [];
+
+  constructor(workspace: string) {
+    this.workspace = workspace;
+  }
+
+  private resolve(path: string): string {
+    return resolve(this.workspace, path);
+  }
+
+  /** Add a simulated file (relative path) */
+  addFile(
+    path: string,
+    content: string,
+    opts: { owner?: string; group?: string; mode?: string } = {},
+  ): void {
+    this.files.set(this.resolve(path), {
+      content,
+      owner: opts.owner ?? "unknown",
+      group: opts.group ?? "unknown",
+      mode: opts.mode ?? "644",
+    });
+  }
+
+  /** Add a simulated system user */
+  addUser(name: string): void {
+    this.users.add(name);
+  }
+
+  /** Add a simulated system group */
+  addGroup(name: string): void {
+    this.groups.add(name);
+  }
+
+  async userExists(name: string): Promise<Result<boolean, IOError>> {
+    return ok(this.users.has(name));
+  }
+
+  async groupExists(name: string): Promise<Result<boolean, IOError>> {
+    return ok(this.groups.has(name));
+  }
+
+  async stat(
+    path: string,
+  ): Promise<Result<FileStat, NotFoundError | PermissionDeniedError | IOError>> {
+    const full = this.resolve(path);
+    const file = this.files.get(full);
+    if (!file) return err({ kind: "not_found", path });
+    return ok({
+      path,
+      ownership: { user: file.owner, group: file.group, mode: file.mode },
+    });
+  }
+
+  async chown(
+    path: string,
+    ownership: FileOwnership,
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
+    const full = this.resolve(path);
+    const file = this.files.get(full);
+    if (!file) return err({ kind: "not_found", path });
+    this.ops.push({ kind: "chown", path, ownership });
+    file.owner = ownership.user;
+    file.group = ownership.group;
+    return ok(undefined);
+  }
+
+  async chmod(
+    path: string,
+    mode: string,
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
+    const full = this.resolve(path);
+    const file = this.files.get(full);
+    if (!file) return err({ kind: "not_found", path });
+    this.ops.push({ kind: "chmod", path, mode });
+    file.mode = mode;
+    return ok(undefined);
+  }
+
+  async readFile(
+    path: string,
+  ): Promise<Result<string, NotFoundError | PermissionDeniedError | IOError>> {
+    const full = this.resolve(path);
+    const file = this.files.get(full);
+    if (!file) return err({ kind: "not_found", path });
+    return ok(file.content);
+  }
+
+  async hashFile(
+    path: string,
+  ): Promise<Result<string, NotFoundError | PermissionDeniedError | IOError>> {
+    const full = this.resolve(path);
+    const file = this.files.get(full);
+    if (!file) return err({ kind: "not_found", path });
+    const hash = new Bun.CryptoHasher("sha256");
+    hash.update(file.content);
+    return ok(hash.digest("hex"));
+  }
+}
