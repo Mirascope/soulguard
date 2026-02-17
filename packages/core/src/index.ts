@@ -33,6 +33,10 @@ export { getFileInfo } from "./system-ops.js";
 export { MockSystemOps } from "./system-ops-mock.js";
 export type { RecordedOp } from "./system-ops-mock.js";
 
+// Sync
+export { sync } from "./sync.js";
+export type { SyncError, SyncResult, SyncOptions } from "./sync.js";
+
 // Status
 export { status } from "./status.js";
 export type { FileStatus, StatusResult, StatusOptions } from "./status.js";
