@@ -5,10 +5,14 @@
  * socket API. Everything else builds against these.
  */
 
-import type { SoulguardConfigParsed } from "./schema.js";
+// ── Config ─────────────────────────────────────────────────────────────
 
-/** Re-export the Zod-inferred config type as the canonical one */
-export type SoulguardConfig = SoulguardConfigParsed;
+export type SoulguardConfig = {
+  /** Files protected as vault items (require owner approval to modify) */
+  vault: string[];
+  /** File patterns tracked as ledger items (agent writes freely, changes recorded) */
+  ledger: string[];
+};
 
 // ── Tiers ──────────────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 export type {
+  SoulguardConfig,
   VaultItem,
   LedgerItem,
-  SoulguardConfig,
   Proposal,
   ProposalStatus,
   ChangelogEntry,
@@ -16,4 +16,3 @@ export type {
 } from "./types.js";
 
 export { soulguardConfigSchema, parseConfig } from "./schema.js";
-export type { SoulguardConfigParsed } from "./schema.js";
