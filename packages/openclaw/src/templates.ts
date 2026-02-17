@@ -80,11 +80,12 @@ export const paranoidTemplate: Template = {
     ...CORE_SESSION,
     ...CORE_MEMORY,
     ...MEMORY_DIR,
+    ...SKILLS,
     ...OPENCLAW_CONFIG,
     ...CRON,
     ...EXTENSIONS,
   ],
-  ledger: [...SKILLS, ...SESSIONS],
+  ledger: [...SESSIONS],
   unprotected: [],
 };
 
