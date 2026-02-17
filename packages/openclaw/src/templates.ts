@@ -1,82 +1,109 @@
 /**
  * OpenClaw configuration templates for Soulguard.
  *
- * These define sensible defaults for OpenClaw's file conventions.
- * Core soulguard is framework-agnostic; templates live here.
+ * Every known path is explicitly placed in vault, ledger, or unprotected.
+ * Tests validate that all paths are accounted for in every template.
  */
 
 import type { SoulguardConfig } from "@soulguard/core";
 
-export type TemplateName = "default" | "paranoid" | "relaxed" | "custom";
+// ── Known path groups ──────────────────────────────────────────────────
+
+export const SOULGUARD_CONFIG = ["soulguard.json"] as const;
+export const CORE_IDENTITY = ["SOUL.md", "AGENTS.md", "IDENTITY.md", "USER.md"] as const;
+export const CORE_SESSION = ["TOOLS.md", "HEARTBEAT.md", "BOOTSTRAP.md"] as const;
+export const CORE_MEMORY = ["MEMORY.md"] as const;
+export const MEMORY_DIR = ["memory/**"] as const;
+export const SKILLS = ["skills/**"] as const;
+export const OPENCLAW_CONFIG = ["openclaw.json"] as const;
+export const CRON = ["cron/jobs.json"] as const;
+export const EXTENSIONS = ["extensions/**"] as const;
+export const SESSIONS = ["sessions/**"] as const;
+
+/** All known paths — every template must account for all of these */
+export const ALL_KNOWN_PATHS = [
+  ...SOULGUARD_CONFIG,
+  ...CORE_IDENTITY,
+  ...CORE_SESSION,
+  ...CORE_MEMORY,
+  ...MEMORY_DIR,
+  ...SKILLS,
+  ...OPENCLAW_CONFIG,
+  ...CRON,
+  ...EXTENSIONS,
+  ...SESSIONS,
+] as const;
+
+// ── Template type ──────────────────────────────────────────────────────
+
+export type TemplateName = "default" | "paranoid" | "relaxed";
 
 export type Template = {
   name: TemplateName;
   description: string;
-  config: SoulguardConfig;
+  vault: readonly string[];
+  ledger: readonly string[];
+  unprotected: readonly string[];
 };
 
-/** Core session files in vault, memory in ledger */
+/** Extract just the SoulguardConfig from a template */
+export function templateToConfig(template: Template): SoulguardConfig {
+  return {
+    vault: [...template.vault],
+    ledger: [...template.ledger],
+  };
+}
+
+// ── Templates ──────────────────────────────────────────────────────────
+
 export const defaultTemplate: Template = {
   name: "default",
-  description: "Core session files in vault, memory and skills in ledger",
-  config: {
-    vault: [
-      "SOUL.md",
-      "AGENTS.md",
-      "IDENTITY.md",
-      "USER.md",
-      "TOOLS.md",
-      "HEARTBEAT.md",
-      "BOOTSTRAP.md",
-      "soulguard.json",
-    ],
-    ledger: ["memory/**", "skills/**"],
-  },
+  description: "Core identity and config in vault, memory and skills tracked in ledger",
+  vault: [
+    ...SOULGUARD_CONFIG,
+    ...CORE_IDENTITY,
+    ...CORE_SESSION,
+    ...OPENCLAW_CONFIG,
+    ...CRON,
+    ...EXTENSIONS,
+  ],
+  ledger: [...CORE_MEMORY, ...MEMORY_DIR, ...SKILLS],
+  unprotected: [...SESSIONS],
 };
 
-/** Identity + memory in vault, skills in ledger */
 export const paranoidTemplate: Template = {
   name: "paranoid",
-  description: "Identity and memory files in vault, skills in ledger",
-  config: {
-    vault: [
-      "SOUL.md",
-      "AGENTS.md",
-      "IDENTITY.md",
-      "USER.md",
-      "TOOLS.md",
-      "HEARTBEAT.md",
-      "MEMORY.md",
-      "BOOTSTRAP.md",
-      "memory/**",
-      "soulguard.json",
-    ],
-    ledger: ["skills/**"],
-  },
+  description: "Everything possible in vault, only skills in ledger",
+  vault: [
+    ...SOULGUARD_CONFIG,
+    ...CORE_IDENTITY,
+    ...CORE_SESSION,
+    ...CORE_MEMORY,
+    ...MEMORY_DIR,
+    ...OPENCLAW_CONFIG,
+    ...CRON,
+    ...EXTENSIONS,
+  ],
+  ledger: [...SKILLS, ...SESSIONS],
+  unprotected: [],
 };
 
-/** Everything in ledger (tracked but not locked) */
 export const relaxedTemplate: Template = {
   name: "relaxed",
-  description: "All files tracked in ledger, nothing locked in vault",
-  config: {
-    vault: ["soulguard.json"],
-    ledger: [
-      "SOUL.md",
-      "AGENTS.md",
-      "IDENTITY.md",
-      "USER.md",
-      "TOOLS.md",
-      "HEARTBEAT.md",
-      "MEMORY.md",
-      "BOOTSTRAP.md",
-      "memory/**",
-      "skills/**",
-    ],
-  },
+  description: "Config locked, everything else tracked in ledger",
+  vault: [...SOULGUARD_CONFIG, ...OPENCLAW_CONFIG, ...CRON],
+  ledger: [
+    ...CORE_IDENTITY,
+    ...CORE_SESSION,
+    ...CORE_MEMORY,
+    ...MEMORY_DIR,
+    ...SKILLS,
+    ...EXTENSIONS,
+  ],
+  unprotected: [...SESSIONS],
 };
 
-export const templates: Record<Exclude<TemplateName, "custom">, Template> = {
+export const templates: Record<TemplateName, Template> = {
   default: defaultTemplate,
   paranoid: paranoidTemplate,
   relaxed: relaxedTemplate,
