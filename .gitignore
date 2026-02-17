@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store
+.env
+.secret
+bun.lockb
+.soulguard/.secret

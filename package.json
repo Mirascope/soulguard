@@ -1,15 +1,27 @@
 {
   "name": "soulguard",
-  "version": "0.0.0",
-  "description": "Identity protection for AI agents.",
+  "private": true,
+  "license": "MIT",
+  "author": "Mirascope <support@mirascope.com>",
+  "homepage": "https://soulguard.ai",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Mirascope/soulguard.git"
+    "url": "https://github.com/Mirascope/soulguard.git"
   },
-  "author": "Mirascope Team",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/Mirascope/soulguard/issues"
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "build": "bun run --filter '*' build",
+    "test": "bun run --filter '*' test",
+    "typecheck": "bun run --filter '*' typecheck",
+    "lint": "eslint packages/*/src",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
-  "homepage": "https://github.com/Mirascope/soulguard#readme"
+  "devDependencies": {
+    "@changesets/cli": "^2.27.0",
+    "@types/bun": "latest",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.7.0"
+  }
 }
