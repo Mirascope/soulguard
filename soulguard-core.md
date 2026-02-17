@@ -59,31 +59,35 @@ automatically.
 
 ### Types
 
+Example types (implementation may use multi-file
+proposals):
+
 ```typescript
 interface Proposal {
   id: string
   workspacePath: string
-  file: string
-  diff: string
+  files: string[]         // files included in this proposal
   createdAt: string       // ISO 8601
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'pending' | 'approved' | 'rejected' | 'withdrawn'
+  resolvedAt?: string
   metadata?: Record<string, unknown>
 }
 
 interface ChangelogEntry {
   ts: string              // ISO 8601
   tier: 'vault' | 'ledger'
-  file: string
-  action: string
-  proposal?: string
-  diff?: string
-  hash: string            // sha256 of file content
+  action: string          // proposed, approved, rejected, withdrawn, changed
+  proposal?: string       // proposal ID (for vault actions)
+  file?: string           // single file (for ledger actions)
+  files?: string[]        // multiple files (for vault proposals)
+  hash?: string           // sha256 of file content
 }
 
 interface WorkspaceStatus {
   vaultFiles: string[]
   ledgerFiles: string[]
-  pendingProposals: number
+  pendingProposal: Proposal | null  // at most one
+  needsSync: boolean      // config changed, need sudo sync
   daemonUptime: number
 }
 
@@ -127,13 +131,14 @@ approve(proposalId: string, password: string): Result
 // Reject a vault proposal
 reject(proposalId: string, password: string): Result
 
-// Revert a change (vault or ledger)
-revert(changeId: string, password: string): Result
+// Withdraw a proposal (agent can call without password)
+withdraw(proposalId: string): Result
 ```
 
 The daemon validates the password against the
-workspace's `.secret` hash before executing any
-mutation.
+workspace's `.secret` hash before executing
+`approve` and `reject`. The `withdraw` operation
+can be called by the agent without a password.
 
 ### Events
 
@@ -142,6 +147,7 @@ mutation.
 on('proposal:created', (proposal: Proposal) => void)
 on('proposal:approved', (proposal: Proposal) => void)
 on('proposal:rejected', (proposal: Proposal) => void)
+on('proposal:withdrawn', (proposal: Proposal) => void)
 on('ledger:changed', (entry: ChangelogEntry) => void)
 ```
 
@@ -161,44 +167,69 @@ On change:
 
 ## Proposal Storage
 
-Proposals live in `.soulguard/proposals/`:
+Proposals are stored in
+`.soulguard/proposals/{pending,approved,rejected,withdrawn}/`
+as immutable snapshots:
 
 ```json
 {
   "id": "p-20260216-001",
   "workspacePath": "/Users/aster/.openclaw/workspace",
   "file": "SOUL.md",
-  "stagingContent": "...",
-  "vaultContent": "...",
+  "proposedContent": "...",
+  "vaultHash": "sha256:abc123",
   "diff": "...",
   "createdAt": "2026-02-16T20:00:00Z",
   "status": "pending"
 }
 ```
 
+**Key properties:**
+
+- `proposedContent` — exact content to write on approval (snapshot at propose-time)
+- `vaultHash` — hash of vault file at propose-time (detects drift)
+- `diff` — immutable diff for human review
+
 On approval:
+
 1. Validate password
-2. Write staging content to vault file
-   (as soulguard user)
-3. Update proposal status to `approved`
-4. Sync staging copy to match vault
-5. Append to changelog
-6. Emit `proposal:approved` event
+2. Check that vault hash matches current file (detect concurrent changes)
+3. Write `proposedContent` to vault file (as soulguard user)
+4. Update proposal status to `approved`
+5. Move proposal to `approved/` directory
+6. Sync staging copy to match vault
+7. Append to changelog
+8. Emit `proposal:approved` event
+
+If vault changed since proposal (hash mismatch),
+reject the approval and require agent to re-propose.
 
 ## Config Management
 
 `soulguard.json` is itself a vault item (mode 444,
-soulguard-owned). Changes go through the
-propose/approve flow via `soulguard config`:
+readable by all, writable only by daemon). Changes
+go through the propose/approve flow via
+`soulguard config`:
 
 ```bash
-# Add file to vault (no password — promotion)
+# Add file to vault (creates proposal)
 soulguard config add-vault MEMORY.md
 
-# Move file from vault to ledger (requires password
-# — demotion)
-soulguard config demote MEMORY.md
+# Approve the config change
+soulguard approve p-003
+
+# Apply ownership changes (requires sudo)
+sudo soulguard sync
 ```
+
+**Two-phase workflow:**
+
+1. **Config change** — modifying `soulguard.json` via propose/approve (password-protected)
+2. **Ownership sync** — applying file ownership changes via `sudo soulguard sync` (requires root)
+
+The daemon cannot change file ownership (runs as
+`_soulguard`, not root), so ownership changes must
+be triggered explicitly by the user with sudo.
 
 The daemon validates the config is parseable JSON
 before applying any change.

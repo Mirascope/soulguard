@@ -69,6 +69,9 @@ discards it immediately.
 **`POST /proposals/:id/reject`** — reject a
 proposal (password required).
 
+**`POST /proposals/:id/withdraw`** — withdraw a
+proposal (no password required, agent can call).
+
 **`GET /history`** — browse changelog across
 workspaces.
 

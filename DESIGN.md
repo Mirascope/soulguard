@@ -218,7 +218,7 @@ soulguard's source code, dependencies, or any
 approval channel packages.
 
 ```bash
-# Install from npm (delivery mechanism)
+# Install from npm (delivery mechanism only)
 npm install -g soulguard
 
 # Initialize (copies to protected dir, creates
@@ -226,26 +226,66 @@ npm install -g soulguard
 sudo soulguard init <workspace-path>
 ```
 
-`sudo soulguard init`:
+The npm global install is just the delivery
+mechanism. The actual protected installation
+happens during `sudo soulguard init`, which:
+
 1. Creates `_soulguard` system user (macOS) or
    `soulguard` system user (Linux)
 2. Copies soulguard installation to
    `/opt/soulguard/` (soulguard-owned)
-3. Transfers vault file ownership
+3. Detects installed agent framework and prompts
+   for protection template if not specified
+4. Transfers vault file ownership based on template
    (e.g. `SOUL.md` → `_soulguard:staff 444`)
-4. Creates `staging/` with agent-owned working
+5. Creates `staging/` with agent-owned working
    copies of all vault files
-5. Creates `.soulguard/` directory with config
+6. Creates `.soulguard/` directory with config
    and history
-6. Prompts owner to set a password (argon2 hashed,
+7. Prompts owner to set a password (argon2 hashed,
    stored in `.soulguard/.secret`)
-7. Installs launchd (macOS) or systemd (Linux)
+8. Installs launchd (macOS) or systemd (Linux)
    service for the daemon
-8. Detects installed agent framework and runs
-   framework-specific setup if available
+9. Runs framework-specific setup if available
 
-After init, no sudo is needed again (except for
-`soulguard upgrade` and `soulguard reset-password`).
+After init, no sudo is needed for daily operations
+(except for `soulguard upgrade`, `soulguard sync`,
+and `soulguard reset-password`).
+
+### Protection Templates
+
+Templates provide pre-configured vault/ledger
+mappings for common agent frameworks. During init,
+soulguard detects the framework and prompts for
+a template:
+
+```bash
+sudo soulguard init ~/my-workspace
+
+OpenClaw detected. Choose a protection template:
+  1. Default (identity in vault, memory in ledger)
+  2. Paranoid (identity + memory in vault, skills in ledger)
+  3. Custom (manual configuration)
+
+Choice [1]: 1
+```
+
+Templates are stored in `@soulguard/core/templates/`:
+
+- `openclaw-default.json` — SOUL, AGENTS, IDENTITY, etc. in vault; memory/ and skills/ in ledger
+- `openclaw-paranoid.json` — everything in vault except skills/
+- `claude-code-default.json` — similar mappings for Claude Code
+- `empty.json` — no files protected (manual setup)
+
+You can also specify a template via flag:
+
+```bash
+sudo soulguard init --template openclaw-paranoid ~/my-workspace
+```
+
+Templates are just pre-filled `soulguard.json` files.
+After init, you can modify protection via
+`soulguard config` commands.
 
 ### Package Management
 
@@ -258,11 +298,15 @@ sudo soulguard upgrade
 
 # Update specific package
 sudo soulguard upgrade @soulguard/core
+
+# Apply config changes to filesystem (ownership/permissions)
+sudo soulguard sync
 ```
 
-All install/upgrade operations require sudo because
-they write to soulguard-owned directories. The
-agent cannot trigger them.
+All install/upgrade/sync operations require sudo
+because they write to soulguard-owned directories
+or modify file ownership. The agent cannot trigger
+them.
 
 ### Multi-Tenancy
 
@@ -315,8 +359,12 @@ workspaces from its registry.
     │                    #   committable, vault item)
     ├── .secret          # pw hash (_soulguard:600,
     │                    #   gitignored)
-    ├── proposals/       # pending proposals
-    │   └── <id>.json    #   (committable)
+    ├── proposals/       # proposal storage
+    │   ├── pending/     #   pending proposals
+    │   ├── approved/    #   approved proposals
+    │   ├── rejected/    #   rejected proposals
+    │   └── withdrawn/   #   withdrawn proposals
+    │                    #   (all committable)
     └── history/
         └── changelog.jsonl  # audit trail
                              #   (committable)
@@ -330,15 +378,14 @@ include in your workspace git repo.
 `soulguard init` adds `.soulguard/.secret` to
 `.gitignore`.
 
-**`soulguard.json` is itself a vault item** — the
-agent cannot modify it. Config changes go through
-`soulguard config` which uses the propose/approve
-flow (demotions require password; promotions are
-free).
+**`soulguard.json` is itself a vault item** (mode
+444, readable by all, writable only by daemon).
+Config changes go through `soulguard config` which
+uses the propose/approve flow.
 
 ## Workflows
 
-### Vault: Propose → Approve → Write
+### Vault: Propose → Approve → Sync
 
 ```mermaid
 sequenceDiagram
@@ -350,13 +397,34 @@ sequenceDiagram
 
     A->>S: Edit staging/SOUL.md
     A->>D: soulguard propose
-    D->>D: Diff staging vs vault
+    D->>D: Snapshot staging content
+    D->>D: Create immutable proposal
     D->>H: Notification (diff)
     H->>D: soulguard approve (password)
-    D->>D: Validate password
-    D->>V: Write approved change
+    D->>D: Validate password & vault hash
+    D->>V: Write exact proposed content
     D->>S: Sync staging to match
+    D->>D: Move proposal to approved/
     D->>D: Append to changelog
+```
+
+**Key properties:**
+
+- Proposals are immutable snapshots (not pointers to staging)
+- What human reviews is exactly what gets written
+- At most one pending proposal per workspace
+- Re-proposing auto-withdraws the existing proposal
+- Agent can also explicitly withdraw proposals
+- Approval is atomic for multi-file proposals
+
+**If agent wants to revise a pending proposal:**
+
+```bash
+# Edit staging files again
+vim staging/SOUL.md
+
+# Re-propose (auto-withdraws pending proposal)
+soulguard propose staging/SOUL.md
 ```
 
 ### Ledger: Write → Record → Review
@@ -371,9 +439,64 @@ sequenceDiagram
     A->>L: Write memory/2026-02-16.md
     D->>D: Detect change (watcher)
     D->>D: Append to changelog
-    H->>D: soulguard review
+    H->>D: soulguard log --ledger
     D->>H: Show recent changes
-    H->>D: soulguard revert (if needed)
+    Note over H,L: Manual revert (edit file) if needed
+```
+
+Ledger changes are tracked but not blocked. The
+human reviews async and can manually revert by
+editing the file if needed.
+
+### Config Modification: Two-Phase Workflow
+
+Modifying `soulguard.json` (adding/removing
+protected files) is a two-phase process:
+
+#### Phase 1: Config change (via proposal)
+
+```bash
+# Agent or owner proposes adding a file to vault
+soulguard config add-vault MEMORY.md
+
+# This creates a proposal to modify soulguard.json
+# Human reviews and approves
+soulguard approve p-003
+# ✅ Proposal approved. Config updated.
+# ⚠️  Run 'sudo soulguard sync' to apply ownership changes.
+```
+
+#### Phase 2: Apply ownership changes (requires sudo)
+
+```bash
+# Owner applies the config change
+sudo soulguard sync
+
+# Daemon reads soulguard.json and:
+# - Transfers MEMORY.md ownership to _soulguard
+# - Sets permissions to 444
+# - Creates staging/MEMORY.md
+# ✅ Sync complete. MEMORY.md is now vault-protected.
+```
+
+#### Why two-phase
+
+- **Config changes** (modifying `soulguard.json`) go through the password-protected propose/approve flow
+- **Ownership changes** (running `chown`) require root privileges
+- The daemon runs as `_soulguard` (not root) and cannot change file ownership
+- This keeps the daemon unprivileged while maintaining clear security boundaries
+
+#### Workspace status shows sync state
+
+```bash
+soulguard status
+
+Workspace: /Users/aster/.openclaw/workspace
+Vault files: 8 (1 needs sync ⚠️)
+Ledger files: 142
+Pending proposals: 0
+
+Run 'sudo soulguard sync' to apply config changes.
 ```
 
 ## Core API (Socket Interface)
@@ -397,7 +520,7 @@ listWorkspaces(): Workspace[]
 ```typescript
 approve(proposalId, password): Result
 reject(proposalId, password): Result
-revert(changeId, password): Result
+withdraw(proposalId): Result  // agent can withdraw without password
 ```
 
 ### Events (subscription)
@@ -406,6 +529,7 @@ revert(changeId, password): Result
 on('proposal:created', callback)
 on('proposal:approved', callback)
 on('proposal:rejected', callback)
+on('proposal:withdrawn', callback)
 on('ledger:changed', callback)
 ```
 
@@ -441,19 +565,28 @@ to the daemon — they never store or log it.
 `.soulguard/history/changelog.jsonl` is the
 append-only audit trail:
 
-```json
-{"ts":"2026-02-16T20:00:00Z","tier":"vault",
- "file":"SOUL.md","action":"approved",
- "proposal":"#7","diff":"...","hash":"sha256:..."}
-```
-```json
-{"ts":"2026-02-16T20:05:00Z","tier":"ledger",
- "file":"memory/2026-02-16.md",
- "action":"modified","hash":"sha256:..."}
+```jsonl
+{"ts":"2026-02-16T20:00:00Z","tier":"vault","action":"proposed","proposal":"p-001","files":["SOUL.md"]}
+{"ts":"2026-02-16T20:10:00Z","tier":"vault","action":"approved","proposal":"p-001","files":["SOUL.md"],"resultHash":"sha256:abc123"}
+{"ts":"2026-02-16T20:15:00Z","tier":"ledger","action":"changed","file":"memory/2026-02-16.md","hash":"sha256:def456"}
+{"ts":"2026-02-16T20:20:00Z","tier":"vault","action":"proposed","proposal":"p-002","files":["AGENTS.md","TOOLS.md"]}
+{"ts":"2026-02-16T20:21:00Z","tier":"vault","action":"withdrawn","proposal":"p-002","reason":"agent re-proposed"}
 ```
 
+**Audit log structure:**
+
+- **Hash-based:** Records proposal IDs and content hashes, not full diffs
+- **Proposal files:** Full content and diffs stored in `.soulguard/proposals/`
+- **Ledger tracking:** Lightweight (timestamp + hash only)
+- **Vault tracking:** Records proposal lifecycle (proposed, approved, rejected, withdrawn)
+
+The audit log provides the timeline. Proposal files
+provide the content. Together they enable complete
+forensics.
+
 Readable by the agent and human. Written only
-by the daemon. `soulguard log` formats it.
+by the daemon. `soulguard log` formats it and can
+optionally fetch diffs from proposal files.
 
 ## Process Resilience
 
@@ -465,29 +598,51 @@ disable it without root access.
 ## CLI Reference
 
 **No auth required (agent can run):**
-- `soulguard propose` — create a vault proposal
-- `soulguard diff` — preview pending changes
-- `soulguard status` — pending proposals + state
-- `soulguard log` — formatted change history
+
+- `soulguard propose [files...]` — create/update vault proposal
+- `soulguard withdraw [id]` — withdraw pending proposal
+- `soulguard diff [id]` — preview pending changes
+- `soulguard status` — workspace state and pending proposals
+- `soulguard log [--ledger] [--vault]` — formatted change history
 
 **Password required (owner only):**
+
 - `soulguard approve <id>` — approve a proposal
 - `soulguard reject <id>` — reject a proposal
-- `soulguard review` — browse ledger changes
-- `soulguard config` — modify soulguard.json
-  (demotions require password)
+- `soulguard config add-vault <file>` — add file to vault (via proposal)
+- `soulguard config add-ledger <file>` — add file to ledger (via proposal)
+- `soulguard config demote <file>` — move from vault to ledger (via proposal)
 
 **Sudo required:**
-- `soulguard init <workspace>` — one-time setup
-- `soulguard protect <file> --tier vault|ledger`
-  — add file post-setup
-- `soulguard upgrade` — update packages
+
+- `soulguard init <workspace> [--template <name>]` — one-time setup
+- `soulguard sync` — apply config changes to filesystem
+- `soulguard upgrade [package]` — update packages
 - `soulguard install <package>` — add package
 - `soulguard reset-password` — recovery
 
-## Future (v2+)
+## Roadmap
 
-### Guardian LLM Review
+### v1.1
+
+#### OS Keychain Integration
+
+Store passwords in system keychain instead of
+`.secret` file:
+
+- macOS Keychain with Touch ID support
+- Linux secret-service (GNOME Keyring, KWallet)
+- Falls back to `.secret` if unavailable
+
+Benefits:
+
+- `soulguard approve` → Touch ID → instant approval
+- No password hash on disk
+- Hardware-backed secrets (Secure Enclave on macOS)
+
+### v2+
+
+#### Guardian LLM Review
 
 A second model — deliberately different from the
 agent's — reviews vault proposals and ledger diffs.
@@ -496,34 +651,36 @@ injected instructions. Model diversity means a
 prompt injection crafted for one model is less
 likely to fool the reviewer.
 
-### Password Leak Scanning
+Acts as a pre-approval gate: daemon runs guardian
+review before showing proposal to human. If flagged,
+human sees both the diff and the guardian's analysis.
 
-During approval, the daemon briefly holds the
-password in memory to scan agent-accessible
-locations. If found, alerts the owner immediately.
-
-### Shields Up Mode
+#### Shields Up Mode
 
 When the guardian detects an active attack:
-1. Revert all ledger changes since the suspicious
-   entry
-2. Temporarily promote all ledger files to vault
+
+1. Temporarily promote all ledger files to vault
    (full lockdown — agent can read, can't write
    anything)
-3. Alert the owner immediately
-4. Agent is frozen until owner reviews and
+2. Alert the owner immediately
+3. Agent is frozen until owner reviews and
    manually stands down
 
 Automated incident response — the attack is
 contained before the owner even sees the alert.
 
-### Additional Features
+#### Multiple Concurrent Proposals
 
-- `soulguard revert` — undo specific changes
-- `soulguard rollback` — restore vault file to
-  previous version
-- OS keychain integration (macOS Keychain, Linux
-  secret-service) instead of `.secret` file
+Support multiple pending proposals (like GitHub PRs):
+
+- Proposal branches/dependencies
+- Commenting on proposals
+- CI checks on proposals (guardian review, linting)
+- Potential GitHub integration (proposals as PRs)
+
+#### Additional Features
+
+- Password leak scanning during approval
 - Mirascope cloud relay (soulguard.ai)
 - Mobile push notifications
 - Automated ledger anomaly detection

@@ -35,6 +35,7 @@ sudo soulguard init ~/my-workspace
 ```
 
 Manual install:
+
 ```bash
 sudo soulguard install @soulguard/openclaw
 ```
@@ -46,7 +47,7 @@ sudo soulguard install @soulguard/openclaw
 Hooks into OpenClaw's `before_tool_call` for
 `write` and `edit` operations:
 
-```
+```text
 Agent: edit SOUL.md (add values section)
 
 → Plugin intercepts before write
@@ -66,7 +67,7 @@ OpenClaw stores cron jobs in
 system protects this file (444). The plugin also
 intercepts cron tool calls:
 
-```
+```text
 Agent: cron add { schedule: "every 1h", ... }
 
 → Plugin intercepts before execution
@@ -94,9 +95,10 @@ clear error instead of raw EPERM.
 
 Exposes soulguard as OpenClaw agent tools:
 
-- **`soulguard.propose`** — submit vault proposal
+- **`soulguard.propose`** — create or update vault proposal
+- **`soulguard.withdraw`** — withdraw pending proposal
 - **`soulguard.diff`** — preview pending changes
-- **`soulguard.status`** — check proposal state
+- **`soulguard.status`** — check workspace state and proposals
 
 ### 5. AGENTS.md Injection
 
@@ -125,12 +127,12 @@ every session.
 The plugin extends `soulguard init` to protect
 OpenClaw-specific paths:
 
-| Path | What | Protection |
-|------|------|-----------|
-| `~/.openclaw/openclaw.json` | Gateway config | Vault (444) |
-| `~/.openclaw/extensions/` | Global plugins | Protected (444) |
-| `~/.openclaw/cron/jobs.json` | Scheduled jobs | Protected (444) |
-| `<workspace>/.openclaw/extensions/` | Workspace plugins | Protected (444) |
+| Path                                  | What              | Protection      |
+|---------------------------------------|-------------------|-----------------|
+| `~/.openclaw/openclaw.json`           | Gateway config    | Vault (444)     |
+| `~/.openclaw/extensions/`             | Global plugins    | Protected (444) |
+| `~/.openclaw/cron/jobs.json`          | Scheduled jobs    | Protected (444) |
+| `<workspace>/.openclaw/extensions/`   | Workspace plugins | Protected (444) |
 
 ### Why Each Path Matters
 
@@ -153,18 +155,18 @@ job and restarts the gateway.
 OpenClaw injects these files into the agent's
 context window every session:
 
-| File | Auto-injected | Default tier |
-|------|:------------:|:------------:|
-| SOUL.md | ✅ | Vault |
-| AGENTS.md | ✅ | Vault |
-| IDENTITY.md | ✅ | Vault |
-| USER.md | ✅ | Vault |
-| TOOLS.md | ✅ | Vault |
-| HEARTBEAT.md | ✅ | Vault |
-| MEMORY.md | ✅ | Vault |
-| BOOT.md | ✅ | Vault |
-| memory/*.md | ❌ on demand | Ledger |
-| skills/ | ❌ on demand | Ledger |
+| File         | Auto-injected | Default tier |
+|--------------|:-------------:|:------------:|
+| SOUL.md      | ✅            | Vault        |
+| AGENTS.md    | ✅            | Vault        |
+| IDENTITY.md  | ✅            | Vault        |
+| USER.md      | ✅            | Vault        |
+| TOOLS.md     | ✅            | Vault        |
+| HEARTBEAT.md | ✅            | Vault        |
+| MEMORY.md    | ✅            | Vault        |
+| BOOT.md      | ✅            | Vault        |
+| memory/*.md  | ❌ on demand  | Ledger       |
+| skills/      | ❌ on demand  | Ledger       |
 
 Everything auto-injected → vault.
 Everything on-demand → ledger.
@@ -199,7 +201,9 @@ errors are clearer for the agent).
 
 The plugin uses OpenClaw's existing extension
 points:
+
 - `before_tool_call` hooks for interception
 - Plugin agent tools API
 - Plugin config schema
 - Standard discovery and installation
+
