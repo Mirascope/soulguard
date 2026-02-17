@@ -91,14 +91,16 @@ export const paranoidTemplate: Template = {
 
 export const relaxedTemplate: Template = {
   name: "relaxed",
-  description: "Config locked, everything else tracked in ledger",
-  vault: [...SOULGUARD_CONFIG, ...OPENCLAW_CONFIG, ...CRON],
+  description: "Only soulguard config locked, everything else tracked — good for initial setup",
+  vault: [...SOULGUARD_CONFIG],
   ledger: [
     ...CORE_IDENTITY,
     ...CORE_SESSION,
     ...CORE_MEMORY,
     ...MEMORY_DIR,
     ...SKILLS,
+    ...OPENCLAW_CONFIG,
+    ...CRON,
     ...EXTENSIONS,
   ],
   unprotected: [...SESSIONS],
