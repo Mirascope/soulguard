@@ -53,36 +53,36 @@ Example types (implementation may use multi-file proposals):
 
 ```typescript
 interface Proposal {
-  id: string
-  workspacePath: string
-  files: string[]         // files included in this proposal
-  createdAt: string       // ISO 8601
-  status: 'pending' | 'approved' | 'rejected' | 'withdrawn'
-  resolvedAt?: string
-  metadata?: Record<string, unknown>
+  id: string;
+  workspacePath: string;
+  files: string[]; // files included in this proposal
+  createdAt: string; // ISO 8601
+  status: "pending" | "approved" | "rejected" | "withdrawn";
+  resolvedAt?: string;
+  metadata?: Record<string, unknown>;
 }
 
 interface ChangelogEntry {
-  ts: string              // ISO 8601
-  tier: 'vault' | 'ledger'
-  action: string          // proposed, approved, rejected, withdrawn, changed
-  proposal?: string       // proposal ID (for vault actions)
-  file?: string           // single file (for ledger actions)
-  files?: string[]        // multiple files (for vault proposals)
-  hash?: string           // sha256 of file content
+  ts: string; // ISO 8601
+  tier: "vault" | "ledger";
+  action: string; // proposed, approved, rejected, withdrawn, changed
+  proposal?: string; // proposal ID (for vault actions)
+  file?: string; // single file (for ledger actions)
+  files?: string[]; // multiple files (for vault proposals)
+  hash?: string; // sha256 of file content
 }
 
 interface WorkspaceStatus {
-  vaultFiles: string[]
-  ledgerFiles: string[]
-  pendingProposal: Proposal | null  // at most one
-  needsSync: boolean      // config changed, need sudo sync
-  daemonUptime: number
+  vaultFiles: string[];
+  ledgerFiles: string[];
+  pendingProposal: Proposal | null; // at most one
+  needsSync: boolean; // config changed, need sudo sync
+  daemonUptime: number;
 }
 
 interface Result {
-  ok: boolean
-  error?: string
+  ok: boolean;
+  error?: string;
 }
 ```
 

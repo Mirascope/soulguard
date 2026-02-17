@@ -1,8 +1,8 @@
 # Soulguard
 
-*Identity protection for AI agents.*
+_Identity protection for AI agents._
 
-Soulguard allows configuring fine-grained identity protections around AI agents (e.g. OpenClaw) - even under prompt injection.  It uses OS-level file permissions as the hard security floor, with optional framework plugins for better UX.
+Soulguard allows configuring fine-grained identity protections around AI agents (e.g. OpenClaw) - even under prompt injection. It uses OS-level file permissions as the hard security floor, with optional framework plugins for better UX.
 
 ## The Problem
 
@@ -43,11 +43,11 @@ soulguard approve <proposal-id>
 
 ## Packages
 
-| Package | Description |
-|---------|------------|
-| [@soulguard/core](packages/core/) | Daemon, vault, ledger, proposals, approvals, CLI |
-| [@soulguard/web](packages/web/) | Web-based approval server |
-| [@soulguard/openclaw](packages/openclaw/) | OpenClaw framework plugin |
+| Package                                   | Description                                      |
+| ----------------------------------------- | ------------------------------------------------ |
+| [@soulguard/core](packages/core/)         | Daemon, vault, ledger, proposals, approvals, CLI |
+| [@soulguard/web](packages/web/)           | Web-based approval server                        |
+| [@soulguard/openclaw](packages/openclaw/) | OpenClaw framework plugin                        |
 
 ## How It Works
 
@@ -59,7 +59,7 @@ graph TD
     D -->|notifies| H[Human Owner]
     H -->|approves with password| D
     D -->|writes to| V[Vault Files]
-    
+
     style V fill:#f96,stroke:#333
     style L fill:#9cf,stroke:#333
     style D fill:#ff9,stroke:#333
@@ -84,4 +84,4 @@ MIT
 
 ---
 
-*Built by [Mirascope](https://mirascope.com).
+\*Built by [Mirascope](https://mirascope.com).

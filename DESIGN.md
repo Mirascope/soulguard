@@ -1,6 +1,6 @@
 # Soulguard — Design Document
 
-*Architecture overview, threat model, and design decisions for the soulguard identity protection system.*
+_Architecture overview, threat model, and design decisions for the soulguard identity protection system._
 
 For a quick introduction, see [README.md](README.md). For package-specific details, see the README in each package directory under `packages/`.
 
@@ -17,7 +17,7 @@ Soulguard provides two protection tiers:
 
 ## Threat Model: Alohomora
 
-We design against a strong attacker. `$ALOHOMORA` is a stand-in for a zero-day prompt injection that fully compromises the agent's session. The delivery mechanism is unknown and unknowable — we design against the *outcome*, not the *method*.
+We design against a strong attacker. `$ALOHOMORA` is a stand-in for a zero-day prompt injection that fully compromises the agent's session. The delivery mechanism is unknown and unknowable — we design against the _outcome_, not the _method_.
 
 The payload after `$ALOHOMORA` instructs the compromised agent to do everything it can to persist control:
 
@@ -38,16 +38,16 @@ This shows the full attack surface a sophisticated injector targets: identity fi
 
 Here's what happens with soulguard installed:
 
-| Attack | Result |
-|--------|--------|
-| 1. Rewrite SOUL.md and AGENTS.md | **Permission denied** (vault, 444) |
-| 2. Update every memory file | ✅ Writes succeed — but **ledger records everything**, owner sees in review |
-| 3. Update HEARTBEAT.md | **Permission denied** (vault, 444) |
-| 4. Create cron job to recover instructions | **Permission denied** (jobs file protected, 444) |
-| 5. Install malicious plugin | **Permission denied** (config is vaulted, 444) |
-| 6. Download extension to extensions dir | **Permission denied** (dir protected, 444) |
-| 7. Edit framework config | **Permission denied** (config is vaulted, 444) |
-| 8. Read system state to find workarounds | Password hash unreadable (mode 600); no sudo; daemon auto-restarts if killed |
+| Attack                                     | Result                                                                       |
+| ------------------------------------------ | ---------------------------------------------------------------------------- |
+| 1. Rewrite SOUL.md and AGENTS.md           | **Permission denied** (vault, 444)                                           |
+| 2. Update every memory file                | ✅ Writes succeed — but **ledger records everything**, owner sees in review  |
+| 3. Update HEARTBEAT.md                     | **Permission denied** (vault, 444)                                           |
+| 4. Create cron job to recover instructions | **Permission denied** (jobs file protected, 444)                             |
+| 5. Install malicious plugin                | **Permission denied** (config is vaulted, 444)                               |
+| 6. Download extension to extensions dir    | **Permission denied** (dir protected, 444)                                   |
+| 7. Edit framework config                   | **Permission denied** (config is vaulted, 444)                               |
+| 8. Read system state to find workarounds   | Password hash unreadable (mode 600); no sudo; daemon auto-restarts if killed |
 
 The prompt injection may succeed, but the damage is contained. The agent cannot modify its own core instructions, its plugins, its extensions, or its configuration. Soulguard provides security guarantees where the LLM cannot.
 
@@ -74,7 +74,7 @@ The prompt injection may succeed, but the damage is contained. The agent cannot 
 
 **Vault 🔒 — Locked. Requires owner approval.**
 
-Vault files are owned by the soulguard system user with mode 444 (read-only for everyone). The agent can read them but cannot write to them — OS file permissions enforce this. 
+Vault files are owned by the soulguard system user with mode 444 (read-only for everyone). The agent can read them but cannot write to them — OS file permissions enforce this.
 
 To modify a vault file, the agent edits a staging copy and proposes the change. The owner reviews the diff and approves with a password. Only then does the daemon write the change.
 
@@ -96,13 +96,13 @@ graph TB
         C[Framework Config<br/>444, soulguard-owned]
         J[Job Store<br/>444, soulguard-owned]
     end
-    
+
     subgraph "Layer 2: Framework Plugin (UX)"
         FW[Write Interception<br/>→ redirect to staging]
         FC[Cron Gating<br/>→ require approval]
         FE[Helpful Errors<br/>→ guide to workflow]
     end
-    
+
     A[Agent] -->|writes to vault| V
     V -->|EPERM| A
     A -.->|with plugin| FW
@@ -124,31 +124,31 @@ graph LR
         S[staging/]
         L[Ledger Files]
     end
-    
+
     subgraph "Soulguard Space"
         D[Daemon<br/>user: _soulguard]
         VF[Vault Files]
         SG[.soulguard/]
         I[/opt/soulguard/]
     end
-    
+
     subgraph "Approval Channels"
         CLI[CLI]
         WEB[Web Server]
         DC[Discord Bot]
     end
-    
+
     A -->|propose| D
     A -->|edit| S
     A -->|write| L
     D -->|record| SG
     D -->|write on approve| VF
     D -->|watch| L
-    
+
     CLI -->|socket API| D
     WEB -->|socket API| D
     DC -->|socket API| D
-    
+
     H[Human Owner] -->|password| CLI
     H -->|password| WEB
     H -->|reaction| DC
@@ -431,11 +431,11 @@ withdraw(proposalId): Result  // agent can withdraw without password
 ### Events (subscription)
 
 ```typescript
-on('proposal:created', callback)
-on('proposal:approved', callback)
-on('proposal:rejected', callback)
-on('proposal:withdrawn', callback)
-on('ledger:changed', callback)
+on("proposal:created", callback);
+on("proposal:approved", callback);
+on("proposal:rejected", callback);
+on("proposal:withdrawn", callback);
+on("ledger:changed", callback);
 ```
 
 All approval channels — CLI, web server, Discord bot — are different UIs over this same API. The daemon is the only process that validates passwords and writes to vault files.
@@ -447,7 +447,7 @@ separates "propose" from "approve."
 
 - **Stored as:** argon2 hash in `.soulguard/.secret` (mode 600, soulguard-owned — agent cannot read)
 - **Entered via:** interactive stdin (CLI) or web form — never as a CLI argument, never in env vars, never in shell history
-- **Not committed:** `.secret` is gitignored.  A weak password could be cracked if the hash
+- **Not committed:** `.secret` is gitignored. A weak password could be cracked if the hash
   is exposed.
 - **Recovery:** `sudo soulguard reset-password`
   (proves machine ownership)
@@ -552,7 +552,6 @@ When the guardian detects an active attack:
 2. Alert the owner immediately
 3. Agent remains active (no downtime) but memory-frozen until owner reviews and manually stands down
 
-
 #### Multiple Concurrent Proposals
 
 Support multiple pending proposals (like GitHub PRs):
@@ -599,7 +598,7 @@ for high-security deployments.
 
 ---
 
-*Designed by: Dandelion, Aster ⭐, Daisy 🌼*
-*For: [Mirascope](https://mirascope.com)*
-*Status: Design phase*
-*Date: 2026-02-16*
+_Designed by: Dandelion, Aster ⭐, Daisy 🌼_
+_For: [Mirascope](https://mirascope.com)_
+_Status: Design phase_
+_Date: 2026-02-16_
