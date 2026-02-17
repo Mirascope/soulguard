@@ -6,3 +6,4 @@ dist/
 .secret
 bun.lockb
 .soulguard/.secret
+.stash/
