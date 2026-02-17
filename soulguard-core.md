@@ -1,9 +1,6 @@
 # @soulguard/core
 
-The soulguard daemon and CLI — vault enforcement,
-ledger tracking, proposal management, the socket
-API that approval channels connect to, and the
-command-line interface.
+The soulguard daemon and CLI — vault enforcement, ledger tracking, proposal management, the socket API that approval channels connect to, and the command-line interface.
 
 ## What Core Does
 
@@ -18,15 +15,12 @@ command-line interface.
 
 ## Daemon
 
-The daemon runs as the `_soulguard` (macOS) or
-`soulguard` (Linux) system user. It's the only
-process that can:
+The daemon runs as the `_soulguard` (macOS) or `soulguard` (Linux) system user. It's the only process that can:
 - Write to vault files
 - Read the password hash
 - Modify soulguard.json
 
-It communicates with the outside world exclusively
-through its socket API.
+It communicates with the outside world exclusively through its socket API.
 
 ### Socket Location
 
@@ -34,11 +28,7 @@ through its socket API.
 /opt/soulguard/soulguard.sock
 ```
 
-Permissions: the socket is readable/writable by
-the soulguard group. Approval channel processes
-must run as users in this group. The agent user
-has limited access (propose, diff, status, log —
-no approve/reject/revert without password).
+Permissions: the socket is readable/writable by the soulguard group. Approval channel processes must run as users in this group. The agent user has limited access (propose, diff, status, log — no approve/reject/revert without password).
 
 ### Starting the Daemon
 
@@ -52,15 +42,13 @@ sudo launchctl load /Library/LaunchDaemons/ai.soulguard.daemon.plist
 sudo systemctl start soulguard
 ```
 
-`soulguard init` installs the service
-automatically.
+`soulguard init` installs the service automatically.
 
 ## Socket API
 
 ### Types
 
-Example types (implementation may use multi-file
-proposals):
+Example types (implementation may use multi-file proposals):
 
 ```typescript
 interface Proposal {
@@ -135,10 +123,7 @@ reject(proposalId: string, password: string): Result
 withdraw(proposalId: string): Result
 ```
 
-The daemon validates the password against the
-workspace's `.secret` hash before executing
-`approve` and `reject`. The `withdraw` operation
-can be called by the agent without a password.
+The daemon validates the password against the workspace's `.secret` hash before executing `approve` and `reject`. The `withdraw` operation can be called by the agent without a password.
 
 ### Events
 
@@ -151,14 +136,11 @@ on('proposal:withdrawn', (proposal: Proposal) => void)
 on('ledger:changed', (entry: ChangelogEntry) => void)
 ```
 
-Approval channels subscribe to events over the
-socket connection (e.g. WebSocket upgrade or
-streaming JSON over the Unix socket).
+Approval channels subscribe to events over the socket connection (e.g. WebSocket upgrade or streaming JSON over the Unix socket).
 
 ## File Watching (Ledger)
 
-The daemon uses `chokidar` to watch ledger files.
-On change:
+The daemon uses `chokidar` to watch ledger files. On change:
 1. Compute sha256 of new content
 2. Generate diff against previous version
 3. Append entry to `changelog.jsonl`
@@ -167,9 +149,7 @@ On change:
 
 ## Proposal Storage
 
-Proposals are stored in
-`.soulguard/proposals/{pending,approved,rejected,withdrawn}/`
-as immutable snapshots:
+Proposals are stored in `.soulguard/proposals/{pending,approved,rejected,withdrawn}/` as immutable snapshots:
 
 ```json
 {
@@ -201,15 +181,11 @@ On approval:
 7. Append to changelog
 8. Emit `proposal:approved` event
 
-If vault changed since proposal (hash mismatch),
-reject the approval and require agent to re-propose.
+If vault changed since proposal (hash mismatch), reject the approval and require agent to re-propose.
 
 ## Config Management
 
-`soulguard.json` is itself a vault item (mode 444,
-readable by all, writable only by daemon). Changes
-go through the propose/approve flow via
-`soulguard config`:
+`soulguard.json` is itself a vault item (mode 444, readable by all, writable only by daemon). Changes go through the propose/approve flow via `soulguard config`:
 
 ```bash
 # Add file to vault (creates proposal)
@@ -227,12 +203,9 @@ sudo soulguard sync
 1. **Config change** — modifying `soulguard.json` via propose/approve (password-protected)
 2. **Ownership sync** — applying file ownership changes via `sudo soulguard sync` (requires root)
 
-The daemon cannot change file ownership (runs as
-`_soulguard`, not root), so ownership changes must
-be triggered explicitly by the user with sudo.
+The daemon cannot change file ownership (runs as `_soulguard`, not root), so ownership changes must be triggered explicitly by the user with sudo.
 
-The daemon validates the config is parseable JSON
-before applying any change.
+The daemon validates the config is parseable JSON before applying any change.
 
 ## Dependencies
 
@@ -240,11 +213,8 @@ before applying any change.
 - `chokidar` — file system watching for ledger
 - TypeScript, Node.js
 
-No HTTP server — that's `@soulguard/web`.
-Core is the daemon, socket API, and CLI.
+No HTTP server — that's `@soulguard/web`. Core is the daemon, socket API, and CLI.
 
 ## CLI
 
-The CLI is a thin client over the socket API.
-See the CLI reference in [DESIGN.md](../../DESIGN.md#cli-reference)
-for the full command list.
+The CLI is a thin client over the socket API. See the CLI reference in [DESIGN.md](../../DESIGN.md#cli-reference) for the full command list.
