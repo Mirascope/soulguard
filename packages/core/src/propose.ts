@@ -108,12 +108,28 @@ export async function propose(
     });
   }
 
-  // Protect proposal.json — agent must not be able to modify hashes
-  await ops.chown(".soulguard/proposal.json", {
+  // Protect proposal.json — agent must not be able to modify hashes.
+  // If protection fails, delete the unprotected proposal rather than
+  // leaving a tamper-vulnerable file.
+  const chownResult = await ops.chown(".soulguard/proposal.json", {
     user: IDENTITY.user,
     group: IDENTITY.group,
   });
-  await ops.chmod(".soulguard/proposal.json", "444");
+  if (!chownResult.ok) {
+    await ops.deleteFile(".soulguard/proposal.json");
+    return err({
+      kind: "write_failed",
+      message: `Failed to protect proposal (chown): ${chownResult.error.kind}`,
+    });
+  }
+  const chmodResult = await ops.chmod(".soulguard/proposal.json", "444");
+  if (!chmodResult.ok) {
+    await ops.deleteFile(".soulguard/proposal.json");
+    return err({
+      kind: "write_failed",
+      message: `Failed to protect proposal (chmod): ${chmodResult.error.kind}`,
+    });
+  }
 
   return ok({ proposal, changedCount: files.length });
 }
