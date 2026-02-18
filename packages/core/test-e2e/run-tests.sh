@@ -47,6 +47,9 @@ for case_dir in "$CASES_DIR"/*/; do
 
   if [ ! -f "$expected_file" ]; then
     echo "FAIL: $test_name (no expected.txt — run with --update)"
+    echo "--- actual output ---"
+    echo "$actual"
+    echo "---"
     FAIL=$((FAIL + 1))
     continue
   fi

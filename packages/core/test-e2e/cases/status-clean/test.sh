@@ -5,5 +5,5 @@ echo '# My Soul' > SOUL.md
 # Protect files (needs root for chown)
 sudo soulguard sync .
 
-# Now check status — should be all clean
-sudo soulguard status .
+# Status doesn't need sudo — it's read-only
+soulguard status .

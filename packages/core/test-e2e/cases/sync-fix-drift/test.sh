@@ -2,8 +2,8 @@
 echo '{"vault": ["SOUL.md"], "ledger": []}' > soulguard.json
 echo '# My Soul' > SOUL.md
 
-# Sync should fix the drift
+# Sync needs sudo for chown
 sudo soulguard sync .
 
-# Verify status is clean after sync
-sudo soulguard status .
+# Verify status is clean after sync (no sudo needed)
+soulguard status .
