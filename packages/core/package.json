@@ -15,7 +15,8 @@
   },
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target node",
-    "test": "bun test",
+    "test": "bun test src/",
+    "test:integration": "docker build -f test-integration/Dockerfile -t soulguard-test ../.. && docker run --rm soulguard-test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
