@@ -155,6 +155,7 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
               const output = execFileSync("sudo", args, {
                 encoding: "utf-8",
                 env: { ...process.env, NO_COLOR: "1" },
+                timeout: 30_000, // prevent blocking if sudo hangs (no tty)
               });
               return { content: [{ type: "text" as const, text: output }] };
             } catch (e) {
