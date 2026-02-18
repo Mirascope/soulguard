@@ -9,6 +9,7 @@ import { readFile } from "node:fs/promises";
 import { LiveConsoleOutput } from "./console-live.js";
 import { StatusCommand } from "./cli/status-command.js";
 import { SyncCommand } from "./cli/sync-command.js";
+import { DiffCommand } from "./cli/diff-command.js";
 import { InitCommand } from "./cli/init-command.js";
 import { NodeSystemOps, writeFileAbsolute, existsAbsolute } from "./system-ops-node.js";
 import { parseConfig } from "./schema.js";
@@ -139,5 +140,29 @@ program
       process.exitCode = await cmd.execute();
     },
   );
+
+program
+  .command("diff")
+  .description("Compare vault files against staging copies")
+  .argument("[workspace]", "workspace path", process.cwd())
+  .argument("[files...]", "specific files to diff")
+  .action(async (workspace: string, files: string[]) => {
+    const out = new LiveConsoleOutput();
+    try {
+      const opts = await makeOptions(workspace);
+      const cmd = new DiffCommand(
+        {
+          ops: opts.ops,
+          config: opts.config,
+          files: files.length > 0 ? files : undefined,
+        },
+        out,
+      );
+      process.exitCode = await cmd.execute();
+    } catch (e) {
+      out.error(e instanceof Error ? e.message : String(e));
+      process.exitCode = 1;
+    }
+  });
 
 program.parse();
