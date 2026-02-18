@@ -294,7 +294,7 @@ Ledger changes are tracked but not blocked. The human reviews async and can manu
 **No auth required (agent can run without sudo):**
 
 - `soulguard propose <workspace> -m "reason"` — diff staging vs vault, write proposal.json
-- `soulguard diff <workspace>` — preview pending changes
+- `soulguard diff <workspace>` — show diff between staging and vault (preview pending changes)
 
 **Human only (not in agent's sudoers):**
 
