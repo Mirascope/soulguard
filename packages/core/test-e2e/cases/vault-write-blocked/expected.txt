@@ -3,6 +3,6 @@ Soulguard Sync — /workspace
 Nothing to fix — all files ok.
 -bash: line 1: /workspace/SOUL.md: Permission denied
 WRITE BLOCKED (GOOD)
-chown: cannot access '/workspace/SOUL.md': Permission denied
+chown: changing ownership of '/workspace/SOUL.md': Operation not permitted
 CHOWN BLOCKED (GOOD)
 # My Soul
