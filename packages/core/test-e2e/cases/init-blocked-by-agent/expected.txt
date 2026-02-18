@@ -1,0 +1,9 @@
+Soulguard Init — /workspace
+  Wrote /etc/sudoers.d/soulguard
+  Created .soulguard/staging/
+  Synced 2 vault file(s)
+
+Done.
+--- AGENT TRIES INIT AGAIN ---
+sudo: a terminal is required to read the password; either use the -S option to read from standard input or configure an askpass helper
+sudo: a password is required
