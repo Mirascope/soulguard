@@ -13,4 +13,4 @@ Vault
 2 files ok, 0 drifted, 0 missing
 .soulguard/staging/SOUL.md
 STAGING: OK
-test.sh: line 19: SOUL.md: Permission denied
+-bash: line 1: /workspace/SOUL.md: Permission denied
