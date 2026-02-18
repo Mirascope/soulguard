@@ -1,12 +1,6 @@
 Soulguard Sync — /workspace
 
-Fixed:
-  🔧 SOUL.md
-      owner is root, expected soulguardian
-      group is root, expected soulguard
-      mode is 644, expected 444
-
-All files now ok.
+Nothing to fix — all files ok.
 Soulguard Status — /workspace
 
 Vault
