@@ -136,9 +136,7 @@ describe("approve", () => {
 
     // Inject failure: make chown fail on AGENTS.md (second file)
     const originalChown = ops.chown.bind(ops);
-    let chownCount = 0;
     ops.chown = async (path, owner) => {
-      chownCount++;
       // Fail on the 2nd chown during apply (AGENTS.md protection)
       // Skip backup chowns (they don't happen) and SOUL.md chown
       if (path === "AGENTS.md") {
