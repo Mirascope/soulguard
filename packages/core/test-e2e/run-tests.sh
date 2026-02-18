@@ -27,6 +27,9 @@ for case_dir in "$CASES_DIR"/*/; do
     continue
   fi
 
+  # Snapshot system state before test (init tests modify sudoers)
+  sudo cp /etc/sudoers.d/soulguard /tmp/soulguard-sudoers-backup 2>/dev/null || true
+
   # Run test in a clean temp workspace
   workspace=$(mktemp -d /tmp/soulguard-e2e-XXXX)
   
@@ -38,6 +41,11 @@ for case_dir in "$CASES_DIR"/*/; do
 
   # Clean up workspace (may need sudo if init created soulguardian-owned files)
   rm -rf "$workspace" 2>/dev/null || sudo rm -rf "$workspace"
+
+  # Restore sudoers to pre-test state (init tests overwrite it)
+  if [ -f /tmp/soulguard-sudoers-backup ]; then
+    sudo cp /tmp/soulguard-sudoers-backup /etc/sudoers.d/soulguard
+  fi
 
   if [ "$UPDATE" = "--update" ]; then
     echo "$actual" > "$expected_file"
