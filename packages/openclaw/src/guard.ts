@@ -43,34 +43,11 @@ function normalizePath(p: string): string {
   return s;
 }
 
-/** Check if `filePath` matches a vault entry (exact or directory-glob). */
-function matchesVault(filePath: string, vaultFiles: string[]): string | null {
+// TODO: delegate to @soulguard/core isVaulted() API
+/** Check if `filePath` exactly matches a vault entry. */
+function matchesVault(filePath: string, vaultFiles: string[]): boolean {
   const norm = normalizePath(filePath);
-
-  for (const pattern of vaultFiles) {
-    const p = normalizePath(pattern);
-
-    // Exact match
-    if (norm === p) return pattern;
-
-    // Directory glob: "extensions/**" matches "extensions/foo/bar.ts"
-    if (p.endsWith("/**")) {
-      const prefix = p.slice(0, -2); // "extensions/"
-      if (norm.startsWith(prefix)) return pattern;
-    }
-
-    // Simple wildcard suffix: "*.md" — matches ANY file with that extension
-    // at any depth. This is intentional for security: if a user vaults "*.md",
-    // they want ALL markdown files protected regardless of nesting level.
-    if (p.startsWith("*.")) {
-      const ext = p.slice(1); // ".md"
-      if (norm.endsWith(ext)) {
-        return pattern;
-      }
-    }
-  }
-
-  return null;
+  return vaultFiles.some((pattern) => norm === normalizePath(pattern));
 }
 
 // ── Main guard ─────────────────────────────────────────────────────────
@@ -105,8 +82,7 @@ export function guardToolCall(
   if (norm.startsWith(STAGING_PREFIX)) return { blocked: false };
 
   // Check against vault
-  const match = matchesVault(targetPath, options.vaultFiles);
-  if (!match) return { blocked: false };
+  if (!matchesVault(targetPath, options.vaultFiles)) return { blocked: false };
 
   const fileName = basename(targetPath);
   return {

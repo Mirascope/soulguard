@@ -13,6 +13,9 @@ import type {
   OpenClawPluginDefinition,
 } from "./openclaw-types.js";
 
+/** Shared plugin description (plugin.json keeps its own copy). */
+export const PLUGIN_DESCRIPTION = "Identity protection for AI agents";
+
 export type SoulguardPluginOptions = {
   /** Path to soulguard.json (relative to workspace or absolute). */
   configPath?: string;
@@ -25,7 +28,7 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
   return {
     id: "soulguard",
     name: "Soulguard",
-    description: "Identity protection for AI agents — vault enforcement and helpful errors",
+    description: PLUGIN_DESCRIPTION,
     version: "0.1.0",
 
     activate(api) {
