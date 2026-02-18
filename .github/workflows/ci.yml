@@ -57,19 +57,5 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
-      - name: Build E2E Docker image
-        run: cd packages/core && docker build -f test-e2e/Dockerfile -t soulguard-e2e ../..
-
-      - name: Generate snapshots (first run only)
-        run: |
-          cd packages/core
-          docker run --rm -v $(pwd)/test-e2e/cases:/app/packages/core/test-e2e/cases soulguard-e2e bash /app/packages/core/test-e2e/run-tests.sh --update
-          echo "=== Generated snapshots ==="
-          for f in test-e2e/cases/*/expected.txt; do
-            echo "--- $f ---"
-            cat "$f"
-            echo "---"
-          done
-
-      - name: Run E2E snapshot tests
-        run: cd packages/core && docker run --rm -v $(pwd)/test-e2e/cases:/app/packages/core/test-e2e/cases soulguard-e2e
+      - name: E2E shell snapshot tests (Docker)
+        run: cd packages/core && bun run test:e2e
