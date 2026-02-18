@@ -1,0 +1,8 @@
+Soulguard Reject — /workspace
+
+Rejected proposal. Reset 1 staging file(s):
+  ↩️  SOUL.md
+VAULT:
+# My Soul
+STAGING:
+# My Soul

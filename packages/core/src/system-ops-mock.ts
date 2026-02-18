@@ -165,6 +165,15 @@ export class MockSystemOps implements SystemOperations {
     return ok(this.files.has(full));
   }
 
+  async deleteFile(
+    path: string,
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
+    const full = this.resolve(path);
+    if (!this.files.has(full)) return err({ kind: "not_found", path });
+    this.files.delete(full);
+    return ok(undefined);
+  }
+
   async hashFile(
     path: string,
   ): Promise<Result<string, NotFoundError | PermissionDeniedError | IOError>> {

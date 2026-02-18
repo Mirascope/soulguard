@@ -13,6 +13,7 @@ import {
   writeFile as fsWriteFile,
   mkdir as fsMkdir,
   copyFile as fsCopyFile,
+  unlink as fsUnlink,
   access,
 } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -307,6 +308,17 @@ export class NodeSystemOps implements SystemOperations {
         path,
         message: `exists: ${e instanceof Error ? e.message : String(e)}`,
       });
+    }
+  }
+
+  async deleteFile(path: string): Promise<Result<void, FileError>> {
+    const resolved = this.resolvePath(path);
+    if (!resolved.ok) return resolved;
+    try {
+      await fsUnlink(resolved.value);
+      return ok(undefined);
+    } catch (e) {
+      return err(mapError(e, path, "unlink"));
     }
   }
 

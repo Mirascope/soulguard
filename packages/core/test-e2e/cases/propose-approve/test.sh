@@ -1,0 +1,26 @@
+# Full propose → approve flow:
+# 1. Owner inits workspace
+# 2. Agent modifies staging copy
+# 3. Agent proposes
+# 4. Owner approves
+# 5. Verify vault file updated
+
+echo '# My Soul' > SOUL.md
+cat > soulguard.json <<'EOF'
+{"vault":["SOUL.md","soulguard.json"],"ledger":[]}
+EOF
+
+# Owner runs init
+soulguard init . --agent-user agent > /dev/null 2>&1
+
+# Agent modifies the staging copy
+su - agent -c "echo '# My Updated Soul' > $(pwd)/.soulguard/staging/SOUL.md"
+
+# Agent proposes (via scoped sudoers)
+su - agent -c "sudo soulguard propose $(pwd) -m 'update soul'"
+
+# Owner approves
+soulguard approve .
+
+# Verify vault has new content
+cat SOUL.md

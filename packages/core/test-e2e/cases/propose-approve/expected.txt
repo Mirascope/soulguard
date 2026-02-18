@@ -1,0 +1,15 @@
+Soulguard Propose — /workspace
+
+Created proposal with 1 file(s):
+  📝 SOUL.md
+
+Message: update soul
+
+Run `soulguard diff` to review, `soulguard approve` to apply.
+Soulguard Approve — /workspace
+
+Approved 1 file(s):
+  ✅ SOUL.md
+
+Vault updated. Staging synced.
+# My Updated Soul

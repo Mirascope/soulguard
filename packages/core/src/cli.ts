@@ -10,7 +10,13 @@ import { LiveConsoleOutput } from "./console-live.js";
 import { StatusCommand } from "./cli/status-command.js";
 import { SyncCommand } from "./cli/sync-command.js";
 import { DiffCommand } from "./cli/diff-command.js";
+import { ProposeCommand } from "./cli/propose-command.js";
+import { ApproveCommand } from "./cli/approve-command.js";
+import { RejectCommand } from "./cli/reject-command.js";
 import { InitCommand } from "./cli/init-command.js";
+import { ProposeCommand } from "./cli/propose-command.js";
+import { ApproveCommand } from "./cli/approve-command.js";
+import { RejectCommand } from "./cli/reject-command.js";
 import { NodeSystemOps, writeFileAbsolute, existsAbsolute } from "./system-ops-node.js";
 import { parseConfig } from "./schema.js";
 import type { StatusOptions } from "./status.js";
@@ -158,6 +164,67 @@ program
         },
         out,
       );
+      process.exitCode = await cmd.execute();
+    } catch (e) {
+      out.error(e instanceof Error ? e.message : String(e));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("propose")
+  .description("Create a vault change proposal from staging edits")
+  .argument("[workspace]", "workspace path", process.cwd())
+  .option("-m, --message <message>", "describe the changes")
+  .action(async (workspace: string, opts: { message?: string }) => {
+    const out = new LiveConsoleOutput();
+    try {
+      const statusOpts = await makeOptions(workspace);
+      const cmd = new ProposeCommand(
+        { ops: statusOpts.ops, config: statusOpts.config, message: opts.message },
+        out,
+      );
+      process.exitCode = await cmd.execute();
+    } catch (e) {
+      out.error(e instanceof Error ? e.message : String(e));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("approve")
+  .description("Approve and apply the active proposal")
+  .argument("[workspace]", "workspace path", process.cwd())
+  .option("-p, --password <password>", "owner password")
+  .action(async (workspace: string, opts: { password?: string }) => {
+    const out = new LiveConsoleOutput();
+    try {
+      const statusOpts = await makeOptions(workspace);
+      const cmd = new ApproveCommand(
+        {
+          ops: statusOpts.ops,
+          vaultOwnership: VAULT_OWNERSHIP,
+          password: opts.password,
+        },
+        out,
+      );
+      process.exitCode = await cmd.execute();
+    } catch (e) {
+      out.error(e instanceof Error ? e.message : String(e));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("reject")
+  .description("Reject the active proposal and reset staging")
+  .argument("[workspace]", "workspace path", process.cwd())
+  .option("-p, --password <password>", "owner password")
+  .action(async (workspace: string, opts: { password?: string }) => {
+    const out = new LiveConsoleOutput();
+    try {
+      const statusOpts = await makeOptions(workspace);
+      const cmd = new RejectCommand({ ops: statusOpts.ops, password: opts.password }, out);
       process.exitCode = await cmd.execute();
     } catch (e) {
       out.error(e instanceof Error ? e.message : String(e));

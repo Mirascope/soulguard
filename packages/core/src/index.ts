@@ -72,7 +72,22 @@ export type { PasswordHash } from "./password.js";
 export type { ConsoleOutput } from "./console.js";
 export { LiveConsoleOutput } from "./console-live.js";
 
+// Propose
+export { propose } from "./propose.js";
+export type { ProposeOptions, ProposeResult } from "./propose.js";
+
+// Approve
+export { approve } from "./approve.js";
+export type { ApproveOptions, ApproveResult } from "./approve.js";
+
+// Reject
+export { reject } from "./reject.js";
+export type { RejectOptions, RejectResult } from "./reject.js";
+
 // CLI commands
 export { StatusCommand } from "./cli/status-command.js";
 export { SyncCommand } from "./cli/sync-command.js";
 export { DiffCommand } from "./cli/diff-command.js";
+export { ProposeCommand } from "./cli/propose-command.js";
+export { ApproveCommand } from "./cli/approve-command.js";
+export { RejectCommand } from "./cli/reject-command.js";
