@@ -95,17 +95,20 @@ program
   .command("init")
   .description("Initialize soulguard for a workspace")
   .argument("[workspace]", "workspace path", process.cwd())
-  .option("--agent-user <user>", "agent OS username", "agent")
+  .option("--agent-user <user>", "agent OS username (default: $SUDO_USER or 'agent')")
   .option("--password", "set a password during init")
   .option("--template <name>", "protection template")
   .action(
     async (
       workspace: string,
-      opts: { agentUser: string; password?: boolean; template?: string },
+      opts: { agentUser?: string; password?: boolean; template?: string },
     ) => {
       const out = new LiveConsoleOutput();
       const absWorkspace = resolve(workspace);
       const nodeOps = new NodeSystemOps(absWorkspace);
+
+      // Infer agent user: explicit flag > $SUDO_USER > "agent"
+      const agentUser = opts.agentUser ?? process.env.SUDO_USER ?? "agent";
 
       // Use existing config if present, otherwise default
       let config: SoulguardConfig = DEFAULT_CONFIG;
@@ -116,18 +119,20 @@ program
         // No existing config — will be created by init
       }
 
-      // TODO: if --password, prompt for password via stdin
-      const password = opts.password ? undefined : undefined; // placeholder
+      if (opts.password) {
+        out.error("Password support not yet implemented (argon2 pending).");
+        process.exitCode = 1;
+        return;
+      }
 
       const cmd = new InitCommand(
         {
           ops: nodeOps,
           identity: IDENTITY,
           config,
-          agentUser: opts.agentUser,
+          agentUser,
           writeAbsolute: writeFileAbsolute,
           existsAbsolute,
-          password,
         },
         out,
       );
