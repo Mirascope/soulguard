@@ -2,6 +2,7 @@
  * Soulguard OpenClaw plugin — protects vault files from direct writes.
  */
 
+import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseConfig } from "@soulguard/core";
@@ -45,6 +46,83 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
       }
 
       if (vaultFiles.length === 0) return;
+
+      // Register agent tools
+      const execSoulguard = (cmd: string): string => {
+        try {
+          return execSync(`soulguard ${cmd} ${workspaceDir}`, {
+            encoding: "utf-8",
+            env: { ...process.env, NO_COLOR: "1" },
+          });
+        } catch (e) {
+          const msg =
+            e instanceof Error && "stdout" in e ? (e as { stdout: string }).stdout : String(e);
+          return msg || `soulguard ${cmd.split(" ")[0]} failed`;
+        }
+      };
+
+      api.registerTool(
+        {
+          name: "soulguard_status",
+          description: "Check soulguard protection status of vault and ledger files",
+          parameters: { type: "object", properties: {}, required: [] },
+          async execute(_id, _params) {
+            const output = execSoulguard("status");
+            return { content: [{ type: "text", text: output }] };
+          },
+        },
+        { optional: true },
+      );
+
+      api.registerTool(
+        {
+          name: "soulguard_diff",
+          description: "Show differences between vault files and their staging copies",
+          parameters: {
+            type: "object",
+            properties: {
+              files: {
+                type: "array",
+                items: { type: "string" },
+                description: "Specific files to diff (default: all vault files)",
+              },
+            },
+            required: [],
+          },
+          async execute(_id, params) {
+            const files =
+              Array.isArray(params.files) && params.files.length > 0
+                ? ` ${(params.files as string[]).join(" ")}`
+                : "";
+            const output = execSoulguard(`diff${files}`);
+            return { content: [{ type: "text", text: output }] };
+          },
+        },
+        { optional: true },
+      );
+
+      api.registerTool(
+        {
+          name: "soulguard_propose",
+          description:
+            "Create a vault change proposal from staging edits. Edit .soulguard/staging/ files first, then call this to propose the changes for owner approval.",
+          parameters: {
+            type: "object",
+            properties: {
+              message: { type: "string", description: "Description of the proposed changes" },
+              force: { type: "boolean", description: "Replace existing proposal if one exists" },
+            },
+            required: [],
+          },
+          async execute(_id, params) {
+            const msg = params.message ? ` -m "${String(params.message)}"` : "";
+            const force = params.force ? " --force" : "";
+            const output = execSoulguard(`propose${msg}${force}`);
+            return { content: [{ type: "text", text: output }] };
+          },
+        },
+        { optional: true },
+      );
 
       // Register the guard hook
       api.on("before_tool_call", (...args: unknown[]) => {

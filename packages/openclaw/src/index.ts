@@ -19,6 +19,8 @@ export type { GuardOptions, GuardResult } from "./guard.js";
 export type {
   OpenClawPluginDefinition,
   OpenClawPluginApi,
+  AgentTool,
+  AgentToolResult,
   BeforeToolCallEvent,
   BeforeToolCallResult,
 } from "./openclaw-types.js";
