@@ -17,6 +17,9 @@ UPDATE="${1:-}"
 PASS=0
 FAIL=0
 
+# Save initial sudoers state (before any tests modify it)
+sudo cp /etc/sudoers.d/soulguard /tmp/soulguard-sudoers-initial 2>/dev/null || true
+
 for case_dir in "$CASES_DIR"/*/; do
   test_name="$(basename "$case_dir")"
   test_script="$case_dir/test.sh"
@@ -26,9 +29,6 @@ for case_dir in "$CASES_DIR"/*/; do
     echo "SKIP: $test_name (no test.sh)"
     continue
   fi
-
-  # Snapshot system state before test (init tests modify sudoers)
-  sudo cp /etc/sudoers.d/soulguard /tmp/soulguard-sudoers-backup 2>/dev/null || true
 
   # Run test in a clean temp workspace
   workspace=$(mktemp -d /tmp/soulguard-e2e-XXXX)
@@ -42,9 +42,9 @@ for case_dir in "$CASES_DIR"/*/; do
   # Clean up workspace (may need sudo if init created soulguardian-owned files)
   rm -rf "$workspace" 2>/dev/null || sudo rm -rf "$workspace"
 
-  # Restore sudoers to pre-test state (init tests overwrite it)
-  if [ -f /tmp/soulguard-sudoers-backup ]; then
-    sudo cp /tmp/soulguard-sudoers-backup /etc/sudoers.d/soulguard
+  # Restore sudoers to initial state (init tests overwrite it)
+  if [ -f /tmp/soulguard-sudoers-initial ]; then
+    sudo cp /tmp/soulguard-sudoers-initial /etc/sudoers.d/soulguard
   fi
 
   if [ "$UPDATE" = "--update" ]; then
