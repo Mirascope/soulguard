@@ -202,7 +202,7 @@ export class NodeSystemOps implements SystemOperations {
         ]);
         const gid = gidOutput.trim().split(/\s+/).pop();
         if (!gid || !/^\d+$/.test(gid)) {
-          return err({ kind: "exec", message: `Could not resolve GID for group ${group}` });
+          return err({ kind: "io_error", path: `/Groups/${group}`, message: `Could not resolve GID for group ${group}` });
         }
         await execFileAsync("dscl", [".", "-create", `/Users/${name}`]);
         await execFileAsync("dscl", [".", "-create", `/Users/${name}`, "PrimaryGroupID", gid]);
