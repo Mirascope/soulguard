@@ -35,8 +35,8 @@ export class SyncCommand {
     if (fixed.length > 0) {
       this.out.heading("Fixed:");
       for (const f of fixed) {
+        this.out.success(`  🔧 ${this.issuePath(f)}`);
         if (f.status === "drifted") {
-          this.out.success(`  🔧 ${f.file.path}`);
           for (const issue of f.issues) {
             this.out.info(`      ${formatIssue(issue)}`);
           }
@@ -70,6 +70,8 @@ export class SyncCommand {
 
   private issuePath(f: FileStatus): string {
     switch (f.status) {
+      case "ok":
+        return f.file.path;
       case "drifted":
         return f.file.path;
       case "missing":
@@ -77,8 +79,6 @@ export class SyncCommand {
         return f.path;
       case "glob_skipped":
         return f.pattern;
-      default:
-        return "";
     }
   }
 
