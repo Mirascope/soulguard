@@ -78,7 +78,7 @@ export function formatIssue(issue: DriftIssue): string {
 
 /** Expected soulguard system user/group names per platform */
 export type SystemIdentity = {
-  /** System user that owns vault files (e.g. "_soulguard") */
+  /** System user that owns vault files (e.g. "soulguardian") */
   user: string;
   /** System group for vault files (e.g. "soulguard") */
   group: string;

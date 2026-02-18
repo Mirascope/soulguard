@@ -148,11 +148,11 @@ sudo soulguard init <workspace-path>
 
 `sudo soulguard init`:
 
-1. Creates `_soulguard` system user (macOS) or `soulguard` system user (Linux)
+1. Creates `soulguardian` system user (macOS) or `soulguard` system user (Linux)
 2. Creates `soulguard` group
 3. Detects installed agent framework and prompts for protection template
 4. Writes `soulguard.json` config
-5. Transfers vault file ownership (`_soulguard:soulguard 444`)
+5. Transfers vault file ownership (`soulguardian:soulguard 444`)
 6. Creates `.soulguard/staging/` with agent-writable copies of vault files
 7. Generates scoped sudoers file (`/etc/sudoers.d/soulguard`)
 8. Optionally sets a password (argon2 hash → `.soulguard/.secret`)
@@ -191,8 +191,8 @@ Workspace A:
 │   ├── .secret                 # password hash (optional, mode 600)
 │   ├── staging/                # agent-writable copies of vault files
 │   └── proposal.json           # current proposal (if any)
-├── SOUL.md                     # _soulguard:soulguard 444 (vault)
-├── AGENTS.md                   # _soulguard:soulguard 444 (vault)
+├── SOUL.md                     # soulguardian:soulguard 444 (vault)
+├── AGENTS.md                   # soulguardian:soulguard 444 (vault)
 ├── memory/                     # agent-owned (ledger)
 └── skills/                     # agent-owned (ledger)
 ```

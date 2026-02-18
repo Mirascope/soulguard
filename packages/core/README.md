@@ -15,7 +15,7 @@ The soulguard daemon and CLI — vault enforcement, ledger tracking, proposal ma
 
 ## Daemon
 
-The daemon runs as the `_soulguard` (macOS) or `soulguard` (Linux) system user. It's the only process that can:
+The daemon runs as the `soulguardian` (macOS) or `soulguard` (Linux) system user. It's the only process that can:
 
 - Write to vault files
 - Read the password hash
@@ -207,7 +207,7 @@ sudo soulguard sync
 1. **Config change** — modifying `soulguard.json` via propose/approve (password-protected)
 2. **Ownership sync** — applying file ownership changes via `sudo soulguard sync` (requires root)
 
-The daemon cannot change file ownership (runs as `_soulguard`, not root), so ownership changes must be triggered explicitly by the user with sudo.
+The daemon cannot change file ownership (runs as `soulguardian`, not root), so ownership changes must be triggered explicitly by the user with sudo.
 
 The daemon validates the config is parseable JSON before applying any change.
 

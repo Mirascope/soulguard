@@ -14,7 +14,7 @@ import { parseConfig } from "./schema.js";
 import type { StatusOptions } from "./status.js";
 
 // TODO: read from config after `soulguard init` is implemented
-const VAULT_OWNERSHIP = { user: "_soulguard", group: "soulguard", mode: "444" } as const;
+const VAULT_OWNERSHIP = { user: "soulguardian", group: "soulguard", mode: "444" } as const;
 const LEDGER_OWNERSHIP = { user: "agent", group: "staff", mode: "644" } as const;
 
 async function makeOptions(workspace: string): Promise<StatusOptions> {

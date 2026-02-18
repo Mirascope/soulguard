@@ -2,7 +2,7 @@ FROM oven/bun:latest
 
 # Create soulguard system user and group
 RUN groupadd soulguard && \
-    useradd -r -g soulguard _soulguard
+    useradd -r -g soulguard soulguardian
 
 # Create agent user (simulates the AI agent's OS user)
 RUN useradd -m -s /bin/bash agent
