@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # E2E snapshot test runner for soulguard CLI.
 #
+# Runs each test case in a separate Docker container for full isolation.
+# No shared state between tests — each gets a fresh filesystem.
+#
 # Each test case is a directory under cases/ containing:
 #   test.sh       — shell script to run (executed as `agent` user)
 #   expected.txt  — exact expected stdout+stderr output
@@ -13,12 +16,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CASES_DIR="$SCRIPT_DIR/cases"
+IMAGE="soulguard-e2e"
 UPDATE="${1:-}"
 PASS=0
 FAIL=0
-
-# Save initial sudoers state (before any tests modify it)
-sudo cp /etc/sudoers.d/soulguard /tmp/soulguard-sudoers-initial 2>/dev/null || true
 
 for case_dir in "$CASES_DIR"/*/; do
   test_name="$(basename "$case_dir")"
@@ -30,22 +31,14 @@ for case_dir in "$CASES_DIR"/*/; do
     continue
   fi
 
-  # Run test in a clean temp workspace
-  workspace=$(mktemp -d /tmp/soulguard-e2e-XXXX)
-  
-  # Execute test script, capture all output, normalize temp paths
-  # Execute test script, capture all output, normalize variable paths
-  actual=$(cd "$workspace" && NO_COLOR=1 bash "$test_script" 2>&1 | \
-    sed "s|$workspace|/workspace|g" | \
-    sed "s|$test_script|test.sh|g") || true
-
-  # Clean up workspace (may need sudo if init created soulguardian-owned files)
-  rm -rf "$workspace" 2>/dev/null || sudo rm -rf "$workspace"
-
-  # Restore sudoers to initial state (init tests overwrite it)
-  if [ -f /tmp/soulguard-sudoers-initial ]; then
-    sudo cp /tmp/soulguard-sudoers-initial /etc/sudoers.d/soulguard
-  fi
+  # Run test in a fresh container — complete isolation
+  actual=$(docker run --rm "$IMAGE" bash -c "
+    workspace=\$(mktemp -d /tmp/soulguard-e2e-XXXX)
+    cd \"\$workspace\"
+    NO_COLOR=1 bash /app/packages/core/test-e2e/cases/$test_name/test.sh 2>&1 | \
+      sed \"s|\$workspace|/workspace|g\" | \
+      sed 's|/app/packages/core/test-e2e/cases/$test_name/test.sh|test.sh|g'
+  ") || true
 
   if [ "$UPDATE" = "--update" ]; then
     echo "$actual" > "$expected_file"

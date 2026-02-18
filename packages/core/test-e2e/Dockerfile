@@ -12,8 +12,6 @@ RUN apt-get update && apt-get install -y sudo && rm -rf /var/lib/apt/lists/*
 
 # Agent can sudo soulguard commands (broad for e2e testing; init generates scoped version)
 RUN echo "agent ALL=(root) NOPASSWD: /usr/local/bin/soulguard" >> /etc/sudoers.d/soulguard
-# Allow cleanup of soulguardian-owned files and sudoers restoration between tests
-RUN echo "agent ALL=(root) NOPASSWD: /bin/rm, /bin/cp" >> /etc/sudoers.d/soulguard-cleanup
 
 WORKDIR /app
 
@@ -30,6 +28,5 @@ RUN chmod +x packages/core/src/cli.ts
 RUN printf '#!/bin/bash\nexec bun /app/packages/core/src/cli.ts "$@"\n' > /usr/local/bin/soulguard && \
     chmod +x /usr/local/bin/soulguard
 
-# Run e2e tests as agent user
+# Default to agent user for test execution
 USER agent
-CMD ["bash", "/app/packages/core/test-e2e/run-tests.sh"]
