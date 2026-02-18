@@ -1,6 +1,7 @@
 # Setup: create and protect a vault file (as owner/root)
 echo '{"vault": ["SOUL.md"], "ledger": []}' > soulguard.json
 echo '# My Soul' > SOUL.md
+soulguard init . --agent-user agent > /dev/null 2>&1
 soulguard sync .
 
 # Attack 1: Agent tries to write to the vaulted file (should fail)

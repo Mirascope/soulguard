@@ -193,9 +193,19 @@ export class NodeSystemOps implements SystemOperations {
   async createUser(name: string, group: string): Promise<Result<void, IOError>> {
     try {
       if (process.platform === "darwin") {
-        // macOS: use dscl
+        // macOS: use dscl — PrimaryGroupID requires numeric GID
+        const { stdout: gidOutput } = await execFileAsync("dscl", [
+          ".",
+          "-read",
+          `/Groups/${group}`,
+          "PrimaryGroupID",
+        ]);
+        const gid = gidOutput.trim().split(/\s+/).pop();
+        if (!gid || !/^\d+$/.test(gid)) {
+          return err({ kind: "exec", message: `Could not resolve GID for group ${group}` });
+        }
         await execFileAsync("dscl", [".", "-create", `/Users/${name}`]);
-        await execFileAsync("dscl", [".", "-create", `/Users/${name}`, "PrimaryGroupID", group]);
+        await execFileAsync("dscl", [".", "-create", `/Users/${name}`, "PrimaryGroupID", gid]);
         await execFileAsync("dscl", [
           ".",
           "-create",

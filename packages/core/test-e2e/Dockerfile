@@ -1,10 +1,6 @@
 FROM oven/bun:latest
 
-# Create soulguard system user and group
-RUN groupadd soulguard && \
-    useradd -r -g soulguard soulguardian
-
-# Create agent user (simulates the AI agent's OS user)
+# Create agent user only — soulguardian/soulguard are created by `soulguard init`
 RUN useradd -m -s /bin/bash agent
 
 # Install sudo
