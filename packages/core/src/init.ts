@@ -172,6 +172,7 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   }
 
   // ── 5. Create staging ────────────────────────────────────────────────
+  // TODO: refactor to call `stage` command once it exists, instead of manual copy
   let stagingCreated = false;
   const stagingExists = await ops.exists(".soulguard/staging");
   if (!stagingExists.ok) {
@@ -220,9 +221,10 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   // ── 7. Password (optional) ───────────────────────────────────────────
   let passwordSet = false;
   if (password !== undefined) {
-    // TODO: argon2 hash + write to .soulguard/.secret
-    // For now, just note it's not implemented
-    passwordSet = false;
+    return err({
+      kind: "password_hash_failed",
+      message: "Password support not yet implemented (argon2 pending)",
+    });
   }
 
   return ok({

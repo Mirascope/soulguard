@@ -1,11 +1,9 @@
-# Setup: already-protected workspace (owner syncs first)
+# After init, agent can sudo soulguard sync on a clean workspace
 echo '{"vault": ["SOUL.md"], "ledger": []}' > soulguard.json
 echo '# My Soul' > SOUL.md
-soulguard sync .
 
-# Make workspace readable by agent
-chmod 755 .
-chmod o+r soulguard.json
+# Owner runs init (creates sudoers for agent)
+soulguard init . --agent-user agent
 
-# Agent syncs a clean workspace — nothing to fix, should succeed
-su - agent -c "soulguard sync $(pwd)"
+# Agent syncs via scoped sudoers — workspace is already clean
+su - agent -c "sudo soulguard sync $(pwd)"
