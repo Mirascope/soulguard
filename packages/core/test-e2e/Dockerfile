@@ -12,8 +12,8 @@ RUN apt-get update && apt-get install -y sudo && rm -rf /var/lib/apt/lists/*
 
 # Agent can sudo soulguard commands (broad for e2e testing; init generates scoped version)
 RUN echo "agent ALL=(root) NOPASSWD: /usr/local/bin/soulguard" >> /etc/sudoers.d/soulguard
-# Allow cleanup of soulguardian-owned files in temp dirs
-RUN echo "agent ALL=(root) NOPASSWD: /bin/rm" >> /etc/sudoers.d/soulguard-cleanup
+# Allow cleanup of soulguardian-owned files and sudoers restoration between tests
+RUN echo "agent ALL=(root) NOPASSWD: /bin/rm, /bin/cp" >> /etc/sudoers.d/soulguard-cleanup
 
 WORKDIR /app
 
