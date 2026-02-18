@@ -6,7 +6,9 @@
  */
 
 import { z } from "zod";
-import type { PasswordHash, Proposal, SoulguardConfig } from "./types.js";
+import type { SoulguardConfig } from "./types.js";
+import type { PasswordHash } from "./password.js";
+import type { Proposal } from "./proposal.js";
 
 export const soulguardConfigSchema: z.ZodType<SoulguardConfig> = z.object({
   vault: z.array(z.string()),

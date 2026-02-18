@@ -9,15 +9,27 @@ import type {
   Tier,
   DriftIssue,
   FileSystemError,
-  FileStatus,
-  StatusResult,
   Result,
 } from "./types.js";
 import { ok } from "./result.js";
 import type { SystemOperations } from "./system-ops.js";
 import { getFileInfo } from "./system-ops.js";
 
-export type { FileStatus, StatusResult };
+// ── File status ────────────────────────────────────────────────────────
+
+export type FileStatus =
+  | { tier: Tier; status: "ok"; file: FileInfo }
+  | { tier: Tier; status: "drifted"; file: FileInfo; issues: DriftIssue[] }
+  | { tier: Tier; status: "missing"; path: string }
+  | { tier: Tier; status: "error"; path: string; error: FileSystemError }
+  | { tier: Tier; status: "glob_skipped"; pattern: string };
+
+export type StatusResult = {
+  vault: FileStatus[];
+  ledger: FileStatus[];
+  /** All non-ok statuses from both tiers, for convenience */
+  issues: FileStatus[];
+};
 
 export type StatusOptions = {
   config: SoulguardConfig;

@@ -5,13 +5,23 @@
  * before and after IS what happened. Errors are explicit.
  */
 
-import type { DriftIssue, SyncError, SyncResult } from "./types.js";
+import type { DriftIssue, FileSystemError } from "./types.js";
 import { ok } from "./result.js";
 import type { Result } from "./result.js";
 import { status } from "./status.js";
 import type { StatusOptions, StatusResult } from "./status.js";
 
-export type { SyncError, SyncResult };
+export type SyncError = {
+  path: string;
+  operation: string;
+  error: FileSystemError;
+};
+
+export type SyncResult = {
+  before: StatusResult;
+  after: StatusResult;
+  errors: SyncError[];
+};
 
 export type SyncOptions = StatusOptions;
 

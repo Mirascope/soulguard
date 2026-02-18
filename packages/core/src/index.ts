@@ -1,4 +1,4 @@
-// Types
+// Shared primitives
 export type {
   SoulguardConfig,
   Tier,
@@ -17,23 +17,8 @@ export type {
   WrongGroupIssue,
   WrongModeIssue,
   HashFailedIssue,
-  // Status
-  FileStatus,
-  StatusResult,
-  // Sync
-  SyncError,
-  SyncResult,
-  // Init
+  // System identity
   SystemIdentity,
-  InitResult,
-  InitError,
-  // Proposals
-  ProposalStatus,
-  Proposal,
-  ProposeError,
-  ApprovalError,
-  // Password
-  PasswordHash,
 } from "./types.js";
 export { formatIssue } from "./types.js";
 
@@ -56,13 +41,22 @@ export { MockSystemOps } from "./system-ops-mock.js";
 export type { RecordedOp } from "./system-ops-mock.js";
 export { NodeSystemOps } from "./system-ops-node.js";
 
-// Sync
-export { sync } from "./sync.js";
-export type { SyncOptions } from "./sync.js";
-
 // Status
 export { status } from "./status.js";
-export type { StatusOptions } from "./status.js";
+export type { FileStatus, StatusResult, StatusOptions } from "./status.js";
+
+// Sync
+export { sync } from "./sync.js";
+export type { SyncError, SyncResult, SyncOptions } from "./sync.js";
+
+// Init
+export type { InitResult, InitError } from "./init.js";
+
+// Proposals
+export type { ProposalStatus, Proposal, ProposeError, ApprovalError } from "./proposal.js";
+
+// Password
+export type { PasswordHash } from "./password.js";
 
 // Console output
 export type { ConsoleOutput } from "./console.js";

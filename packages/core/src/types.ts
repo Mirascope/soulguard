@@ -1,5 +1,11 @@
 /**
- * Soulguard Core Types
+ * Soulguard Core Types — shared primitives only.
+ *
+ * Domain-specific types live with their implementations:
+ * - status.ts: FileStatus, StatusResult
+ * - sync.ts: SyncError, SyncResult
+ * - init.ts: InitResult, InitError (future)
+ * - proposal.ts: Proposal, ProposeError, ApprovalError (future)
  */
 
 // ── Config ─────────────────────────────────────────────────────────────
@@ -74,37 +80,7 @@ export function formatIssue(issue: DriftIssue): string {
   }
 }
 
-// ── Status ─────────────────────────────────────────────────────────────
-
-export type FileStatus =
-  | { tier: Tier; status: "ok"; file: FileInfo }
-  | { tier: Tier; status: "drifted"; file: FileInfo; issues: DriftIssue[] }
-  | { tier: Tier; status: "missing"; path: string }
-  | { tier: Tier; status: "error"; path: string; error: FileSystemError }
-  | { tier: Tier; status: "glob_skipped"; pattern: string };
-
-export type StatusResult = {
-  vault: FileStatus[];
-  ledger: FileStatus[];
-  /** All non-ok statuses from both tiers, for convenience */
-  issues: FileStatus[];
-};
-
-// ── Sync ───────────────────────────────────────────────────────────────
-
-export type SyncError = {
-  path: string;
-  operation: string;
-  error: FileSystemError;
-};
-
-export type SyncResult = {
-  before: StatusResult;
-  after: StatusResult;
-  errors: SyncError[];
-};
-
-// ── Init ───────────────────────────────────────────────────────────────
+// ── System identity ────────────────────────────────────────────────────
 
 /** Expected soulguard system user/group names per platform */
 export type SystemIdentity = {
@@ -112,71 +88,6 @@ export type SystemIdentity = {
   user: string;
   /** System group for vault files (e.g. "soulguard") */
   group: string;
-};
-
-/** Result of `soulguard init` — idempotent, booleans report what was done */
-export type InitResult = {
-  /** Whether the system user was created (false if it already existed) */
-  userCreated: boolean;
-  /** Whether the system group was created (false if it already existed) */
-  groupCreated: boolean;
-  /** Whether the password hash was written (false if it already existed) */
-  passwordSet: boolean;
-  /** Whether soulguard.json was written (false if it already existed) */
-  configCreated: boolean;
-  /** Sync result from the initial sync after setup */
-  syncResult: SyncResult;
-};
-
-/** Errors specific to init */
-export type InitError =
-  | { kind: "not_root"; message: string }
-  | { kind: "user_creation_failed"; message: string }
-  | { kind: "group_creation_failed"; message: string }
-  | { kind: "password_hash_failed"; message: string }
-  | { kind: "config_write_failed"; message: string };
-
-// ── Proposals ──────────────────────────────────────────────────────────
-
-/** Status of a vault change proposal */
-export type ProposalStatus = "pending" | "approved" | "rejected";
-
-/** A proposed change to a vault file */
-export type Proposal = {
-  /** ULID — sortable, unique */
-  id: string;
-  /** Relative path of the vault file being changed */
-  file: string;
-  /** Human-readable reason for the change */
-  message: string;
-  /** ISO-8601 timestamp when proposed */
-  createdAt: string;
-  /** Current status */
-  status: ProposalStatus;
-  /** ISO-8601 timestamp when approved/rejected (undefined if pending) */
-  resolvedAt?: string;
-};
-
-/** Errors specific to proposals */
-export type ProposeError =
-  | { kind: "not_vault_file"; path: string }
-  | { kind: "file_not_found"; path: string }
-  | { kind: "write_failed"; message: string };
-
-/** Errors specific to approve/reject */
-export type ApprovalError =
-  | { kind: "proposal_not_found"; id: string }
-  | { kind: "not_pending"; id: string; status: ProposalStatus }
-  | { kind: "no_password_set" }
-  | { kind: "wrong_password" }
-  | { kind: "apply_failed"; message: string };
-
-// ── Password ───────────────────────────────────────────────────────────
-
-/** Argon2 hash stored in .soulguard/.secret */
-export type PasswordHash = {
-  /** The argon2id hash string */
-  hash: string;
 };
 
 // Re-export Result from result.ts for convenience
