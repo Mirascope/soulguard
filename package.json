@@ -17,11 +17,13 @@
     "typecheck": "bun run --filter '*' typecheck",
     "lint": "oxlint packages/*/src",
     "format": "oxfmt --write .",
-    "format:check": "oxfmt --check ."
+    "format:check": "oxfmt --check .",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",
     "@types/bun": "latest",
+    "husky": "^9.1.7",
     "oxfmt": "^0.33.0",
     "oxlint": "^1.48.0",
     "typescript": "^5.7.0"
