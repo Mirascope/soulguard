@@ -1,0 +1,9 @@
+Soulguard Status — /workspace
+
+Vault
+  ⚠️  SOUL.md
+      owner is agent, expected _soulguard
+      group is agent, expected soulguard
+      mode is 644, expected 444
+
+0 files ok, 1 drifted, 0 missing

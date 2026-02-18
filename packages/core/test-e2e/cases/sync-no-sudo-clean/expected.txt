@@ -1,0 +1,12 @@
+Soulguard Sync — /workspace
+
+Fixed:
+  🔧 SOUL.md
+      owner is agent, expected _soulguard
+      group is agent, expected soulguard
+      mode is 644, expected 444
+
+All files now ok.
+Soulguard Sync — /workspace
+
+Nothing to fix — all files ok.

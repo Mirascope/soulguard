@@ -17,6 +17,8 @@
     "build": "bun build src/index.ts --outdir dist --target node",
     "test": "bun test src/",
     "test:integration": "docker build -f test-integration/Dockerfile -t soulguard-test ../.. && docker run --rm soulguard-test",
+    "test:e2e": "docker build -f test-e2e/Dockerfile -t soulguard-e2e ../.. && docker run --rm soulguard-e2e",
+    "test:e2e:update": "docker build -f test-e2e/Dockerfile -t soulguard-e2e ../.. && docker run --rm -v $(pwd)/test-e2e/cases:/app/packages/core/test-e2e/cases soulguard-e2e bash /app/packages/core/test-e2e/run-tests.sh --update",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

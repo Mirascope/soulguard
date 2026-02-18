@@ -1,0 +1,14 @@
+Soulguard Sync — /workspace
+
+Fixed:
+  🔧 SOUL.md
+      owner is agent, expected _soulguard
+      group is agent, expected soulguard
+      mode is 644, expected 444
+
+All files now ok.
+test.sh: line 7: SOUL.md: Permission denied
+WRITE BLOCKED (GOOD)
+chown: changing ownership of 'SOUL.md': Operation not permitted
+CHOWN BLOCKED (GOOD)
+# My Soul
