@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseConfig, passwordHashSchema, proposalMetaSchema } from "./schema.js";
+import { parseConfig, passwordHashSchema, proposalSchema } from "./schema.js";
 
 describe("soulguardConfigSchema", () => {
   test("parses valid config", () => {
@@ -26,9 +26,9 @@ describe("soulguardConfigSchema", () => {
   });
 });
 
-describe("proposalMetaSchema", () => {
+describe("proposalSchema", () => {
   test("parses valid pending proposal", () => {
-    const meta = proposalMetaSchema.parse({
+    const meta = proposalSchema.parse({
       id: "01JMTEST000000000000000000",
       file: "SOUL.md",
       message: "added rhetoric principle",
@@ -41,7 +41,7 @@ describe("proposalMetaSchema", () => {
   });
 
   test("parses approved proposal with resolvedAt", () => {
-    const meta = proposalMetaSchema.parse({
+    const meta = proposalSchema.parse({
       id: "01JMTEST000000000000000000",
       file: "SOUL.md",
       message: "added rhetoric principle",
@@ -55,7 +55,7 @@ describe("proposalMetaSchema", () => {
 
   test("rejects invalid status", () => {
     expect(() =>
-      proposalMetaSchema.parse({
+      proposalSchema.parse({
         id: "01JMTEST000000000000000000",
         file: "SOUL.md",
         message: "test",
@@ -66,7 +66,7 @@ describe("proposalMetaSchema", () => {
   });
 
   test("rejects missing required fields", () => {
-    expect(() => proposalMetaSchema.parse({ id: "01JMTEST" })).toThrow();
+    expect(() => proposalSchema.parse({ id: "01JMTEST" })).toThrow();
   });
 });
 
@@ -74,12 +74,11 @@ describe("passwordHashSchema", () => {
   test("parses valid password hash", () => {
     const pw = passwordHashSchema.parse({
       hash: "$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHQ$somehash",
-      createdAt: "2026-02-17T20:55:00.000Z",
     });
     expect(pw.hash).toContain("argon2id");
   });
 
   test("rejects missing hash", () => {
-    expect(() => passwordHashSchema.parse({ createdAt: "2026-02-17T20:55:00.000Z" })).toThrow();
+    expect(() => passwordHashSchema.parse({})).toThrow();
   });
 });

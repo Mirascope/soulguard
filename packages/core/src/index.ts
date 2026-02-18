@@ -24,7 +24,6 @@ export type {
   // Proposals
   ProposalStatus,
   Proposal,
-  ProposalMeta,
   ProposeError,
   ApprovalError,
   // Password
@@ -40,7 +39,7 @@ export { ok, err } from "./result.js";
 export {
   soulguardConfigSchema,
   parseConfig,
-  proposalMetaSchema,
+  proposalSchema,
   passwordHashSchema,
 } from "./schema.js";
 

@@ -6,7 +6,7 @@
  */
 
 import { z } from "zod";
-import type { PasswordHash, ProposalMeta, SoulguardConfig } from "./types.js";
+import type { PasswordHash, Proposal, SoulguardConfig } from "./types.js";
 
 export const soulguardConfigSchema: z.ZodType<SoulguardConfig> = z.object({
   vault: z.array(z.string()),
@@ -20,7 +20,7 @@ export function parseConfig(raw: unknown): SoulguardConfig {
   return soulguardConfigSchema.parse(raw);
 }
 
-export const proposalMetaSchema: z.ZodType<ProposalMeta> = z.object({
+export const proposalSchema: z.ZodType<Proposal> = z.object({
   id: z.string(),
   file: z.string(),
   message: z.string(),
@@ -31,5 +31,4 @@ export const proposalMetaSchema: z.ZodType<ProposalMeta> = z.object({
 
 export const passwordHashSchema: z.ZodType<PasswordHash> = z.object({
   hash: z.string(),
-  createdAt: z.string(),
 });

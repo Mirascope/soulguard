@@ -2,6 +2,8 @@
  * Soulguard Core Types
  */
 
+import type { SyncResult } from "./sync.js";
+
 // ── Config ─────────────────────────────────────────────────────────────
 
 /** User-level configuration (soulguard.json) */
@@ -84,23 +86,22 @@ export type SystemIdentity = {
   group: string;
 };
 
-/** Result of `soulguard init` */
+/** Result of `soulguard init` — idempotent, booleans report what was done */
 export type InitResult = {
   /** Whether the system user was created (false if it already existed) */
   userCreated: boolean;
   /** Whether the system group was created (false if it already existed) */
   groupCreated: boolean;
-  /** Whether the password hash was written to .secret */
+  /** Whether the password hash was written (false if it already existed) */
   passwordSet: boolean;
   /** Whether soulguard.json was written (false if it already existed) */
   configCreated: boolean;
   /** Sync result from the initial sync after setup */
-  syncResult: import("./sync.js").SyncResult;
+  syncResult: SyncResult;
 };
 
 /** Errors specific to init */
 export type InitError =
-  | { kind: "already_initialized" }
   | { kind: "not_root"; message: string }
   | { kind: "user_creation_failed"; message: string }
   | { kind: "group_creation_failed"; message: string }
@@ -128,20 +129,17 @@ export type Proposal = {
   resolvedAt?: string;
 };
 
-/** Metadata stored as meta.json in each proposal directory */
-export type ProposalMeta = Proposal;
-
 /** Errors specific to proposals */
 export type ProposeError =
   | { kind: "not_vault_file"; path: string }
   | { kind: "file_not_found"; path: string }
-  | { kind: "no_stdin"; message: string }
   | { kind: "write_failed"; message: string };
 
 /** Errors specific to approve/reject */
 export type ApprovalError =
   | { kind: "proposal_not_found"; id: string }
   | { kind: "not_pending"; id: string; status: ProposalStatus }
+  | { kind: "no_password_set" }
   | { kind: "wrong_password" }
   | { kind: "apply_failed"; message: string };
 
@@ -151,8 +149,6 @@ export type ApprovalError =
 export type PasswordHash = {
   /** The argon2id hash string */
   hash: string;
-  /** ISO-8601 timestamp when set */
-  createdAt: string;
 };
 
 // Re-export Result from result.ts for convenience
