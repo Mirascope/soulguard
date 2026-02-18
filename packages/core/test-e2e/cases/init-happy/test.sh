@@ -1,14 +1,19 @@
-# Init test: run as root (sudo), verify everything is set up
-# Note: soulguardian user/group already exist in the Docker image,
-# so init should detect them and skip creation.
+# Init test: create workspace, run init, verify protection
 
+# Create a minimal config and soul file
 echo '# My Soul' > SOUL.md
+cat > soulguard.json <<'EOF'
+{"vault":["SOUL.md","soulguard.json"],"ledger":[]}
+EOF
 
 # Run init as root
 sudo soulguard init . --agent-user agent
 
-# Verify vault file is protected
+# Verify status is clean
 soulguard status .
 
-# Verify staging exists
-ls .soulguard/staging/SOUL.md && echo "STAGING EXISTS (GOOD)" || echo "NO STAGING (BAD)"
+# Verify staging copy exists
+ls .soulguard/staging/SOUL.md && echo "STAGING: OK" || echo "STAGING: MISSING"
+
+# Verify agent can't write to vault file
+(echo "hacked" > SOUL.md) 2>&1

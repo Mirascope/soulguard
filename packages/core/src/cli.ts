@@ -107,8 +107,14 @@ program
       const absWorkspace = resolve(workspace);
       const nodeOps = new NodeSystemOps(absWorkspace);
 
-      // TODO: template selection. For now, use default config.
-      const config = DEFAULT_CONFIG;
+      // Use existing config if present, otherwise default
+      let config: SoulguardConfig = DEFAULT_CONFIG;
+      try {
+        const raw = await readFile(resolve(absWorkspace, "soulguard.json"), "utf-8");
+        config = parseConfig(JSON.parse(raw));
+      } catch {
+        // No existing config — will be created by init
+      }
 
       // TODO: if --password, prompt for password via stdin
       const password = opts.password ? undefined : undefined; // placeholder
