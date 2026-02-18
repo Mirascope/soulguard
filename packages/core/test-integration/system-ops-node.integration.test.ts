@@ -6,7 +6,7 @@
  *   docker run --rm soulguard-test
  *
  * These tests exercise chown (which requires root) and verify the full
- * ownership pipeline: create file → chown to _soulguard → verify stat.
+ * ownership pipeline: create file → chown to soulguardian → verify stat.
  */
 
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
@@ -31,11 +31,11 @@ describe("NodeSystemOps integration (root + test users)", () => {
   // ── chown ───────────────────────────────────────────────────────────
 
   describe("chown", () => {
-    test("transfers file to _soulguard:soulguard", async () => {
+    test("transfers file to soulguardian:soulguard", async () => {
       await writeFile(join(workspace, "SOUL.md"), "# Soul");
 
       const result = await ops.chown("SOUL.md", {
-        user: "_soulguard",
+        user: "soulguardian",
         group: "soulguard",
       });
       expect(result.ok).toBe(true);
@@ -43,16 +43,16 @@ describe("NodeSystemOps integration (root + test users)", () => {
       const stat = await ops.stat("SOUL.md");
       expect(stat.ok).toBe(true);
       if (!stat.ok) return;
-      expect(stat.value.ownership.user).toBe("_soulguard");
+      expect(stat.value.ownership.user).toBe("soulguardian");
       expect(stat.value.ownership.group).toBe("soulguard");
     });
 
     test("transfers file back to agent user", async () => {
       await writeFile(join(workspace, "notes.md"), "# Notes");
 
-      // First transfer to _soulguard
+      // First transfer to soulguardian
       await ops.chown("notes.md", {
-        user: "_soulguard",
+        user: "soulguardian",
         group: "soulguard",
       });
 
@@ -71,7 +71,7 @@ describe("NodeSystemOps integration (root + test users)", () => {
 
     test("returns error for nonexistent file", async () => {
       const result = await ops.chown("nope.md", {
-        user: "_soulguard",
+        user: "soulguardian",
         group: "soulguard",
       });
       expect(result.ok).toBe(false);
@@ -96,7 +96,7 @@ describe("NodeSystemOps integration (root + test users)", () => {
 
       // 1. Protect: chown + chmod
       const chownResult = await ops.chown("SOUL.md", {
-        user: "_soulguard",
+        user: "soulguardian",
         group: "soulguard",
       });
       expect(chownResult.ok).toBe(true);
@@ -108,7 +108,7 @@ describe("NodeSystemOps integration (root + test users)", () => {
       const stat1 = await ops.stat("SOUL.md");
       expect(stat1.ok).toBe(true);
       if (!stat1.ok) return;
-      expect(stat1.value.ownership.user).toBe("_soulguard");
+      expect(stat1.value.ownership.user).toBe("soulguardian");
       expect(stat1.value.ownership.group).toBe("soulguard");
       expect(stat1.value.ownership.mode).toBe("444");
 
@@ -146,8 +146,8 @@ describe("NodeSystemOps integration (root + test users)", () => {
   // ── userExists / groupExists with real users ────────────────────────
 
   describe("user/group checks with test users", () => {
-    test("_soulguard user exists", async () => {
-      const result = await ops.userExists("_soulguard");
+    test("soulguardian user exists", async () => {
+      const result = await ops.userExists("soulguardian");
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       expect(result.value).toBe(true);

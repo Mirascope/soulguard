@@ -2,7 +2,7 @@ Soulguard Status — /workspace
 
 Vault
   ⚠️  SOUL.md
-      owner is agent, expected _soulguard
+      owner is agent, expected soulguardian
       group is agent, expected soulguard
       mode is 644, expected 444
 

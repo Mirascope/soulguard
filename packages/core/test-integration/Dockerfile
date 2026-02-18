@@ -2,7 +2,7 @@ FROM oven/bun:latest
 
 # Create test users that mirror the soulguard design
 RUN groupadd soulguard && \
-    useradd -r -g soulguard _soulguard && \
+    useradd -r -g soulguard soulguardian && \
     useradd -g staff agent 2>/dev/null || useradd agent
 
 WORKDIR /app
