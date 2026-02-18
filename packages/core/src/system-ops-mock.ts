@@ -118,7 +118,7 @@ export class MockSystemOps implements SystemOperations {
     return ok(file.content);
   }
 
-  async createUser(name: string, group: string): Promise<Result<void, IOError>> {
+  async createUser(name: string, _group: string): Promise<Result<void, IOError>> {
     this.users.add(name);
     return ok(undefined);
   }
@@ -146,8 +146,13 @@ export class MockSystemOps implements SystemOperations {
   }
 
   async mkdir(
-    _path: string,
+    path: string,
   ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
+    // Track directory as a file entry so exists() finds it
+    const full = this.resolve(path);
+    if (!this.files.has(full)) {
+      this.files.set(full, { content: "", owner: "root", group: "root", mode: "755" });
+    }
     return ok(undefined);
   }
 
