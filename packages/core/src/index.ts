@@ -43,8 +43,6 @@ export type { FileStatus, StatusResult, StatusOptions } from "./status.js";
 
 // Console output
 export type { ConsoleOutput } from "./console.js";
-export { MockConsoleOutput } from "./console-mock.js";
-export type { CapturedLine } from "./console-mock.js";
 export { LiveConsoleOutput } from "./console-live.js";
 
 // CLI commands

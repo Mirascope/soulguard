@@ -5,32 +5,28 @@
 import pc from "picocolors";
 import type { ConsoleOutput } from "./console.js";
 
-function emit(stream: NodeJS.WriteStream, text: string, newline: boolean): void {
-  stream.write(newline ? text + "\n" : text);
-}
-
 export class LiveConsoleOutput implements ConsoleOutput {
-  write(text: string, newline = true): void {
-    emit(process.stdout, text, newline);
+  write(text: string): void {
+    console.log(text);
   }
 
-  error(text: string, newline = true): void {
-    emit(process.stderr, text, newline);
+  error(text: string): void {
+    console.log(pc.red(text));
   }
 
-  success(text: string, newline = true): void {
-    emit(process.stdout, pc.green(text), newline);
+  success(text: string): void {
+    console.log(pc.green(text));
   }
 
-  warn(text: string, newline = true): void {
-    emit(process.stdout, pc.yellow(text), newline);
+  warn(text: string): void {
+    console.log(pc.yellow(text));
   }
 
-  info(text: string, newline = true): void {
-    emit(process.stdout, pc.dim(text), newline);
+  info(text: string): void {
+    console.log(pc.dim(text));
   }
 
-  heading(text: string, newline = true): void {
-    emit(process.stdout, pc.bold(text), newline);
+  heading(text: string): void {
+    console.log(pc.bold(text));
   }
 }

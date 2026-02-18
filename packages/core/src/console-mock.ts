@@ -12,27 +12,27 @@ export type CapturedLine = {
 export class MockConsoleOutput implements ConsoleOutput {
   public lines: CapturedLine[] = [];
 
-  write(text: string, _newline?: boolean): void {
+  write(text: string): void {
     this.lines.push({ level: "write", text });
   }
 
-  error(text: string, _newline?: boolean): void {
+  error(text: string): void {
     this.lines.push({ level: "error", text });
   }
 
-  success(text: string, _newline?: boolean): void {
+  success(text: string): void {
     this.lines.push({ level: "success", text });
   }
 
-  warn(text: string, _newline?: boolean): void {
+  warn(text: string): void {
     this.lines.push({ level: "warn", text });
   }
 
-  info(text: string, _newline?: boolean): void {
+  info(text: string): void {
     this.lines.push({ level: "info", text });
   }
 
-  heading(text: string, _newline?: boolean): void {
+  heading(text: string): void {
     this.lines.push({ level: "heading", text });
   }
 

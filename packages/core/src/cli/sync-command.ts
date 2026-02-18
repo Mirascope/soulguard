@@ -23,18 +23,20 @@ export class SyncCommand {
     this.out.heading(`Soulguard Sync — ${this.opts.ops.workspace}`);
     this.out.write("");
 
-    // Show what was drifted before
-    const driftedBefore = before.issues.filter((f) => f.status === "drifted");
     if (before.issues.length === 0 && errors.length === 0) {
       this.out.success("Nothing to fix — all files ok.");
       return 0;
     }
 
-    if (driftedBefore.length > 0) {
-      this.out.heading("Fixes applied:");
-      for (const f of driftedBefore) {
+    // Show what was actually fixed (in before.issues but not in after.issues)
+    const afterPaths = new Set(after.issues.map((f) => this.issuePath(f)));
+    const fixed = before.issues.filter((f) => !afterPaths.has(this.issuePath(f)));
+
+    if (fixed.length > 0) {
+      this.out.heading("Fixed:");
+      for (const f of fixed) {
         if (f.status === "drifted") {
-          this.out.write(`  🔧 ${f.file.path}`);
+          this.out.success(`  🔧 ${f.file.path}`);
           for (const issue of f.issues) {
             this.out.info(`      ${formatIssue(issue)}`);
           }
@@ -52,19 +54,32 @@ export class SyncCommand {
       this.out.write("");
     }
 
-    // Show after state summary
-    const afterIssues = after.issues;
-    if (afterIssues.length === 0) {
+    // Show remaining issues
+    if (after.issues.length === 0) {
       this.out.success("All files now ok.");
       return 0;
     }
 
-    this.out.warn(`${afterIssues.length} issue(s) remaining after sync.`);
-    for (const f of afterIssues) {
+    this.out.warn(`${after.issues.length} issue(s) remaining after sync:`);
+    for (const f of after.issues) {
       this.printFile(f);
     }
 
     return 1;
+  }
+
+  private issuePath(f: FileStatus): string {
+    switch (f.status) {
+      case "drifted":
+        return f.file.path;
+      case "missing":
+      case "error":
+        return f.path;
+      case "glob_skipped":
+        return f.pattern;
+      default:
+        return "";
+    }
   }
 
   private printFile(f: FileStatus): void {
