@@ -74,6 +74,16 @@ export function formatIssue(issue: DriftIssue): string {
   }
 }
 
+// ── System identity ────────────────────────────────────────────────────
+
+/** Expected soulguard system user/group names per platform */
+export type SystemIdentity = {
+  /** System user that owns vault files (e.g. "_soulguard") */
+  user: string;
+  /** System group for vault files (e.g. "soulguard") */
+  group: string;
+};
+
 // Re-export Result from result.ts for convenience
 export type { Result } from "./result.js";
 export { ok, err } from "./result.js";
