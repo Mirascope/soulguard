@@ -2,10 +2,9 @@
  * Soulguard OpenClaw plugin — protects vault files from direct writes.
  */
 
-import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { parseConfig } from "@soulguard/core";
+import { status, diff, parseConfig, NodeSystemOps, type SoulguardConfig } from "@soulguard/core";
 import { guardToolCall } from "./guard.js";
 import type {
   BeforeToolCallEvent,
@@ -37,10 +36,11 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
       const configPath = join(workspaceDir, configFile);
 
       // Load config — fail gracefully if missing
+      let config: SoulguardConfig;
       let vaultFiles: string[];
       try {
         const raw = JSON.parse(readFileSync(configPath, "utf-8"));
-        const config = parseConfig(raw);
+        config = parseConfig(raw);
         vaultFiles = config.vault;
       } catch {
         // No config or invalid — nothing to guard
@@ -50,33 +50,45 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
 
       if (vaultFiles.length === 0) return;
 
-      // Register agent tools
-      const execSoulguard = (cmd: string): string => {
-        try {
-          return execSync(`soulguard ${cmd} ${workspaceDir}`, {
-            encoding: "utf-8",
-            env: { ...process.env, NO_COLOR: "1" },
-          });
-        } catch (e) {
-          const msg =
-            e instanceof Error && "stdout" in e ? (e as { stdout: string }).stdout : String(e);
-          return msg || `soulguard ${cmd.split(" ")[0]} failed`;
-        }
-      };
+      // Helper to create ops for the workspace
+      const createOps = () => new NodeSystemOps(workspaceDir);
 
+      // Status tool
       api.registerTool(
         {
           name: "soulguard_status",
           description: "Check soulguard protection status of vault and ledger files",
           parameters: { type: "object", properties: {}, required: [] },
           async execute(_id, _params) {
-            const output = execSoulguard("status");
-            return { content: [{ type: "text", text: output }] };
+            const ops = createOps();
+            const result = await status({
+              config,
+              expectedVaultOwnership: { user: "soulguardian", group: "soulguard", mode: "444" },
+              expectedLedgerOwnership: { user: "agent", group: "staff", mode: "644" },
+              ops,
+            });
+            if (!result.ok) {
+              return { content: [{ type: "text" as const, text: "Status check failed" }] };
+            }
+            const lines: string[] = ["Soulguard Status:", ""];
+            for (const f of [...result.value.vault, ...result.value.ledger]) {
+              if (f.status === "ok") lines.push(`  ✅ ${f.file.path}`);
+              else if (f.status === "drifted")
+                lines.push(`  ⚠️  ${f.file.path} — ${f.issues.map((i) => i.kind).join(", ")}`);
+              else if (f.status === "missing") lines.push(`  ❌ ${f.path} — missing`);
+              else if (f.status === "error") lines.push(`  ❌ ${f.path} — error: ${f.error.kind}`);
+              else if (f.status === "glob_skipped")
+                lines.push(`  ⏭️  ${f.pattern} — glob (skipped)`);
+            }
+            if (result.value.issues.length === 0) lines.push("", "All files ok.");
+            else lines.push("", `${result.value.issues.length} issue(s) found.`);
+            return { content: [{ type: "text" as const, text: lines.join("\n") }] };
           },
         },
         { optional: true },
       );
 
+      // Diff tool
       api.registerTool(
         {
           name: "soulguard_diff",
@@ -93,39 +105,33 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
             required: [],
           },
           async execute(_id, params) {
-            const files =
-              Array.isArray(params.files) && params.files.length > 0
-                ? ` ${(params.files as string[]).join(" ")}`
-                : "";
-            const output = execSoulguard(`diff${files}`);
-            return { content: [{ type: "text", text: output }] };
+            const ops = createOps();
+            const files = Array.isArray(params.files) ? (params.files as string[]) : undefined;
+            const result = await diff({ ops, config, files });
+            if (!result.ok) {
+              return {
+                content: [{ type: "text" as const, text: `Diff failed: ${result.error.kind}` }],
+              };
+            }
+            if (!result.value.hasChanges) {
+              return {
+                content: [
+                  { type: "text" as const, text: "No differences — staging matches vault." },
+                ],
+              };
+            }
+            const text = result.value.files
+              .filter((d) => d.status === "modified" && d.diff)
+              .map((d) => `--- ${d.path}\n${d.diff}`)
+              .join("\n\n");
+            return { content: [{ type: "text" as const, text: text || "No modified files." }] };
           },
         },
         { optional: true },
       );
 
-      api.registerTool(
-        {
-          name: "soulguard_propose",
-          description:
-            "Create a vault change proposal from staging edits. Edit .soulguard/staging/ files first, then call this to propose the changes for owner approval.",
-          parameters: {
-            type: "object",
-            properties: {
-              message: { type: "string", description: "Description of the proposed changes" },
-              force: { type: "boolean", description: "Replace existing proposal if one exists" },
-            },
-            required: [],
-          },
-          async execute(_id, params) {
-            const msg = params.message ? ` -m "${String(params.message)}"` : "";
-            const force = params.force ? " --force" : "";
-            const output = execSoulguard(`propose${msg}${force}`);
-            return { content: [{ type: "text", text: output }] };
-          },
-        },
-        { optional: true },
-      );
+      // TODO: Add soulguard_propose tool once `propose` is exported from @soulguard/core
+      // (available after PR #12 merges — rebase this branch onto main to pick it up)
 
       // Register the guard hook
       api.on("before_tool_call", (...args: unknown[]) => {

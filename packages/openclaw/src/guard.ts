@@ -4,6 +4,7 @@
  */
 
 import { basename } from "node:path";
+import { isVaultedFile } from "@soulguard/core";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -30,24 +31,12 @@ const STAGING_PREFIX = ".soulguard/staging/";
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-/**
- * Normalize a path by stripping leading "./" or "/".
- * The guard assumes all paths are workspace-relative, so stripping a leading
- * "/" is intentional and safe — absolute paths within the workspace get
- * collapsed to their relative form.
- */
+/** Normalize path for staging prefix check. */
 function normalizePath(p: string): string {
   let s = p;
   if (s.startsWith("./")) s = s.slice(2);
   if (s.startsWith("/")) s = s.slice(1);
   return s;
-}
-
-// TODO: delegate to @soulguard/core isVaulted() API
-/** Check if `filePath` exactly matches a vault entry. */
-function matchesVault(filePath: string, vaultFiles: string[]): boolean {
-  const norm = normalizePath(filePath);
-  return vaultFiles.some((pattern) => norm === normalizePath(pattern));
 }
 
 // ── Main guard ─────────────────────────────────────────────────────────
@@ -81,8 +70,8 @@ export function guardToolCall(
   const norm = normalizePath(targetPath);
   if (norm.startsWith(STAGING_PREFIX)) return { blocked: false };
 
-  // Check against vault
-  if (!matchesVault(targetPath, options.vaultFiles)) return { blocked: false };
+  // Check against vault using core SDK
+  if (!isVaultedFile(options.vaultFiles, targetPath)) return { blocked: false };
 
   const fileName = basename(targetPath);
   return {
