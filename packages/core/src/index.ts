@@ -40,3 +40,13 @@ export type { SyncError, SyncResult, SyncOptions } from "./sync.js";
 // Status
 export { status } from "./status.js";
 export type { FileStatus, StatusResult, StatusOptions } from "./status.js";
+
+// Console output
+export type { ConsoleOutput } from "./console.js";
+export { MockConsoleOutput } from "./console-mock.js";
+export type { CapturedLine } from "./console-mock.js";
+export { LiveConsoleOutput } from "./console-live.js";
+
+// CLI commands
+export { StatusCommand } from "./cli/status-command.js";
+export { SyncCommand } from "./cli/sync-command.js";
