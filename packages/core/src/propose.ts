@@ -7,8 +7,9 @@
  */
 
 import type { SystemOperations } from "./system-ops.js";
-import type { SoulguardConfig, Result } from "./types.js";
+import type { SoulguardConfig, FileOwnership, Result } from "./types.js";
 import type { Proposal, ProposalFile, ProposeError } from "./proposal.js";
+import { IDENTITY } from "./constants.js";
 import { ok, err } from "./result.js";
 
 export type ProposeOptions = {
@@ -95,7 +96,7 @@ export async function propose(
     files,
   };
 
-  // Write proposal
+  // Write proposal — owned by soulguardian so agent can't tamper with hashes
   const writeResult = await ops.writeFile(
     ".soulguard/proposal.json",
     JSON.stringify(proposal, null, 2) + "\n",
@@ -106,6 +107,13 @@ export async function propose(
       message: `Failed to write proposal: ${writeResult.error.kind}`,
     });
   }
+
+  // Protect proposal.json — agent must not be able to modify hashes
+  await ops.chown(".soulguard/proposal.json", {
+    user: IDENTITY.user,
+    group: IDENTITY.group,
+  });
+  await ops.chmod(".soulguard/proposal.json", "444");
 
   return ok({ proposal, changedCount: files.length });
 }

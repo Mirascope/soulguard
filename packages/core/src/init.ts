@@ -183,8 +183,9 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     if (!mkdirResult.ok) {
       return err({ kind: "staging_failed", message: `mkdir failed: ${mkdirResult.error.kind}` });
     }
-    // Make .soulguard and staging agent-writable (agent writes proposal.json + staging edits)
-    const chownSg = await ops.chown(".soulguard", { user: agentUser, group: identity.group });
+    // .soulguard/ owned by soulguardian — agent CANNOT create/delete files here.
+    // Only staging/ is agent-writable. proposal.json is written by sudo propose.
+    const chownSg = await ops.chown(".soulguard", { user: identity.user, group: identity.group });
     if (!chownSg.ok) {
       return err({
         kind: "staging_failed",

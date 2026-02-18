@@ -19,8 +19,7 @@ import { parseConfig } from "./schema.js";
 import type { StatusOptions } from "./status.js";
 import type { SoulguardConfig } from "./types.js";
 
-const IDENTITY = { user: "soulguardian", group: "soulguard" } as const;
-const VAULT_OWNERSHIP = { user: IDENTITY.user, group: IDENTITY.group, mode: "444" } as const;
+import { IDENTITY, VAULT_OWNERSHIP } from "./constants.js";
 const LEDGER_OWNERSHIP = { user: "agent", group: "staff", mode: "644" } as const;
 
 const DEFAULT_CONFIG: SoulguardConfig = {

@@ -1,0 +1,23 @@
+Soulguard Init — /workspace
+  Created group: soulguard
+  Created user: soulguardian
+  Wrote /etc/sudoers.d/soulguard
+  Created .soulguard/staging/
+  Synced 2 vault file(s)
+
+Done.
+Soulguard Propose — /workspace
+
+Created proposal with 1 file(s):
+  📝 SOUL.md
+
+Message: legit proposal
+
+Run `soulguard diff` to review, `sudo soulguard approve` to apply.
+--- proposal.json permissions ---
+soulguardian:soulguard 444
+-bash: line 1: /workspace/.soulguard/proposal.json: Permission denied
+WRITE BLOCKED (GOOD)
+rm: cannot remove '/workspace/.soulguard/proposal.json': Permission denied
+DELETE BLOCKED (GOOD)
+PROPOSAL INTACT
