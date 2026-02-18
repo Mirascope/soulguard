@@ -7,7 +7,7 @@
  */
 
 import type { SystemOperations } from "./system-ops.js";
-import type { SoulguardConfig, FileOwnership, Result } from "./types.js";
+import type { SoulguardConfig, Result } from "./types.js";
 import type { Proposal, ProposalFile, ProposeError } from "./proposal.js";
 import { IDENTITY } from "./constants.js";
 import { ok, err } from "./result.js";
