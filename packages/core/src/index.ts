@@ -32,6 +32,7 @@ export type { SystemOperations, FileStat } from "./system-ops.js";
 export { getFileInfo } from "./system-ops.js";
 export { MockSystemOps } from "./system-ops-mock.js";
 export type { RecordedOp } from "./system-ops-mock.js";
+export { NodeSystemOps } from "./system-ops-node.js";
 
 // Sync
 export { sync } from "./sync.js";

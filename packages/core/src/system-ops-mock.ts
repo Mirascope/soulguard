@@ -7,13 +7,7 @@
 
 import { resolve } from "node:path";
 import type { FileStat, SystemOperations } from "./system-ops.js";
-import type {
-  FileOwnership,
-  Result,
-  NotFoundError,
-  PermissionDeniedError,
-  IOError,
-} from "./types.js";
+import type { Result, NotFoundError, PermissionDeniedError, IOError } from "./types.js";
 import { ok, err } from "./result.js";
 
 /**
@@ -21,7 +15,7 @@ import { ok, err } from "./result.js";
  * (which records what sync *decided*) — they track different things.
  */
 export type RecordedOp =
-  | { kind: "chown"; path: string; ownership: FileOwnership }
+  | { kind: "chown"; path: string; owner: { user: string; group: string } }
   | { kind: "chmod"; path: string; mode: string };
 
 type MockFile = {
@@ -92,14 +86,14 @@ export class MockSystemOps implements SystemOperations {
 
   async chown(
     path: string,
-    ownership: FileOwnership,
+    owner: { user: string; group: string },
   ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
     const full = this.resolve(path);
     const file = this.files.get(full);
     if (!file) return err({ kind: "not_found", path });
-    this.ops.push({ kind: "chown", path, ownership });
-    file.owner = ownership.user;
-    file.group = ownership.group;
+    this.ops.push({ kind: "chown", path, owner });
+    file.owner = owner.user;
+    file.group = owner.group;
     return ok(undefined);
   }
 
