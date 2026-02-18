@@ -1,0 +1,1 @@
+No staging directory found. Run `soulguard init` first.
