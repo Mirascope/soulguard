@@ -2,8 +2,12 @@
  * soulguard approve — apply a proposal to vault files.
  *
  * Validates password (if set), checks proposal isn't stale (vault hashes
- * match what proposal recorded), copies staging → vault, re-protects
- * ownership/permissions, clears the proposal.
+ * match what proposal recorded), then applies atomically:
+ * 1. Backup all affected vault files to .soulguard/backup/
+ * 2. Apply all staging → vault copies
+ * 3. Re-protect all files
+ * 4. On any failure, rollback from backups
+ * 5. Clear proposal + backups on success
  */
 
 import type { SystemOperations } from "./system-ops.js";
@@ -53,7 +57,7 @@ export async function approve(
     }
   }
 
-  // Check for staleness — vault files must still match the hashes recorded at propose time
+  // ── Phase 1: Validate all hashes (staleness check) ─────────────────
   for (const file of proposal.files) {
     const currentHash = await ops.hashFile(file.path);
     if (!currentHash.ok) {
@@ -68,16 +72,9 @@ export async function approve(
         message: `${file.path} has changed since the proposal was created. Re-propose.`,
       });
     }
-  }
 
-  // Apply: copy staging → vault for each file
-  const appliedFiles: string[] = [];
-
-  for (const file of proposal.files) {
-    const stagingPath = `.soulguard/staging/${file.path}`;
-
-    // Verify staged file still matches proposal
-    const stagedHash = await ops.hashFile(stagingPath);
+    // Also verify staged file still matches proposal
+    const stagedHash = await ops.hashFile(`.soulguard/staging/${file.path}`);
     if (!stagedHash.ok) {
       return err({ kind: "apply_failed", message: `Cannot read staging/${file.path}` });
     }
@@ -87,27 +84,43 @@ export async function approve(
         message: `Staging copy of ${file.path} changed after propose. Re-propose.`,
       });
     }
+  }
 
-    // Read staged content and write to vault location
-    const content = await ops.readFile(stagingPath);
+  // ── Phase 2: Backup all affected vault files ───────────────────────
+  await ops.mkdir(".soulguard/backup");
+  for (const file of proposal.files) {
+    const backupResult = await ops.copyFile(file.path, `.soulguard/backup/${file.path}`);
+    if (!backupResult.ok) {
+      return err({ kind: "apply_failed", message: `Backup of ${file.path} failed` });
+    }
+  }
+
+  // ── Phase 3: Apply all changes ─────────────────────────────────────
+  const appliedFiles: string[] = [];
+
+  for (const file of proposal.files) {
+    const content = await ops.readFile(`.soulguard/staging/${file.path}`);
     if (!content.ok) {
+      await rollback(ops, proposal, appliedFiles, vaultOwnership);
       return err({ kind: "apply_failed", message: `Cannot read staging/${file.path}` });
     }
 
     const writeResult = await ops.writeFile(file.path, content.value);
     if (!writeResult.ok) {
+      await rollback(ops, proposal, appliedFiles, vaultOwnership);
       return err({
         kind: "apply_failed",
         message: `Cannot write ${file.path}: ${writeResult.error.kind}`,
       });
     }
 
-    // Re-protect: chown + chmod
+    // Re-protect
     const chownResult = await ops.chown(file.path, {
       user: vaultOwnership.user,
       group: vaultOwnership.group,
     });
     if (!chownResult.ok) {
+      await rollback(ops, proposal, appliedFiles, vaultOwnership);
       return err({
         kind: "apply_failed",
         message: `Cannot chown ${file.path}: ${chownResult.error.kind}`,
@@ -116,23 +129,48 @@ export async function approve(
 
     const chmodResult = await ops.chmod(file.path, vaultOwnership.mode);
     if (!chmodResult.ok) {
+      await rollback(ops, proposal, appliedFiles, vaultOwnership);
       return err({
         kind: "apply_failed",
         message: `Cannot chmod ${file.path}: ${chmodResult.error.kind}`,
       });
     }
 
-    // Update staging copy to match new vault state
-    const copyStagingResult = await ops.copyFile(file.path, stagingPath);
-    if (!copyStagingResult.ok) {
-      // Non-fatal — staging will be out of sync but vault is correct
-    }
-
     appliedFiles.push(file.path);
   }
 
-  // Clear proposal
+  // ── Phase 4: Sync staging copies + cleanup ─────────────────────────
+  for (const file of proposal.files) {
+    await ops.copyFile(file.path, `.soulguard/staging/${file.path}`);
+  }
+
+  // Clean up backup and proposal
+  for (const file of proposal.files) {
+    await ops.deleteFile(`.soulguard/backup/${file.path}`);
+  }
   await ops.deleteFile(".soulguard/proposal.json");
 
   return ok({ appliedFiles });
+}
+
+/**
+ * Rollback: restore vault files from backups after a partial apply failure.
+ */
+async function rollback(
+  ops: SystemOperations,
+  proposal: Proposal,
+  appliedFiles: string[],
+  vaultOwnership: FileOwnership,
+): Promise<void> {
+  for (const filePath of appliedFiles) {
+    const backupContent = await ops.readFile(`.soulguard/backup/${filePath}`);
+    if (backupContent.ok) {
+      await ops.writeFile(filePath, backupContent.value);
+      await ops.chown(filePath, {
+        user: vaultOwnership.user,
+        group: vaultOwnership.group,
+      });
+      await ops.chmod(filePath, vaultOwnership.mode);
+    }
+  }
 }

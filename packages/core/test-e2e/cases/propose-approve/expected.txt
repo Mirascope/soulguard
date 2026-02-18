@@ -13,7 +13,7 @@ Created proposal with 1 file(s):
 
 Message: update soul
 
-Run `soulguard diff` to review, `soulguard approve` to apply.
+Run `soulguard diff` to review, `sudo soulguard approve` to apply.
 Soulguard Approve — /workspace
 
 Approved 1 file(s):

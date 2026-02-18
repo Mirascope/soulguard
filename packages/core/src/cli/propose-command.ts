@@ -44,7 +44,7 @@ export class ProposeCommand {
       this.out.write(`\nMessage: ${proposal.message}`);
     }
     this.out.write("");
-    this.out.info("Run `soulguard diff` to review, `soulguard approve` to apply.");
+    this.out.info("Run `soulguard diff` to review, `sudo soulguard approve` to apply.");
     return 0;
   }
 }

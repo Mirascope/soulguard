@@ -3,8 +3,10 @@ import { MockSystemOps } from "./system-ops-mock.js";
 import { propose } from "./propose.js";
 import { approve } from "./approve.js";
 import type { SoulguardConfig, FileOwnership } from "./types.js";
+import { err } from "./result.js";
 
 const config: SoulguardConfig = { vault: ["SOUL.md"], ledger: [] };
+const multiConfig: SoulguardConfig = { vault: ["SOUL.md", "AGENTS.md"], ledger: [] };
 const vaultOwnership: FileOwnership = { user: "soulguardian", group: "soulguard", mode: "444" };
 
 function setup() {
@@ -99,5 +101,60 @@ describe("approve", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("stale_proposal");
+  });
+
+  test("rolls back on partial apply failure", async () => {
+    const ops = new MockSystemOps("/workspace");
+    // Two vault files
+    ops.addFile("SOUL.md", "original soul", {
+      owner: "soulguardian",
+      group: "soulguard",
+      mode: "444",
+    });
+    ops.addFile("AGENTS.md", "original agents", {
+      owner: "soulguardian",
+      group: "soulguard",
+      mode: "444",
+    });
+    ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
+    ops.addFile(".soulguard/staging/SOUL.md", "modified soul", {
+      owner: "agent",
+      group: "soulguard",
+      mode: "644",
+    });
+    ops.addFile(".soulguard/staging/AGENTS.md", "modified agents", {
+      owner: "agent",
+      group: "soulguard",
+      mode: "644",
+    });
+
+    // Create proposal with both files
+    const propResult = await propose({ ops, config: multiConfig });
+    expect(propResult.ok).toBe(true);
+    if (!propResult.ok) return;
+    expect(propResult.value.changedCount).toBe(2);
+
+    // Inject failure: make chown fail on AGENTS.md (second file)
+    const originalChown = ops.chown.bind(ops);
+    let chownCount = 0;
+    ops.chown = async (path, owner) => {
+      chownCount++;
+      // Fail on the 2nd chown during apply (AGENTS.md protection)
+      // Skip backup chowns (they don't happen) and SOUL.md chown
+      if (path === "AGENTS.md") {
+        return err({ kind: "permission_denied" as const, path, operation: "chown" });
+      }
+      return originalChown(path, owner);
+    };
+
+    const result = await approve({ ops, vaultOwnership });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe("apply_failed");
+
+    // SOUL.md should be rolled back to original
+    const soulContent = await ops.readFile("SOUL.md");
+    expect(soulContent.ok).toBe(true);
+    if (soulContent.ok) expect(soulContent.value).toBe("original soul");
   });
 });

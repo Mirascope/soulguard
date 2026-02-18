@@ -173,12 +173,18 @@ program
   .description("Create a vault change proposal from staging edits")
   .argument("[workspace]", "workspace path", process.cwd())
   .option("-m, --message <message>", "describe the changes")
-  .action(async (workspace: string, opts: { message?: string }) => {
+  .option("-f, --force", "overwrite existing proposal")
+  .action(async (workspace: string, opts: { message?: string; force?: boolean }) => {
     const out = new LiveConsoleOutput();
     try {
       const statusOpts = await makeOptions(workspace);
       const cmd = new ProposeCommand(
-        { ops: statusOpts.ops, config: statusOpts.config, message: opts.message },
+        {
+          ops: statusOpts.ops,
+          config: statusOpts.config,
+          message: opts.message,
+          force: opts.force,
+        },
         out,
       );
       process.exitCode = await cmd.execute();
