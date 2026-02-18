@@ -17,6 +17,12 @@ export type {
   WrongGroupIssue,
   WrongModeIssue,
   HashFailedIssue,
+  // Status
+  FileStatus,
+  StatusResult,
+  // Sync
+  SyncError,
+  SyncResult,
   // Init
   SystemIdentity,
   InitResult,
@@ -52,11 +58,11 @@ export { NodeSystemOps } from "./system-ops-node.js";
 
 // Sync
 export { sync } from "./sync.js";
-export type { SyncError, SyncResult, SyncOptions } from "./sync.js";
+export type { SyncOptions } from "./sync.js";
 
 // Status
 export { status } from "./status.js";
-export type { FileStatus, StatusResult, StatusOptions } from "./status.js";
+export type { StatusOptions } from "./status.js";
 
 // Console output
 export type { ConsoleOutput } from "./console.js";

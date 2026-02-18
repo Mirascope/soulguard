@@ -74,6 +74,22 @@ export function formatIssue(issue: DriftIssue): string {
   }
 }
 
+// ── Status ─────────────────────────────────────────────────────────────
+
+export type FileStatus =
+  | { tier: Tier; status: "ok"; file: FileInfo }
+  | { tier: Tier; status: "drifted"; file: FileInfo; issues: DriftIssue[] }
+  | { tier: Tier; status: "missing"; path: string }
+  | { tier: Tier; status: "error"; path: string; error: FileSystemError }
+  | { tier: Tier; status: "glob_skipped"; pattern: string };
+
+export type StatusResult = {
+  vault: FileStatus[];
+  ledger: FileStatus[];
+  /** All non-ok statuses from both tiers, for convenience */
+  issues: FileStatus[];
+};
+
 // ── Sync ───────────────────────────────────────────────────────────────
 
 export type SyncError = {
@@ -83,8 +99,8 @@ export type SyncError = {
 };
 
 export type SyncResult = {
-  before: import("./status.js").StatusResult;
-  after: import("./status.js").StatusResult;
+  before: StatusResult;
+  after: StatusResult;
   errors: SyncError[];
 };
 
