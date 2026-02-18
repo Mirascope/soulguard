@@ -30,8 +30,11 @@ for case_dir in "$CASES_DIR"/*/; do
   # Run test in a clean temp workspace
   workspace=$(mktemp -d /tmp/soulguard-e2e-XXXX)
   
-  # Execute test script, capture all output
-  actual=$(cd "$workspace" && NO_COLOR=1 bash "$test_script" 2>&1) || true
+  # Execute test script, capture all output, normalize temp paths
+  # Execute test script, capture all output, normalize variable paths
+  actual=$(cd "$workspace" && NO_COLOR=1 bash "$test_script" 2>&1 | \
+    sed "s|$workspace|/workspace|g" | \
+    sed "s|$test_script|test.sh|g") || true
 
   # Clean up workspace
   rm -rf "$workspace"
