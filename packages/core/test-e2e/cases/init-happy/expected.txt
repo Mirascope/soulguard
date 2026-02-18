@@ -1,0 +1,18 @@
+Soulguard Init — /workspace
+  Created group: soulguard
+  Created user: soulguardian
+  Wrote /etc/sudoers.d/soulguard
+  Created .soulguard/staging/
+  Synced 2 vault file(s)
+
+Done.
+Soulguard Status — /workspace
+
+Vault
+  ✅ SOUL.md
+  ✅ soulguard.json
+
+2 files ok, 0 drifted, 0 missing
+.soulguard/staging/SOUL.md
+STAGING: OK
+-bash: line 1: /workspace/SOUL.md: Permission denied

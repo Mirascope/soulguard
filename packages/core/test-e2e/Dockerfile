@@ -1,17 +1,13 @@
 FROM oven/bun:latest
 
-# Create soulguard system user and group
-RUN groupadd soulguard && \
-    useradd -r -g soulguard soulguardian
-
-# Create agent user (simulates the AI agent's OS user)
+# Create agent user only — soulguardian/soulguard are created by `soulguard init`
 RUN useradd -m -s /bin/bash agent
 
 # Install sudo
 RUN apt-get update && apt-get install -y sudo && rm -rf /var/lib/apt/lists/*
 
-# Agent can sudo soulguard commands (simulates daemon running as root)
-RUN echo "agent ALL=(root) NOPASSWD: /usr/local/bin/soulguard" >> /etc/sudoers.d/soulguard
+# No broad sudoers for agent — init generates scoped rules.
+# Agent gets sudo only after `soulguard init` writes /etc/sudoers.d/soulguard.
 
 WORKDIR /app
 
@@ -28,6 +24,6 @@ RUN chmod +x packages/core/src/cli.ts
 RUN printf '#!/bin/bash\nexec bun /app/packages/core/src/cli.ts "$@"\n' > /usr/local/bin/soulguard && \
     chmod +x /usr/local/bin/soulguard
 
-# Run e2e tests as agent user
-USER agent
-CMD ["bash", "/app/packages/core/test-e2e/run-tests.sh"]
+# Default to root (simulates human/owner running setup)
+# Tests switch to agent via `su - agent -c "..."` for agent actions
+USER root

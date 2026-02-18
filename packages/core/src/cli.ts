@@ -9,13 +9,29 @@ import { readFile } from "node:fs/promises";
 import { LiveConsoleOutput } from "./console-live.js";
 import { StatusCommand } from "./cli/status-command.js";
 import { SyncCommand } from "./cli/sync-command.js";
-import { NodeSystemOps } from "./system-ops-node.js";
+import { InitCommand } from "./cli/init-command.js";
+import { NodeSystemOps, writeFileAbsolute, existsAbsolute } from "./system-ops-node.js";
 import { parseConfig } from "./schema.js";
 import type { StatusOptions } from "./status.js";
+import type { SoulguardConfig } from "./types.js";
 
-// TODO: read from config after `soulguard init` is implemented
-const VAULT_OWNERSHIP = { user: "soulguardian", group: "soulguard", mode: "444" } as const;
+const IDENTITY = { user: "soulguardian", group: "soulguard" } as const;
+const VAULT_OWNERSHIP = { user: IDENTITY.user, group: IDENTITY.group, mode: "444" } as const;
 const LEDGER_OWNERSHIP = { user: "agent", group: "staff", mode: "644" } as const;
+
+const DEFAULT_CONFIG: SoulguardConfig = {
+  vault: [
+    "SOUL.md",
+    "AGENTS.md",
+    "IDENTITY.md",
+    "USER.md",
+    "TOOLS.md",
+    "HEARTBEAT.md",
+    "BOOTSTRAP.md",
+    "soulguard.json",
+  ],
+  ledger: ["memory/**", "skills/**"],
+};
 
 async function makeOptions(workspace: string): Promise<StatusOptions> {
   const ops = new NodeSystemOps(resolve(workspace));
@@ -74,5 +90,54 @@ program
       process.exitCode = 1;
     }
   });
+
+program
+  .command("init")
+  .description("Initialize soulguard for a workspace")
+  .argument("[workspace]", "workspace path", process.cwd())
+  .option("--agent-user <user>", "agent OS username (default: $SUDO_USER or 'agent')")
+  .option("--password", "set a password during init")
+  .option("--template <name>", "protection template")
+  .action(
+    async (
+      workspace: string,
+      opts: { agentUser?: string; password?: boolean; template?: string },
+    ) => {
+      const out = new LiveConsoleOutput();
+      const absWorkspace = resolve(workspace);
+      const nodeOps = new NodeSystemOps(absWorkspace);
+
+      // Infer agent user: explicit flag > $SUDO_USER > "agent"
+      const agentUser = opts.agentUser ?? process.env.SUDO_USER ?? "agent";
+
+      // Use existing config if present, otherwise default
+      let config: SoulguardConfig = DEFAULT_CONFIG;
+      try {
+        const raw = await readFile(resolve(absWorkspace, "soulguard.json"), "utf-8");
+        config = parseConfig(JSON.parse(raw));
+      } catch {
+        // No existing config — will be created by init
+      }
+
+      if (opts.password) {
+        out.error("Password support not yet implemented (argon2 pending).");
+        process.exitCode = 1;
+        return;
+      }
+
+      const cmd = new InitCommand(
+        {
+          ops: nodeOps,
+          identity: IDENTITY,
+          config,
+          agentUser,
+          writeAbsolute: writeFileAbsolute,
+          existsAbsolute,
+        },
+        out,
+      );
+      process.exitCode = await cmd.execute();
+    },
+  );
 
 program.parse();

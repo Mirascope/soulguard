@@ -30,6 +30,30 @@ export interface SystemOperations {
   /** Check if a system group exists */
   groupExists(name: string): Promise<Result<boolean, IOError>>;
 
+  /** Create a system user (requires root) */
+  createUser(name: string, group: string): Promise<Result<void, IOError>>;
+
+  /** Create a system group (requires root) */
+  createGroup(name: string): Promise<Result<void, IOError>>;
+
+  /** Write content to a file (relative path). Creates parent dirs if needed. */
+  writeFile(
+    path: string,
+    content: string,
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
+
+  /** Create a directory (relative path). Creates parent dirs if needed. */
+  mkdir(path: string): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
+
+  /** Copy a file (relative paths). */
+  copyFile(
+    src: string,
+    dest: string,
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
+
+  /** Check if a path exists (relative path) */
+  exists(path: string): Promise<Result<boolean, IOError>>;
+
   /** Get file stat info (relative path) */
   stat(path: string): Promise<Result<FileStat, NotFoundError | PermissionDeniedError | IOError>>;
 
