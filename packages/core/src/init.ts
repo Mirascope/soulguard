@@ -45,6 +45,9 @@ export type InitError =
 /** Write content to an absolute path (outside workspace). Used for sudoers. */
 export type AbsoluteWriter = (path: string, content: string) => Promise<Result<void, IOError>>;
 
+/** Check if an absolute path exists (outside workspace). */
+export type AbsoluteExists = (path: string) => Promise<boolean>;
+
 export type InitOptions = {
   ops: SystemOperations;
   identity: SystemIdentity;
@@ -53,10 +56,14 @@ export type InitOptions = {
   agentUser: string;
   /** Writer for files outside the workspace (sudoers). Keeps SystemOperations clean. */
   writeAbsolute: AbsoluteWriter;
+  /** Check if absolute path exists. Used for sudoers idempotency. */
+  existsAbsolute: AbsoluteExists;
   /** Password to hash (undefined = skip password setup) */
   password?: string;
   /** Path to write sudoers file (default: /etc/sudoers.d/soulguard) */
   sudoersPath?: string;
+  /** @internal Skip root check (for testing only) */
+  _skipRootCheck?: boolean;
 };
 
 /** Generate scoped sudoers content */
@@ -77,9 +84,20 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     config,
     agentUser,
     writeAbsolute,
+    existsAbsolute,
     password,
     sudoersPath = DEFAULT_SUDOERS_PATH,
   } = options;
+
+  // ── 0. Check root ─────────────────────────────────────────────────────
+  if (
+    !options._skipRootCheck &&
+    typeof process !== "undefined" &&
+    typeof process.getuid === "function" &&
+    process.getuid() !== 0
+  ) {
+    return err({ kind: "not_root", message: "soulguard init requires root. Run with sudo." });
+  }
 
   // ── 1. Create group ──────────────────────────────────────────────────
   let groupCreated = false;
@@ -189,12 +207,15 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
 
   // ── 6. Write sudoers ─────────────────────────────────────────────────
   let sudoersCreated = false;
-  const sudoersContent = generateSudoers(agentUser, SOULGUARD_BIN);
-  const sudoersResult = await writeAbsolute(sudoersPath, sudoersContent);
-  if (!sudoersResult.ok) {
-    return err({ kind: "sudoers_write_failed", message: sudoersResult.error.message });
+  const sudoersAlreadyExists = await existsAbsolute(sudoersPath);
+  if (!sudoersAlreadyExists) {
+    const sudoersContent = generateSudoers(agentUser, SOULGUARD_BIN);
+    const sudoersResult = await writeAbsolute(sudoersPath, sudoersContent);
+    if (!sudoersResult.ok) {
+      return err({ kind: "sudoers_write_failed", message: sudoersResult.error.message });
+    }
+    sudoersCreated = true;
   }
-  sudoersCreated = true;
 
   // ── 7. Password (optional) ───────────────────────────────────────────
   let passwordSet = false;

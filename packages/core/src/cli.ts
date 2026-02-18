@@ -10,7 +10,7 @@ import { LiveConsoleOutput } from "./console-live.js";
 import { StatusCommand } from "./cli/status-command.js";
 import { SyncCommand } from "./cli/sync-command.js";
 import { InitCommand } from "./cli/init-command.js";
-import { NodeSystemOps, writeFileAbsolute } from "./system-ops-node.js";
+import { NodeSystemOps, writeFileAbsolute, existsAbsolute } from "./system-ops-node.js";
 import { parseConfig } from "./schema.js";
 import type { StatusOptions } from "./status.js";
 import type { SoulguardConfig } from "./types.js";
@@ -126,6 +126,7 @@ program
           config,
           agentUser: opts.agentUser,
           writeAbsolute: writeFileAbsolute,
+          existsAbsolute,
           password,
         },
         out,

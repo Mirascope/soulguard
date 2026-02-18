@@ -3,9 +3,10 @@ import { MockSystemOps } from "./system-ops-mock.js";
 import { init, generateSudoers } from "./init.js";
 import type { InitOptions } from "./init.js";
 
-/** Mock absolute writer that records what was written */
-function mockWriteAbsolute(): {
+/** Mock absolute writer/exists that tracks what was written */
+function mockAbsolute(): {
   writer: InitOptions["writeAbsolute"];
+  exists: InitOptions["existsAbsolute"];
   written: Map<string, string>;
 } {
   const written = new Map<string, string>();
@@ -14,19 +15,22 @@ function mockWriteAbsolute(): {
       written.set(path, content);
       return { ok: true as const, value: undefined };
     },
+    exists: async (path) => written.has(path),
     written,
   };
 }
 
 function makeOptions(ops: MockSystemOps, overrides?: Partial<InitOptions>): InitOptions {
-  const { writer } = mockWriteAbsolute();
+  const { writer, exists } = mockAbsolute();
   return {
     ops,
     identity: { user: "soulguardian", group: "soulguard" },
     config: { vault: ["SOUL.md"], ledger: [] },
     agentUser: "agent",
     writeAbsolute: writer,
+    existsAbsolute: exists,
     sudoersPath: "/tmp/test-sudoers",
+    _skipRootCheck: true,
     ...overrides,
   };
 }
@@ -80,19 +84,23 @@ describe("init", () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile("SOUL.md", "# My Soul", { owner: "agent", group: "staff", mode: "644" });
 
+    // Share absolute state between runs
+    const abs = mockAbsolute();
+    const opts = makeOptions(ops, { writeAbsolute: abs.writer, existsAbsolute: abs.exists });
+
     // First run
-    const first = await init(makeOptions(ops));
+    const first = await init(opts);
     expect(first.ok).toBe(true);
 
     // Second run — everything should already exist
-    const second = await init(makeOptions(ops));
+    const second = await init(opts);
     expect(second.ok).toBe(true);
     if (!second.ok) return;
 
     expect(second.value.groupCreated).toBe(false);
     expect(second.value.userCreated).toBe(false);
     expect(second.value.configCreated).toBe(false);
-    // Staging already exists from first run
+    expect(second.value.sudoersCreated).toBe(false);
     expect(second.value.stagingCreated).toBe(false);
   });
 
