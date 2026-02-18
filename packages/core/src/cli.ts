@@ -10,14 +10,16 @@ import { LiveConsoleOutput } from "./console-live.js";
 import { StatusCommand } from "./cli/status-command.js";
 import { SyncCommand } from "./cli/sync-command.js";
 import { DiffCommand } from "./cli/diff-command.js";
+import { ProposeCommand } from "./cli/propose-command.js";
+import { ApproveCommand } from "./cli/approve-command.js";
+import { RejectCommand } from "./cli/reject-command.js";
 import { InitCommand } from "./cli/init-command.js";
 import { NodeSystemOps, writeFileAbsolute, existsAbsolute } from "./system-ops-node.js";
 import { parseConfig } from "./schema.js";
 import type { StatusOptions } from "./status.js";
 import type { SoulguardConfig } from "./types.js";
 
-const IDENTITY = { user: "soulguardian", group: "soulguard" } as const;
-const VAULT_OWNERSHIP = { user: IDENTITY.user, group: IDENTITY.group, mode: "444" } as const;
+import { IDENTITY, VAULT_OWNERSHIP } from "./constants.js";
 const LEDGER_OWNERSHIP = { user: "agent", group: "staff", mode: "644" } as const;
 
 const DEFAULT_CONFIG: SoulguardConfig = {
@@ -158,6 +160,74 @@ program
         },
         out,
       );
+      process.exitCode = await cmd.execute();
+    } catch (e) {
+      out.error(e instanceof Error ? e.message : String(e));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("propose")
+  .description("Create a vault change proposal from staging edits")
+  .argument("[workspace]", "workspace path", process.cwd())
+  .option("-m, --message <message>", "describe the changes")
+  .option("-f, --force", "overwrite existing proposal")
+  .action(async (workspace: string, opts: { message?: string; force?: boolean }) => {
+    const out = new LiveConsoleOutput();
+    try {
+      const statusOpts = await makeOptions(workspace);
+      const cmd = new ProposeCommand(
+        {
+          ops: statusOpts.ops,
+          config: statusOpts.config,
+          message: opts.message,
+          force: opts.force,
+        },
+        out,
+      );
+      process.exitCode = await cmd.execute();
+    } catch (e) {
+      out.error(e instanceof Error ? e.message : String(e));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("approve")
+  .description("Approve and apply the active proposal")
+  .argument("[workspace]", "workspace path", process.cwd())
+  // Password will be prompted via stdin when argon2 is integrated.
+  // Not accepted as CLI flag — design doc says: never in shell history.
+  .action(async (workspace: string) => {
+    const out = new LiveConsoleOutput();
+    try {
+      const statusOpts = await makeOptions(workspace);
+      const cmd = new ApproveCommand(
+        {
+          ops: statusOpts.ops,
+          vaultOwnership: VAULT_OWNERSHIP,
+          // No password verification yet — pre-argon2
+        },
+        out,
+      );
+      process.exitCode = await cmd.execute();
+    } catch (e) {
+      out.error(e instanceof Error ? e.message : String(e));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("reject")
+  .description("Reject the active proposal and reset staging")
+  .argument("[workspace]", "workspace path", process.cwd())
+  // Password will be prompted via stdin when argon2 is integrated.
+  .action(async (workspace: string) => {
+    const out = new LiveConsoleOutput();
+    try {
+      const statusOpts = await makeOptions(workspace);
+      const cmd = new RejectCommand({ ops: statusOpts.ops }, out);
       process.exitCode = await cmd.execute();
     } catch (e) {
       out.error(e instanceof Error ? e.message : String(e));

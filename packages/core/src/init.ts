@@ -183,6 +183,39 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     if (!mkdirResult.ok) {
       return err({ kind: "staging_failed", message: `mkdir failed: ${mkdirResult.error.kind}` });
     }
+    // .soulguard/ owned by soulguardian — agent CANNOT create/delete files here.
+    // Only staging/ is agent-writable. proposal.json is written by sudo propose.
+    const chownSg = await ops.chown(".soulguard", { user: identity.user, group: identity.group });
+    if (!chownSg.ok) {
+      return err({
+        kind: "staging_failed",
+        message: `chown .soulguard failed: ${chownSg.error.kind}`,
+      });
+    }
+    const chmodSg = await ops.chmod(".soulguard", "755");
+    if (!chmodSg.ok) {
+      return err({
+        kind: "staging_failed",
+        message: `chmod .soulguard failed: ${chmodSg.error.kind}`,
+      });
+    }
+    const chownStaging = await ops.chown(".soulguard/staging", {
+      user: agentUser,
+      group: identity.group,
+    });
+    if (!chownStaging.ok) {
+      return err({
+        kind: "staging_failed",
+        message: `chown staging failed: ${chownStaging.error.kind}`,
+      });
+    }
+    const chmodStaging = await ops.chmod(".soulguard/staging", "755");
+    if (!chmodStaging.ok) {
+      return err({
+        kind: "staging_failed",
+        message: `chmod staging failed: ${chmodStaging.error.kind}`,
+      });
+    }
     // Copy vault files to staging
     for (const vaultFile of config.vault) {
       if (vaultFile.includes("*")) continue; // skip globs
@@ -196,11 +229,23 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
           });
         }
         // Make staging copy agent-writable
-        await ops.chown(`.soulguard/staging/${vaultFile}`, {
+        const chownFile = await ops.chown(`.soulguard/staging/${vaultFile}`, {
           user: agentUser,
           group: identity.group,
         });
-        await ops.chmod(`.soulguard/staging/${vaultFile}`, "644");
+        if (!chownFile.ok) {
+          return err({
+            kind: "staging_failed",
+            message: `chown staging/${vaultFile} failed: ${chownFile.error.kind}`,
+          });
+        }
+        const chmodFile = await ops.chmod(`.soulguard/staging/${vaultFile}`, "644");
+        if (!chmodFile.ok) {
+          return err({
+            kind: "staging_failed",
+            message: `chmod staging/${vaultFile} failed: ${chmodFile.error.kind}`,
+          });
+        }
       }
     }
     stagingCreated = true;

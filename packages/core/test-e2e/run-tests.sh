@@ -34,6 +34,7 @@ for case_dir in "$CASES_DIR"/*/; do
   # Run test in a fresh container — complete isolation
   actual=$(docker run --rm "$IMAGE" bash -c "
     workspace=\$(mktemp -d /tmp/soulguard-e2e-XXXX)
+    chmod 755 \"\$workspace\"
     cd \"\$workspace\"
     NO_COLOR=1 bash /app/packages/core/test-e2e/cases/$test_name/test.sh 2>&1 | \
       sed \"s|\$workspace|/workspace|g\" | \

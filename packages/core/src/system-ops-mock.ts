@@ -140,10 +140,19 @@ export class MockSystemOps implements SystemOperations {
   async mkdir(
     path: string,
   ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
-    // Track directory as a file entry so exists() finds it
+    // Track directory and all parent dirs as entries (mirrors recursive mkdir)
     const full = this.resolve(path);
     if (!this.files.has(full)) {
       this.files.set(full, { content: "", owner: "root", group: "root", mode: "755" });
+    }
+    // Also create parent directories
+    const parts = path.split("/");
+    for (let i = 1; i < parts.length; i++) {
+      const parent = parts.slice(0, i).join("/");
+      const parentFull = this.resolve(parent);
+      if (!this.files.has(parentFull)) {
+        this.files.set(parentFull, { content: "", owner: "root", group: "root", mode: "755" });
+      }
     }
     return ok(undefined);
   }
@@ -163,6 +172,15 @@ export class MockSystemOps implements SystemOperations {
   async exists(path: string): Promise<Result<boolean, IOError>> {
     const full = this.resolve(path);
     return ok(this.files.has(full));
+  }
+
+  async deleteFile(
+    path: string,
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
+    const full = this.resolve(path);
+    if (!this.files.has(full)) return err({ kind: "not_found", path });
+    this.files.delete(full);
+    return ok(undefined);
   }
 
   async hashFile(

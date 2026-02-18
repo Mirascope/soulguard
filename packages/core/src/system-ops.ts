@@ -74,6 +74,9 @@ export interface SystemOperations {
 
   /** Compute SHA-256 hash of file contents (relative path) */
   hashFile(path: string): Promise<Result<string, NotFoundError | PermissionDeniedError | IOError>>;
+
+  /** Delete a file (relative path) */
+  deleteFile(path: string): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
 }
 
 /** Common error type for stat/hash operations */
