@@ -1,7 +1,7 @@
 Soulguard Init — /workspace
   Wrote /etc/sudoers.d/soulguard
   Created .soulguard/staging/
-  Synced 2 vault file(s)
+  Synced 1 vault file(s)
 
 Done.
 Soulguard Sync — /workspace
