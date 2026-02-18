@@ -6,7 +6,7 @@
  */
 
 import { z } from "zod";
-import type { SoulguardConfig } from "./types.js";
+import type { PasswordHash, ProposalMeta, SoulguardConfig } from "./types.js";
 
 export const soulguardConfigSchema: z.ZodType<SoulguardConfig> = z.object({
   vault: z.array(z.string()),
@@ -19,3 +19,17 @@ export const soulguardConfigSchema: z.ZodType<SoulguardConfig> = z.object({
 export function parseConfig(raw: unknown): SoulguardConfig {
   return soulguardConfigSchema.parse(raw);
 }
+
+export const proposalMetaSchema: z.ZodType<ProposalMeta> = z.object({
+  id: z.string(),
+  file: z.string(),
+  message: z.string(),
+  createdAt: z.string(),
+  status: z.enum(["pending", "approved", "rejected"]),
+  resolvedAt: z.string().optional(),
+});
+
+export const passwordHashSchema: z.ZodType<PasswordHash> = z.object({
+  hash: z.string(),
+  createdAt: z.string(),
+});

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseConfig } from "./schema.js";
+import { parseConfig, passwordHashSchema, proposalMetaSchema } from "./schema.js";
 
 describe("soulguardConfigSchema", () => {
   test("parses valid config", () => {
@@ -23,5 +23,63 @@ describe("soulguardConfigSchema", () => {
     const config = parseConfig({ vault: [], ledger: [] });
     expect(config.vault).toEqual([]);
     expect(config.ledger).toEqual([]);
+  });
+});
+
+describe("proposalMetaSchema", () => {
+  test("parses valid pending proposal", () => {
+    const meta = proposalMetaSchema.parse({
+      id: "01JMTEST000000000000000000",
+      file: "SOUL.md",
+      message: "added rhetoric principle",
+      createdAt: "2026-02-17T20:55:00.000Z",
+      status: "pending",
+    });
+    expect(meta.id).toBe("01JMTEST000000000000000000");
+    expect(meta.status).toBe("pending");
+    expect(meta.resolvedAt).toBeUndefined();
+  });
+
+  test("parses approved proposal with resolvedAt", () => {
+    const meta = proposalMetaSchema.parse({
+      id: "01JMTEST000000000000000000",
+      file: "SOUL.md",
+      message: "added rhetoric principle",
+      createdAt: "2026-02-17T20:55:00.000Z",
+      status: "approved",
+      resolvedAt: "2026-02-17T21:00:00.000Z",
+    });
+    expect(meta.status).toBe("approved");
+    expect(meta.resolvedAt).toBe("2026-02-17T21:00:00.000Z");
+  });
+
+  test("rejects invalid status", () => {
+    expect(() =>
+      proposalMetaSchema.parse({
+        id: "01JMTEST000000000000000000",
+        file: "SOUL.md",
+        message: "test",
+        createdAt: "2026-02-17T20:55:00.000Z",
+        status: "maybe",
+      }),
+    ).toThrow();
+  });
+
+  test("rejects missing required fields", () => {
+    expect(() => proposalMetaSchema.parse({ id: "01JMTEST" })).toThrow();
+  });
+});
+
+describe("passwordHashSchema", () => {
+  test("parses valid password hash", () => {
+    const pw = passwordHashSchema.parse({
+      hash: "$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHQ$somehash",
+      createdAt: "2026-02-17T20:55:00.000Z",
+    });
+    expect(pw.hash).toContain("argon2id");
+  });
+
+  test("rejects missing hash", () => {
+    expect(() => passwordHashSchema.parse({ createdAt: "2026-02-17T20:55:00.000Z" })).toThrow();
   });
 });

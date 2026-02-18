@@ -17,6 +17,18 @@ export type {
   WrongGroupIssue,
   WrongModeIssue,
   HashFailedIssue,
+  // Init
+  SystemIdentity,
+  InitResult,
+  InitError,
+  // Proposals
+  ProposalStatus,
+  Proposal,
+  ProposalMeta,
+  ProposeError,
+  ApprovalError,
+  // Password
+  PasswordHash,
 } from "./types.js";
 export { formatIssue } from "./types.js";
 
@@ -25,7 +37,12 @@ export type { Result } from "./result.js";
 export { ok, err } from "./result.js";
 
 // Config
-export { soulguardConfigSchema, parseConfig } from "./schema.js";
+export {
+  soulguardConfigSchema,
+  parseConfig,
+  proposalMetaSchema,
+  passwordHashSchema,
+} from "./schema.js";
 
 // System operations
 export type { SystemOperations, FileStat } from "./system-ops.js";

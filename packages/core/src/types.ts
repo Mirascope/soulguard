@@ -74,6 +74,87 @@ export function formatIssue(issue: DriftIssue): string {
   }
 }
 
+// ── Init ───────────────────────────────────────────────────────────────
+
+/** Expected soulguard system user/group names per platform */
+export type SystemIdentity = {
+  /** System user that owns vault files (e.g. "_soulguard") */
+  user: string;
+  /** System group for vault files (e.g. "soulguard") */
+  group: string;
+};
+
+/** Result of `soulguard init` */
+export type InitResult = {
+  /** Whether the system user was created (false if it already existed) */
+  userCreated: boolean;
+  /** Whether the system group was created (false if it already existed) */
+  groupCreated: boolean;
+  /** Whether the password hash was written to .secret */
+  passwordSet: boolean;
+  /** Whether soulguard.json was written (false if it already existed) */
+  configCreated: boolean;
+  /** Sync result from the initial sync after setup */
+  syncResult: import("./sync.js").SyncResult;
+};
+
+/** Errors specific to init */
+export type InitError =
+  | { kind: "already_initialized" }
+  | { kind: "not_root"; message: string }
+  | { kind: "user_creation_failed"; message: string }
+  | { kind: "group_creation_failed"; message: string }
+  | { kind: "password_hash_failed"; message: string }
+  | { kind: "config_write_failed"; message: string };
+
+// ── Proposals ──────────────────────────────────────────────────────────
+
+/** Status of a vault change proposal */
+export type ProposalStatus = "pending" | "approved" | "rejected";
+
+/** A proposed change to a vault file */
+export type Proposal = {
+  /** ULID — sortable, unique */
+  id: string;
+  /** Relative path of the vault file being changed */
+  file: string;
+  /** Human-readable reason for the change */
+  message: string;
+  /** ISO-8601 timestamp when proposed */
+  createdAt: string;
+  /** Current status */
+  status: ProposalStatus;
+  /** ISO-8601 timestamp when approved/rejected (undefined if pending) */
+  resolvedAt?: string;
+};
+
+/** Metadata stored as meta.json in each proposal directory */
+export type ProposalMeta = Proposal;
+
+/** Errors specific to proposals */
+export type ProposeError =
+  | { kind: "not_vault_file"; path: string }
+  | { kind: "file_not_found"; path: string }
+  | { kind: "no_stdin"; message: string }
+  | { kind: "write_failed"; message: string };
+
+/** Errors specific to approve/reject */
+export type ApprovalError =
+  | { kind: "proposal_not_found"; id: string }
+  | { kind: "not_pending"; id: string; status: ProposalStatus }
+  | { kind: "wrong_password" }
+  | { kind: "apply_failed"; message: string };
+
+// ── Password ───────────────────────────────────────────────────────────
+
+/** Argon2 hash stored in .soulguard/.secret */
+export type PasswordHash = {
+  /** The argon2id hash string */
+  hash: string;
+  /** ISO-8601 timestamp when set */
+  createdAt: string;
+};
+
 // Re-export Result from result.ts for convenience
 export type { Result } from "./result.js";
 export { ok, err } from "./result.js";
