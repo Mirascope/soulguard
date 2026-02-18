@@ -82,7 +82,7 @@ export { reject } from "./reject.js";
 export type { RejectOptions, RejectResult } from "./reject.js";
 
 // Vault check
-export { isVaultedFile } from "./vault-check.js";
+export { isVaultedFile, normalizePath } from "./vault-check.js";
 
 // CLI commands
 export { StatusCommand } from "./cli/status-command.js";

@@ -8,7 +8,7 @@ export function isVaultedFile(vaultFiles: string[], filePath: string): boolean {
   return vaultFiles.some((pattern) => norm === normalizePath(pattern));
 }
 
-function normalizePath(p: string): string {
+export function normalizePath(p: string): string {
   let s = p;
   if (s.startsWith("./")) s = s.slice(2);
   if (s.startsWith("/")) s = s.slice(1);

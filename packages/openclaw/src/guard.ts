@@ -4,7 +4,7 @@
  */
 
 import { basename } from "node:path";
-import { isVaultedFile } from "@soulguard/core";
+import { isVaultedFile, normalizePath } from "@soulguard/core";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -28,16 +28,6 @@ const PATH_KEYS = ["file_path", "path", "file"] as const;
 
 /** Staging directory — writes here are always allowed. */
 const STAGING_PREFIX = ".soulguard/staging/";
-
-// ── Helpers ────────────────────────────────────────────────────────────
-
-/** Normalize path for staging prefix check. */
-function normalizePath(p: string): string {
-  let s = p;
-  if (s.startsWith("./")) s = s.slice(2);
-  if (s.startsWith("/")) s = s.slice(1);
-  return s;
-}
 
 // ── Main guard ─────────────────────────────────────────────────────────
 

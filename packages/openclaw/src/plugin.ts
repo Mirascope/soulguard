@@ -65,6 +65,7 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
             const result = await status({
               config,
               expectedVaultOwnership: { user: "soulguardian", group: "soulguard", mode: "444" },
+              // TODO: ledger ownership should come from config, not hardcoded (agent user varies per init)
               expectedLedgerOwnership: { user: "agent", group: "staff", mode: "644" },
               ops,
             });
