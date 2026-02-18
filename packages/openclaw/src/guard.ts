@@ -30,7 +30,12 @@ const STAGING_PREFIX = ".soulguard/staging/";
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-/** Normalize a path by stripping leading "./" or "/" */
+/**
+ * Normalize a path by stripping leading "./" or "/".
+ * The guard assumes all paths are workspace-relative, so stripping a leading
+ * "/" is intentional and safe — absolute paths within the workspace get
+ * collapsed to their relative form.
+ */
 function normalizePath(p: string): string {
   let s = p;
   if (s.startsWith("./")) s = s.slice(2);
@@ -54,12 +59,12 @@ function matchesVault(filePath: string, vaultFiles: string[]): string | null {
       if (norm.startsWith(prefix)) return pattern;
     }
 
-    // Simple wildcard suffix: "*.md" — match basename
+    // Simple wildcard suffix: "*.md" — matches ANY file with that extension
+    // at any depth. This is intentional for security: if a user vaults "*.md",
+    // they want ALL markdown files protected regardless of nesting level.
     if (p.startsWith("*.")) {
       const ext = p.slice(1); // ".md"
-      if (norm.endsWith(ext) || basename(norm).endsWith(ext)) {
-        // Only if not a deeper pattern — treat as root-level glob
-        // For simplicity, match any file with that extension
+      if (norm.endsWith(ext)) {
         return pattern;
       }
     }

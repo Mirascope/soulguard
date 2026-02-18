@@ -18,6 +18,7 @@ export type OpenClawPluginApi = {
   on: (hookName: string, handler: (...args: unknown[]) => unknown) => void;
   config: Record<string, unknown>;
   runtime: { workspaceDir?: string };
+  logger?: { warn: (msg: string) => void; error: (msg: string) => void };
 };
 
 export type BeforeToolCallEvent = {

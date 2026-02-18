@@ -55,4 +55,23 @@ describe("guardToolCall", () => {
     const result = guardToolCall("Edit", { file: "SOUL.md" }, defaultOpts);
     expect(result.blocked).toBe(true);
   });
+
+  describe("*.md glob pattern", () => {
+    const mdOpts: GuardOptions = { vaultFiles: ["*.md"] };
+
+    it("blocks root-level .md files", () => {
+      const result = guardToolCall("Write", { file_path: "README.md" }, mdOpts);
+      expect(result.blocked).toBe(true);
+    });
+
+    it("blocks nested .md files (recursive match is intentional)", () => {
+      const result = guardToolCall("Write", { file_path: "docs/guide/setup.md" }, mdOpts);
+      expect(result.blocked).toBe(true);
+    });
+
+    it("does not block non-.md files", () => {
+      const result = guardToolCall("Write", { file_path: "index.ts" }, mdOpts);
+      expect(result.blocked).toBe(false);
+    });
+  });
 });

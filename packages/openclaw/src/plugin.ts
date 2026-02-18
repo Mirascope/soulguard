@@ -40,6 +40,7 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
         vaultFiles = config.vault;
       } catch {
         // No config or invalid — nothing to guard
+        api.logger?.warn("soulguard: could not read soulguard.json — vault protection disabled");
         return;
       }
 
@@ -47,8 +48,13 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
 
       // Register the guard hook
       api.on("before_tool_call", (...args: unknown[]) => {
-        const event = args[0] as BeforeToolCallEvent;
-        const result = guardToolCall(event.toolName, event.params, {
+        const event = args[0];
+        // Defense in depth — verify event shape before casting
+        if (!event || typeof event !== "object" || !("toolName" in event)) {
+          return undefined;
+        }
+        const e = event as BeforeToolCallEvent;
+        const result = guardToolCall(e.toolName, e.params, {
           vaultFiles,
         });
         if (result.blocked) {
