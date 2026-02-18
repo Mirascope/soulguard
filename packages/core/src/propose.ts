@@ -17,8 +17,6 @@ export type ProposeOptions = {
   config: SoulguardConfig;
   /** Optional message describing the changes */
   message?: string;
-  /** Force: delete existing proposal before creating a new one */
-  force?: boolean;
 };
 
 export type ProposeResult = {
@@ -33,7 +31,7 @@ export type ProposeResult = {
 export async function propose(
   options: ProposeOptions,
 ): Promise<Result<ProposeResult, ProposeError>> {
-  const { ops, config, message = "", force = false } = options;
+  const { ops, config, message = "" } = options;
 
   // Check staging directory exists
   const stagingExists = await ops.exists(".soulguard/staging");
@@ -44,14 +42,10 @@ export async function propose(
     });
   }
 
-  // Check no active proposal (or force-delete it)
+  // Check no active proposal
   const proposalExists = await ops.exists(".soulguard/proposal.json");
   if (proposalExists.ok && proposalExists.value) {
-    if (force) {
-      await ops.deleteFile(".soulguard/proposal.json");
-    } else {
-      return err({ kind: "proposal_exists" });
-    }
+    return err({ kind: "proposal_exists" });
   }
 
   // Compare staging vs vault for each vault file
