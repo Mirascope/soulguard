@@ -2,8 +2,8 @@
 echo '{"vault": ["SOUL.md"], "ledger": []}' > soulguard.json
 echo '# My Soul' > SOUL.md
 
-# Sync needs sudo for chown
-sudo soulguard sync .
+# Owner syncs
+soulguard sync .
 
-# Verify status is clean after sync (no sudo needed)
+# Verify status is clean after sync
 soulguard status .

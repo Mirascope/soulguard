@@ -10,8 +10,8 @@ RUN useradd -m -s /bin/bash agent
 # Install sudo
 RUN apt-get update && apt-get install -y sudo && rm -rf /var/lib/apt/lists/*
 
-# Agent can sudo soulguard commands (broad for e2e testing; init generates scoped version)
-RUN echo "agent ALL=(root) NOPASSWD: /usr/local/bin/soulguard" >> /etc/sudoers.d/soulguard
+# No broad sudoers for agent — init generates scoped rules.
+# Agent gets sudo only after `soulguard init` writes /etc/sudoers.d/soulguard.
 
 WORKDIR /app
 
@@ -28,5 +28,6 @@ RUN chmod +x packages/core/src/cli.ts
 RUN printf '#!/bin/bash\nexec bun /app/packages/core/src/cli.ts "$@"\n' > /usr/local/bin/soulguard && \
     chmod +x /usr/local/bin/soulguard
 
-# Default to agent user for test execution
-USER agent
+# Default to root (simulates human/owner running setup)
+# Tests switch to agent via `su - agent -c "..."` for agent actions
+USER root

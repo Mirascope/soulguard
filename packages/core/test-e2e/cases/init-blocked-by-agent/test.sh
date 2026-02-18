@@ -1,17 +1,15 @@
-# After init writes scoped sudoers, agent can't run init again.
-# The first init succeeds (broad Docker sudoers). It then overwrites
-# /etc/sudoers.d/soulguard with scoped rules (no init allowed).
-# The second attempt should be denied.
+# After owner runs init, agent can't run init again.
+# Init writes scoped sudoers that excludes init and approve.
 
 echo '# My Soul' > SOUL.md
 cat > soulguard.json <<'EOF'
 {"vault":["SOUL.md","soulguard.json"],"ledger":[]}
 EOF
 
-# First init — succeeds (broad sudoers still in place)
-sudo soulguard init . --agent-user agent
+# Owner runs init (as root)
+soulguard init . --agent-user agent
 
-echo "--- AGENT TRIES INIT AGAIN ---"
+echo "--- AGENT TRIES INIT ---"
 
-# Second init — should fail (scoped sudoers blocks init)
-sudo soulguard init . --agent-user agent
+# Agent tries init — should be denied by scoped sudoers
+su - agent -c "sudo soulguard init $(pwd) --agent-user agent" 2>&1

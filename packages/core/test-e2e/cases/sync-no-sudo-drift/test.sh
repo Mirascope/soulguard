@@ -2,5 +2,5 @@
 echo '{"vault": ["SOUL.md"], "ledger": []}' > soulguard.json
 echo '# My Soul' > SOUL.md
 
-# Sync without sudo on drifted workspace — chown should fail
-soulguard sync .
+# Agent syncs drifted workspace — chown should fail (no root)
+su - agent -c "soulguard sync $(pwd)"
