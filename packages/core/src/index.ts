@@ -45,6 +45,10 @@ export { NodeSystemOps } from "./system-ops-node.js";
 export { status } from "./status.js";
 export type { FileStatus, StatusResult, StatusOptions } from "./status.js";
 
+// Diff
+export { diff } from "./diff.js";
+export type { FileDiff, DiffResult, DiffError, DiffOptions } from "./diff.js";
+
 // Sync
 export { sync } from "./sync.js";
 export type { SyncError, SyncResult, SyncOptions } from "./sync.js";
@@ -71,3 +75,4 @@ export { LiveConsoleOutput } from "./console-live.js";
 // CLI commands
 export { StatusCommand } from "./cli/status-command.js";
 export { SyncCommand } from "./cli/sync-command.js";
+export { DiffCommand } from "./cli/diff-command.js";

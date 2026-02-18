@@ -1,0 +1,12 @@
+Soulguard Diff — /workspace
+
+  📝 SOUL.md
+      ===================================================================
+      --- a/SOUL.md
+      +++ b/SOUL.md
+      @@ -1,1 +1,1 @@
+      -# My Soul
+      +# My Modified Soul
+      
+
+1 file(s) changed

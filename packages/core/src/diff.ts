@@ -1,0 +1,155 @@
+/**
+ * soulguard diff — compare vault files against their staging copies.
+ */
+
+import { createTwoFilesPatch } from "diff";
+import type { Result } from "./result.js";
+import { ok, err } from "./result.js";
+import type { SoulguardConfig } from "./types.js";
+import type { SystemOperations } from "./system-ops.js";
+
+// ── Types ──────────────────────────────────────────────────────────────
+
+export type FileDiff = {
+  path: string;
+  status: "modified" | "unchanged" | "vault_missing" | "staging_missing";
+  /** Unified diff string (only for modified) */
+  diff?: string;
+  protectedHash?: string;
+  stagedHash?: string;
+};
+
+export type DiffResult = {
+  files: FileDiff[];
+  hasChanges: boolean;
+};
+
+export type DiffError =
+  | { kind: "no_staging" }
+  | { kind: "no_config" }
+  | { kind: "read_failed"; path: string; message: string };
+
+export type DiffOptions = {
+  ops: SystemOperations;
+  config: SoulguardConfig;
+  /** Specific files to diff (default: all vault files) */
+  files?: string[];
+};
+
+// ── Implementation ─────────────────────────────────────────────────────
+
+const STAGING_DIR = ".soulguard/staging";
+
+/**
+ * Compare vault files against their staging copies.
+ */
+export async function diff(options: DiffOptions): Promise<Result<DiffResult, DiffError>> {
+  const { ops, config, files: filterFiles } = options;
+
+  // Check staging directory exists
+  const stagingExists = await ops.exists(STAGING_DIR);
+  if (!stagingExists.ok) {
+    return err({ kind: "read_failed", path: STAGING_DIR, message: stagingExists.error.message });
+  }
+  if (!stagingExists.value) {
+    return err({ kind: "no_staging" });
+  }
+
+  // Determine which files to check
+  let vaultFiles = config.vault.filter((p) => !p.includes("*"));
+  if (filterFiles && filterFiles.length > 0) {
+    const filterSet = new Set(filterFiles);
+    vaultFiles = vaultFiles.filter((p) => filterSet.has(p));
+  }
+
+  const fileDiffs: FileDiff[] = [];
+
+  for (const path of vaultFiles) {
+    const stagingPath = `${STAGING_DIR}/${path}`;
+
+    const [vaultExists, stagingFileExists] = await Promise.all([
+      ops.exists(path),
+      ops.exists(stagingPath),
+    ]);
+
+    if (!vaultExists.ok) {
+      return err({ kind: "read_failed", path, message: vaultExists.error.message });
+    }
+    if (!stagingFileExists.ok) {
+      return err({
+        kind: "read_failed",
+        path: stagingPath,
+        message: stagingFileExists.error.message,
+      });
+    }
+
+    // Missing cases
+    if (vaultExists.value && !stagingFileExists.value) {
+      fileDiffs.push({ path, status: "staging_missing" });
+      continue;
+    }
+    if (!vaultExists.value && stagingFileExists.value) {
+      fileDiffs.push({ path, status: "vault_missing" });
+      continue;
+    }
+    if (!vaultExists.value && !stagingFileExists.value) {
+      fileDiffs.push({ path, status: "staging_missing" });
+      continue;
+    }
+
+    // Both exist — compare hashes
+    const [vaultHash, stagingHash] = await Promise.all([
+      ops.hashFile(path),
+      ops.hashFile(stagingPath),
+    ]);
+
+    if (!vaultHash.ok) {
+      return err({ kind: "read_failed", path, message: "hash failed" });
+    }
+    if (!stagingHash.ok) {
+      return err({ kind: "read_failed", path: stagingPath, message: "hash failed" });
+    }
+
+    if (vaultHash.value === stagingHash.value) {
+      fileDiffs.push({
+        path,
+        status: "unchanged",
+        protectedHash: vaultHash.value,
+        stagedHash: stagingHash.value,
+      });
+      continue;
+    }
+
+    // Modified — generate unified diff
+    const [vaultContent, stagingContent] = await Promise.all([
+      ops.readFile(path),
+      ops.readFile(stagingPath),
+    ]);
+
+    if (!vaultContent.ok) {
+      return err({ kind: "read_failed", path, message: "read failed" });
+    }
+    if (!stagingContent.ok) {
+      return err({ kind: "read_failed", path: stagingPath, message: "read failed" });
+    }
+
+    const unifiedDiff = createTwoFilesPatch(
+      `a/${path}`,
+      `b/${path}`,
+      vaultContent.value,
+      stagingContent.value,
+    );
+
+    fileDiffs.push({
+      path,
+      status: "modified",
+      diff: unifiedDiff,
+      protectedHash: vaultHash.value,
+      stagedHash: stagingHash.value,
+    });
+  }
+
+  const hasChanges = fileDiffs.some((f) => f.status !== "unchanged");
+
+  return ok({ files: fileDiffs, hasChanges });
+}
