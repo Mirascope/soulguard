@@ -2,8 +2,6 @@
  * Soulguard Core Types
  */
 
-import type { SyncResult } from "./sync.js";
-
 // ── Config ─────────────────────────────────────────────────────────────
 
 /** User-level configuration (soulguard.json) */
@@ -75,6 +73,20 @@ export function formatIssue(issue: DriftIssue): string {
       return `hash failed: ${issue.error.kind}`;
   }
 }
+
+// ── Sync ───────────────────────────────────────────────────────────────
+
+export type SyncError = {
+  path: string;
+  operation: string;
+  error: FileSystemError;
+};
+
+export type SyncResult = {
+  before: import("./status.js").StatusResult;
+  after: import("./status.js").StatusResult;
+  errors: SyncError[];
+};
 
 // ── Init ───────────────────────────────────────────────────────────────
 
