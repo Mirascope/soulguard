@@ -50,7 +50,8 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, nev
     const needsChmod = issue.issues.some((i: DriftIssue) => i.kind === "wrong_mode");
 
     if (needsChown) {
-      const result = await ops.chown(path, expectedOwnership);
+      const { user, group } = expectedOwnership;
+      const result = await ops.chown(path, { user, group });
       if (!result.ok) {
         errors.push({ path, operation: "chown", error: result.error });
         // Short-circuit: if chown fails, chmod will almost certainly fail too.

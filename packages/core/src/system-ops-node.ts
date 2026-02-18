@@ -12,13 +12,7 @@ import { createReadStream } from "node:fs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { FileStat, SystemOperations } from "./system-ops.js";
-import type {
-  FileOwnership,
-  IOError,
-  NotFoundError,
-  PermissionDeniedError,
-  Result,
-} from "./types.js";
+import type { IOError, NotFoundError, PermissionDeniedError, Result } from "./types.js";
 import { ok, err } from "./result.js";
 
 const execFileAsync = promisify(execFile);
@@ -90,7 +84,7 @@ export class NodeSystemOps implements SystemOperations {
   private resolvePath(path: string): Result<string, IOError> {
     const full = resolve(this.workspace, path);
     const rel = relative(this.workspace, full);
-    if (rel.startsWith("..") || resolve(full) !== full.replace(/\/+$/, "")) {
+    if (rel.startsWith("..")) {
       return err({
         kind: "io_error",
         path,
@@ -105,16 +99,12 @@ export class NodeSystemOps implements SystemOperations {
       await execFileAsync("id", ["-u", name]);
       return ok(true);
     } catch (e: unknown) {
-      // Exit code 1 means user doesn't exist
-      if (e instanceof Error && "code" in e) {
-        const exitCode = (e as { code: number }).code;
-        if (typeof exitCode === "number") return ok(false);
-      }
-      // "no such user" is a normal not-found, not an IO error
-      if (e instanceof Error && e.message.includes("no such user")) {
+      // `id` exits non-zero for unknown users — that's expected
+      if (e instanceof Error && "code" in e && typeof (e as any).code === "number") {
         return ok(false);
       }
-      return ok(false);
+      const message = e instanceof Error ? e.message : String(e);
+      return err({ kind: "io_error", path: "", message: `userExists(${name}): ${message}` });
     }
   }
 
@@ -126,8 +116,13 @@ export class NodeSystemOps implements SystemOperations {
         await execFileAsync("getent", ["group", name]);
       }
       return ok(true);
-    } catch {
-      return ok(false);
+    } catch (e: unknown) {
+      // Non-zero exit = group not found (expected)
+      if (e instanceof Error && "code" in e && typeof (e as any).code === "number") {
+        return ok(false);
+      }
+      const message = e instanceof Error ? e.message : String(e);
+      return err({ kind: "io_error", path: "", message: `groupExists(${name}): ${message}` });
     }
   }
 
@@ -148,12 +143,15 @@ export class NodeSystemOps implements SystemOperations {
     }
   }
 
-  async chown(path: string, ownership: FileOwnership): Promise<Result<void, FileError>> {
+  async chown(
+    path: string,
+    owner: { user: string; group: string },
+  ): Promise<Result<void, FileError>> {
     const resolved = this.resolvePath(path);
     if (!resolved.ok) return resolved;
 
     try {
-      await execFileAsync("chown", [`${ownership.user}:${ownership.group}`, resolved.value]);
+      await execFileAsync("chown", [`${owner.user}:${owner.group}`, resolved.value]);
       return ok(undefined);
     } catch (e) {
       return err(mapError(e, path, "chown"));

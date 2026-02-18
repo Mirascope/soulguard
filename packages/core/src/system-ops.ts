@@ -33,10 +33,10 @@ export interface SystemOperations {
   /** Get file stat info (relative path) */
   stat(path: string): Promise<Result<FileStat, NotFoundError | PermissionDeniedError | IOError>>;
 
-  /** Change file owner and group (relative path) */
+  /** Change file owner and group (relative path). Does not set mode — use chmod. */
   chown(
     path: string,
-    ownership: FileOwnership,
+    owner: { user: string; group: string },
   ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
 
   /** Change file permissions (relative path) */

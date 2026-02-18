@@ -37,7 +37,6 @@ describe("NodeSystemOps integration (root + test users)", () => {
       const result = await ops.chown("SOUL.md", {
         user: "_soulguard",
         group: "soulguard",
-        mode: "444",
       });
       expect(result.ok).toBe(true);
 
@@ -55,14 +54,12 @@ describe("NodeSystemOps integration (root + test users)", () => {
       await ops.chown("notes.md", {
         user: "_soulguard",
         group: "soulguard",
-        mode: "444",
       });
 
       // Then release back to agent
       const result = await ops.chown("notes.md", {
         user: "agent",
         group: "soulguard",
-        mode: "644",
       });
       expect(result.ok).toBe(true);
 
@@ -76,7 +73,6 @@ describe("NodeSystemOps integration (root + test users)", () => {
       const result = await ops.chown("nope.md", {
         user: "_soulguard",
         group: "soulguard",
-        mode: "444",
       });
       expect(result.ok).toBe(false);
     });
@@ -87,7 +83,6 @@ describe("NodeSystemOps integration (root + test users)", () => {
       const result = await ops.chown("test.md", {
         user: "nonexistent_user_xyz",
         group: "soulguard",
-        mode: "444",
       });
       expect(result.ok).toBe(false);
     });
@@ -103,7 +98,6 @@ describe("NodeSystemOps integration (root + test users)", () => {
       const chownResult = await ops.chown("SOUL.md", {
         user: "_soulguard",
         group: "soulguard",
-        mode: "444",
       });
       expect(chownResult.ok).toBe(true);
 
@@ -134,7 +128,6 @@ describe("NodeSystemOps integration (root + test users)", () => {
       const releaseChown = await ops.chown("SOUL.md", {
         user: "agent",
         group: "soulguard",
-        mode: "644",
       });
       expect(releaseChown.ok).toBe(true);
 
