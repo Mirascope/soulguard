@@ -36,8 +36,8 @@ for case_dir in "$CASES_DIR"/*/; do
     sed "s|$workspace|/workspace|g" | \
     sed "s|$test_script|test.sh|g") || true
 
-  # Clean up workspace
-  rm -rf "$workspace"
+  # Clean up workspace (may need sudo if init created soulguardian-owned files)
+  rm -rf "$workspace" 2>/dev/null || sudo rm -rf "$workspace"
 
   if [ "$UPDATE" = "--update" ]; then
     echo "$actual" > "$expected_file"
