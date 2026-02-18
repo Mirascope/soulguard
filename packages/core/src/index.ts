@@ -27,12 +27,7 @@ export type { Result } from "./result.js";
 export { ok, err } from "./result.js";
 
 // Config
-export {
-  soulguardConfigSchema,
-  parseConfig,
-  proposalSchema,
-  passwordHashSchema,
-} from "./schema.js";
+export { soulguardConfigSchema, parseConfig, passwordHashSchema } from "./schema.js";
 
 // System operations
 export type { SystemOperations, FileStat } from "./system-ops.js";
@@ -65,6 +60,7 @@ export type {
   ApprovalError,
   RejectError,
 } from "./proposal.js";
+export { parseProposal } from "./proposal.js";
 
 // Password
 export type { PasswordHash } from "./password.js";

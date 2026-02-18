@@ -6,27 +6,41 @@
  * verifies hashes, applies changes, re-vaults, clears staging.
  */
 
+import { z } from "zod";
+
+const ProposalFileSchema = z.object({
+  path: z.string().min(1),
+  protectedHash: z.string().min(1),
+  stagedHash: z.string().min(1),
+});
+
+const ProposalSchema = z.object({
+  version: z.literal("1"),
+  message: z.string(),
+  createdAt: z.string(),
+  files: z.array(ProposalFileSchema).min(1),
+});
+
 /** A single file change within a proposal */
-export type ProposalFile = {
-  /** Relative path of the vault file */
-  path: string;
-  /** SHA-256 hash of the protected (current) file at propose time */
-  protectedHash: string;
-  /** SHA-256 hash of the staged (proposed) file at propose time */
-  stagedHash: string;
-};
+export type ProposalFile = z.infer<typeof ProposalFileSchema>;
 
 /** Proposal stored as .soulguard/proposal.json */
-export type Proposal = {
-  /** Schema version for forward compatibility */
-  version: "1";
-  /** Human-readable reason for the changes */
-  message: string;
-  /** ISO-8601 timestamp when proposed */
-  createdAt: string;
-  /** Changed files with hashes for stale detection */
-  files: ProposalFile[];
-};
+export type Proposal = z.infer<typeof ProposalSchema>;
+
+/**
+ * Parse and validate proposal JSON. Returns null if invalid.
+ * This is a security boundary — the agent can write to .soulguard/,
+ * so proposal.json must be validated before trusting its contents.
+ */
+export function parseProposal(json: string): Proposal | null {
+  try {
+    const parsed = JSON.parse(json);
+    const result = ProposalSchema.safeParse(parsed);
+    return result.success ? result.data : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Errors specific to staging */
 export type StageError =

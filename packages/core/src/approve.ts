@@ -13,6 +13,7 @@
 import type { SystemOperations } from "./system-ops.js";
 import type { FileOwnership, Result } from "./types.js";
 import type { Proposal, ApprovalError } from "./proposal.js";
+import { parseProposal } from "./proposal.js";
 import { ok, err } from "./result.js";
 
 export type ApproveOptions = {
@@ -44,7 +45,10 @@ export async function approve(
     return err({ kind: "no_proposal" });
   }
 
-  const proposal: Proposal = JSON.parse(proposalJson.value);
+  const proposal = parseProposal(proposalJson.value);
+  if (!proposal) {
+    return err({ kind: "apply_failed", message: "Invalid or corrupted proposal.json" });
+  }
 
   // Verify password if configured
   if (verifyPassword) {
@@ -172,5 +176,9 @@ async function rollback(
       });
       await ops.chmod(filePath, vaultOwnership.mode);
     }
+  }
+  // Clean up backup files after rollback
+  for (const file of proposal.files) {
+    await ops.deleteFile(`.soulguard/backup/${file.path}`);
   }
 }

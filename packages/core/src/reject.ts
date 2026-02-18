@@ -6,7 +6,8 @@
 
 import type { SystemOperations } from "./system-ops.js";
 import type { Result } from "./types.js";
-import type { Proposal, RejectError } from "./proposal.js";
+import type { RejectError } from "./proposal.js";
+import { parseProposal } from "./proposal.js";
 import { ok, err } from "./result.js";
 
 export type RejectOptions = {
@@ -34,7 +35,10 @@ export async function reject(options: RejectOptions): Promise<Result<RejectResul
     return err({ kind: "no_proposal" });
   }
 
-  const proposal: Proposal = JSON.parse(proposalJson.value);
+  const proposal = parseProposal(proposalJson.value);
+  if (!proposal) {
+    return err({ kind: "reset_failed", message: "Invalid or corrupted proposal.json" });
+  }
 
   // Verify password if configured
   if (verifyPassword) {

@@ -103,6 +103,24 @@ describe("approve", () => {
     expect(result.error.kind).toBe("stale_proposal");
   });
 
+  test("rejects corrupted proposal.json", async () => {
+    const ops = setup();
+    // Write garbage to proposal.json
+    ops.addFile(".soulguard/proposal.json", '{"garbage": true}', {
+      owner: "agent",
+      group: "soulguard",
+      mode: "644",
+    });
+
+    const result = await approve({ ops, vaultOwnership });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe("apply_failed");
+    if (result.error.kind === "apply_failed") {
+      expect(result.error.message).toContain("Invalid or corrupted");
+    }
+  });
+
   test("rolls back on partial apply failure", async () => {
     const ops = new MockSystemOps("/workspace");
     // Two vault files
