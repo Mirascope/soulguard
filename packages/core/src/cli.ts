@@ -195,8 +195,9 @@ program
   .command("approve")
   .description("Approve and apply the active proposal")
   .argument("[workspace]", "workspace path", process.cwd())
-  .option("-p, --password <password>", "owner password")
-  .action(async (workspace: string, opts: { password?: string }) => {
+  // Password will be prompted via stdin when argon2 is integrated.
+  // Not accepted as CLI flag — design doc says: never in shell history.
+  .action(async (workspace: string) => {
     const out = new LiveConsoleOutput();
     try {
       const statusOpts = await makeOptions(workspace);
@@ -204,7 +205,7 @@ program
         {
           ops: statusOpts.ops,
           vaultOwnership: VAULT_OWNERSHIP,
-          password: opts.password,
+          // No password verification yet — pre-argon2
         },
         out,
       );
@@ -219,12 +220,12 @@ program
   .command("reject")
   .description("Reject the active proposal and reset staging")
   .argument("[workspace]", "workspace path", process.cwd())
-  .option("-p, --password <password>", "owner password")
-  .action(async (workspace: string, opts: { password?: string }) => {
+  // Password will be prompted via stdin when argon2 is integrated.
+  .action(async (workspace: string) => {
     const out = new LiveConsoleOutput();
     try {
       const statusOpts = await makeOptions(workspace);
-      const cmd = new RejectCommand({ ops: statusOpts.ops, password: opts.password }, out);
+      const cmd = new RejectCommand({ ops: statusOpts.ops }, out);
       process.exitCode = await cmd.execute();
     } catch (e) {
       out.error(e instanceof Error ? e.message : String(e));

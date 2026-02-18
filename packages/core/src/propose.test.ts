@@ -100,6 +100,6 @@ describe("propose", () => {
     const result = await propose({ ops, config });
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error.kind).toBe("write_failed");
+    expect(result.error.kind).toBe("proposal_exists");
   });
 });

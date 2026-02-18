@@ -63,6 +63,7 @@ export type {
   StageError,
   ProposeError,
   ApprovalError,
+  RejectError,
 } from "./proposal.js";
 
 // Password

@@ -183,6 +183,11 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     if (!mkdirResult.ok) {
       return err({ kind: "staging_failed", message: `mkdir failed: ${mkdirResult.error.kind}` });
     }
+    // Make .soulguard and staging agent-writable (agent writes proposal.json + staging edits)
+    await ops.chown(".soulguard", { user: agentUser, group: identity.group });
+    await ops.chmod(".soulguard", "755");
+    await ops.chown(".soulguard/staging", { user: agentUser, group: identity.group });
+    await ops.chmod(".soulguard/staging", "755");
     // Copy vault files to staging
     for (const vaultFile of config.vault) {
       if (vaultFile.includes("*")) continue; // skip globs

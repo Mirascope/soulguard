@@ -44,10 +44,7 @@ export async function propose(
   // Check no active proposal
   const proposalExists = await ops.exists(".soulguard/proposal.json");
   if (proposalExists.ok && proposalExists.value) {
-    return err({
-      kind: "write_failed",
-      message: "An active proposal already exists. Approve, reject, or delete it first.",
-    });
+    return err({ kind: "proposal_exists" });
   }
 
   // Compare staging vs vault for each vault file

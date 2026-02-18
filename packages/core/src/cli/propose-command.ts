@@ -23,6 +23,9 @@ export class ProposeCommand {
         case "no_changes":
           this.out.info("No changes to propose — staging matches vault.");
           return 0;
+        case "proposal_exists":
+          this.out.error("An active proposal already exists. Approve, reject, or delete it first.");
+          return 1;
         case "write_failed":
           this.out.error(result.error.message);
           return 1;

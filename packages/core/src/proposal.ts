@@ -38,6 +38,7 @@ export type StageError =
 export type ProposeError =
   | { kind: "no_staging"; message: string }
   | { kind: "no_changes" }
+  | { kind: "proposal_exists" }
   | { kind: "write_failed"; message: string };
 
 /** Errors specific to approve */
@@ -46,3 +47,9 @@ export type ApprovalError =
   | { kind: "wrong_password" }
   | { kind: "stale_proposal"; message: string }
   | { kind: "apply_failed"; message: string };
+
+/** Errors specific to reject */
+export type RejectError =
+  | { kind: "no_proposal" }
+  | { kind: "wrong_password" }
+  | { kind: "reset_failed"; message: string };

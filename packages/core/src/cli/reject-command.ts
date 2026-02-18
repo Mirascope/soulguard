@@ -23,11 +23,8 @@ export class RejectCommand {
         case "wrong_password":
           this.out.error("Incorrect password.");
           return 1;
-        case "stale_proposal":
-          this.out.error(`Error: ${result.error.message}`);
-          return 1;
-        case "apply_failed":
-          this.out.error(`Error: ${result.error.message}`);
+        case "reset_failed":
+          this.out.error(`Reset failed: ${result.error.message}`);
           return 1;
       }
     }

@@ -6,7 +6,7 @@
 
 import type { SystemOperations } from "./system-ops.js";
 import type { Result } from "./types.js";
-import type { Proposal, ApprovalError } from "./proposal.js";
+import type { Proposal, RejectError } from "./proposal.js";
 import { ok, err } from "./result.js";
 
 export type RejectOptions = {
@@ -25,7 +25,7 @@ export type RejectResult = {
 /**
  * Reject the active proposal and reset staging.
  */
-export async function reject(options: RejectOptions): Promise<Result<RejectResult, ApprovalError>> {
+export async function reject(options: RejectOptions): Promise<Result<RejectResult, RejectError>> {
   const { ops, password, verifyPassword } = options;
 
   // Read proposal
