@@ -5,8 +5,16 @@
  * against traversal. Maps errno codes to typed Result errors.
  */
 
-import { resolve, relative } from "node:path";
-import { stat as fsStat, readFile, chmod as fsChmod } from "node:fs/promises";
+import { resolve, relative, dirname } from "node:path";
+import {
+  stat as fsStat,
+  readFile,
+  chmod as fsChmod,
+  writeFile as fsWriteFile,
+  mkdir as fsMkdir,
+  copyFile as fsCopyFile,
+  access,
+} from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { execFile } from "node:child_process";
@@ -179,6 +187,118 @@ export class NodeSystemOps implements SystemOperations {
       return ok(content);
     } catch (e) {
       return err(mapError(e, path, "readFile"));
+    }
+  }
+
+  async createUser(name: string, group: string): Promise<Result<void, IOError>> {
+    try {
+      if (process.platform === "darwin") {
+        // macOS: use dscl
+        await execFileAsync("dscl", [".", "-create", `/Users/${name}`]);
+        await execFileAsync("dscl", [".", "-create", `/Users/${name}`, "PrimaryGroupID", group]);
+        await execFileAsync("dscl", [
+          ".",
+          "-create",
+          `/Users/${name}`,
+          "UserShell",
+          "/usr/bin/false",
+        ]);
+      } else {
+        await execFileAsync("useradd", ["-r", "-g", group, "-s", "/usr/bin/false", name]);
+      }
+      return ok(undefined);
+    } catch (e) {
+      return err({
+        kind: "io_error",
+        path: "",
+        message: `createUser ${name}: ${e instanceof Error ? e.message : String(e)}`,
+      });
+    }
+  }
+
+  async createGroup(name: string): Promise<Result<void, IOError>> {
+    try {
+      if (process.platform === "darwin") {
+        await execFileAsync("dscl", [".", "-create", `/Groups/${name}`]);
+      } else {
+        await execFileAsync("groupadd", [name]);
+      }
+      return ok(undefined);
+    } catch (e) {
+      return err({
+        kind: "io_error",
+        path: "",
+        message: `createGroup ${name}: ${e instanceof Error ? e.message : String(e)}`,
+      });
+    }
+  }
+
+  async writeFile(
+    path: string,
+    content: string,
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
+    const resolved = this.resolvePath(path);
+    if (!resolved.ok) return resolved;
+    try {
+      await fsMkdir(dirname(resolved.value), { recursive: true });
+      await fsWriteFile(resolved.value, content, "utf-8");
+      return ok(undefined);
+    } catch (e) {
+      return err(mapError(e, path, "writeFile"));
+    }
+  }
+
+  async writeFileAbsolute(
+    path: string,
+    content: string,
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
+    try {
+      await fsMkdir(dirname(path), { recursive: true });
+      await fsWriteFile(path, content, "utf-8");
+      return ok(undefined);
+    } catch (e) {
+      return err(mapError(e, path, "writeFileAbsolute"));
+    }
+  }
+
+  async mkdir(
+    path: string,
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
+    const resolved = this.resolvePath(path);
+    if (!resolved.ok) return resolved;
+    try {
+      await fsMkdir(resolved.value, { recursive: true });
+      return ok(undefined);
+    } catch (e) {
+      return err(mapError(e, path, "mkdir"));
+    }
+  }
+
+  async copyFile(
+    src: string,
+    dest: string,
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
+    const resolvedSrc = this.resolvePath(src);
+    if (!resolvedSrc.ok) return resolvedSrc;
+    const resolvedDest = this.resolvePath(dest);
+    if (!resolvedDest.ok) return resolvedDest;
+    try {
+      await fsMkdir(dirname(resolvedDest.value), { recursive: true });
+      await fsCopyFile(resolvedSrc.value, resolvedDest.value);
+      return ok(undefined);
+    } catch (e) {
+      return err(mapError(e, src, "copyFile"));
+    }
+  }
+
+  async exists(path: string): Promise<Result<boolean, IOError>> {
+    const resolved = this.resolvePath(path);
+    if (!resolved.ok) return ok(false);
+    try {
+      await access(resolved.value);
+      return ok(true);
+    } catch {
+      return ok(false);
     }
   }
 

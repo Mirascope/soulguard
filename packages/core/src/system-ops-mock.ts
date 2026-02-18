@@ -118,6 +118,56 @@ export class MockSystemOps implements SystemOperations {
     return ok(file.content);
   }
 
+  async createUser(name: string, group: string): Promise<Result<void, IOError>> {
+    this.users.add(name);
+    return ok(undefined);
+  }
+
+  async createGroup(name: string): Promise<Result<void, IOError>> {
+    this.groups.add(name);
+    return ok(undefined);
+  }
+
+  async writeFile(
+    path: string,
+    content: string,
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
+    const full = this.resolve(path);
+    this.files.set(full, { content, owner: "agent", group: "staff", mode: "644" });
+    return ok(undefined);
+  }
+
+  async writeFileAbsolute(
+    path: string,
+    content: string,
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
+    this.files.set(path, { content, owner: "root", group: "root", mode: "644" });
+    return ok(undefined);
+  }
+
+  async mkdir(
+    _path: string,
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
+    return ok(undefined);
+  }
+
+  async copyFile(
+    src: string,
+    dest: string,
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
+    const fullSrc = this.resolve(src);
+    const file = this.files.get(fullSrc);
+    if (!file) return err({ kind: "not_found", path: src });
+    const fullDest = this.resolve(dest);
+    this.files.set(fullDest, { ...file });
+    return ok(undefined);
+  }
+
+  async exists(path: string): Promise<Result<boolean, IOError>> {
+    const full = this.resolve(path);
+    return ok(this.files.has(full));
+  }
+
   async hashFile(
     path: string,
   ): Promise<Result<string, NotFoundError | PermissionDeniedError | IOError>> {
