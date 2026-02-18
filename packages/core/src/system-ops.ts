@@ -42,12 +42,6 @@ export interface SystemOperations {
     content: string,
   ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
 
-  /** Write content to an absolute path. Creates parent dirs if needed. */
-  writeFileAbsolute(
-    path: string,
-    content: string,
-  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
-
   /** Create a directory (relative path). Creates parent dirs if needed. */
   mkdir(path: string): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
 

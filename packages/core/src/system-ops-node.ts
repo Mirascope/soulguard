@@ -248,19 +248,6 @@ export class NodeSystemOps implements SystemOperations {
     }
   }
 
-  async writeFileAbsolute(
-    path: string,
-    content: string,
-  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
-    try {
-      await fsMkdir(dirname(path), { recursive: true });
-      await fsWriteFile(path, content, "utf-8");
-      return ok(undefined);
-    } catch (e) {
-      return err(mapError(e, path, "writeFileAbsolute"));
-    }
-  }
-
   async mkdir(
     path: string,
   ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
@@ -297,8 +284,15 @@ export class NodeSystemOps implements SystemOperations {
     try {
       await access(resolved.value);
       return ok(true);
-    } catch {
-      return ok(false);
+    } catch (e) {
+      if (e instanceof Error && "code" in e && e.code === "ENOENT") {
+        return ok(false);
+      }
+      return err({
+        kind: "io_error",
+        path,
+        message: `exists: ${e instanceof Error ? e.message : String(e)}`,
+      });
     }
   }
 
@@ -313,6 +307,27 @@ export class NodeSystemOps implements SystemOperations {
       stream.on("data", (chunk) => hash.update(chunk));
       stream.on("end", () => resolve(ok(hash.digest("hex"))));
       stream.on("error", (e) => resolve(err(mapError(e, path, "hashFile"))));
+    });
+  }
+}
+
+/**
+ * Write to an absolute path (outside any workspace).
+ * Deliberately NOT on SystemOperations — used only for init's sudoers writing.
+ */
+export async function writeFileAbsolute(
+  path: string,
+  content: string,
+): Promise<Result<void, IOError>> {
+  try {
+    await fsMkdir(dirname(path), { recursive: true });
+    await fsWriteFile(path, content, "utf-8");
+    return ok(undefined);
+  } catch (e) {
+    return err({
+      kind: "io_error",
+      path,
+      message: `writeFileAbsolute: ${e instanceof Error ? e.message : String(e)}`,
     });
   }
 }

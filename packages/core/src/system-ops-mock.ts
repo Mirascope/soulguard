@@ -137,14 +137,6 @@ export class MockSystemOps implements SystemOperations {
     return ok(undefined);
   }
 
-  async writeFileAbsolute(
-    path: string,
-    content: string,
-  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
-    this.files.set(path, { content, owner: "root", group: "root", mode: "644" });
-    return ok(undefined);
-  }
-
   async mkdir(
     path: string,
   ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {

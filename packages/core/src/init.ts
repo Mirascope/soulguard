@@ -10,7 +10,7 @@
 
 import type { SyncResult } from "./sync.js";
 import type { SystemOperations } from "./system-ops.js";
-import type { SoulguardConfig, SystemIdentity, FileOwnership, Result } from "./types.js";
+import type { SoulguardConfig, SystemIdentity, FileOwnership, Result, IOError } from "./types.js";
 import { ok, err } from "./result.js";
 import { sync } from "./sync.js";
 
@@ -42,12 +42,17 @@ export type InitError =
   | { kind: "sudoers_write_failed"; message: string }
   | { kind: "staging_failed"; message: string };
 
+/** Write content to an absolute path (outside workspace). Used for sudoers. */
+export type AbsoluteWriter = (path: string, content: string) => Promise<Result<void, IOError>>;
+
 export type InitOptions = {
   ops: SystemOperations;
   identity: SystemIdentity;
   config: SoulguardConfig;
   /** Agent's OS username (for sudoers and staging ownership) */
   agentUser: string;
+  /** Writer for files outside the workspace (sudoers). Keeps SystemOperations clean. */
+  writeAbsolute: AbsoluteWriter;
   /** Password to hash (undefined = skip password setup) */
   password?: string;
   /** Path to write sudoers file (default: /etc/sudoers.d/soulguard) */
@@ -71,6 +76,7 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     identity,
     config,
     agentUser,
+    writeAbsolute,
     password,
     sudoersPath = DEFAULT_SUDOERS_PATH,
   } = options;
@@ -184,12 +190,10 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   // ── 6. Write sudoers ─────────────────────────────────────────────────
   let sudoersCreated = false;
   const sudoersContent = generateSudoers(agentUser, SOULGUARD_BIN);
-  const sudoersResult = await ops.writeFileAbsolute(sudoersPath, sudoersContent);
+  const sudoersResult = await writeAbsolute(sudoersPath, sudoersContent);
   if (!sudoersResult.ok) {
-    return err({ kind: "sudoers_write_failed", message: `${sudoersResult.error.kind}` });
+    return err({ kind: "sudoers_write_failed", message: sudoersResult.error.message });
   }
-  // Sudoers files must be mode 440
-  // We can't use ops.chmod here since it's relative — need absolute path support
   sudoersCreated = true;
 
   // ── 7. Password (optional) ───────────────────────────────────────────

@@ -3,12 +3,29 @@ import { MockSystemOps } from "./system-ops-mock.js";
 import { init, generateSudoers } from "./init.js";
 import type { InitOptions } from "./init.js";
 
+/** Mock absolute writer that records what was written */
+function mockWriteAbsolute(): {
+  writer: InitOptions["writeAbsolute"];
+  written: Map<string, string>;
+} {
+  const written = new Map<string, string>();
+  return {
+    writer: async (path, content) => {
+      written.set(path, content);
+      return { ok: true as const, value: undefined };
+    },
+    written,
+  };
+}
+
 function makeOptions(ops: MockSystemOps, overrides?: Partial<InitOptions>): InitOptions {
+  const { writer } = mockWriteAbsolute();
   return {
     ops,
     identity: { user: "soulguardian", group: "soulguard" },
     config: { vault: ["SOUL.md"], ledger: [] },
     agentUser: "agent",
+    writeAbsolute: writer,
     sudoersPath: "/tmp/test-sudoers",
     ...overrides,
   };
