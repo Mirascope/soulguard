@@ -80,7 +80,7 @@ describe("init", () => {
     expect(result.value.configCreated).toBe(false);
   });
 
-  test("idempotent — second run creates nothing", async () => {
+  test("idempotent — second run recreates staging but not system resources", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile("SOUL.md", "# My Soul", { owner: "agent", group: "staff", mode: "644" });
 
@@ -92,7 +92,7 @@ describe("init", () => {
     const first = await init(opts);
     expect(first.ok).toBe(true);
 
-    // Second run — everything should already exist
+    // Second run — system resources already exist, staging is recreated
     const second = await init(opts);
     expect(second.ok).toBe(true);
     if (!second.ok) return;
@@ -101,7 +101,8 @@ describe("init", () => {
     expect(second.value.userCreated).toBe(false);
     expect(second.value.configCreated).toBe(false);
     expect(second.value.sudoersCreated).toBe(false);
-    expect(second.value.stagingCreated).toBe(false);
+    // Staging is always recreated (idempotent, self-healing)
+    expect(second.value.stagingCreated).toBe(true);
   });
 
   test("syncs vault files after setup", async () => {

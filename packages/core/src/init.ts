@@ -172,83 +172,85 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   }
 
   // ── 5. Create staging ────────────────────────────────────────────────
-  // TODO: refactor to call `stage` command once it exists, instead of manual copy
-  let stagingCreated = false;
-  const stagingExists = await ops.exists(".soulguard/staging");
-  if (!stagingExists.ok) {
-    return err({ kind: "staging_failed", message: stagingExists.error.message });
-  }
-  if (!stagingExists.value) {
-    const mkdirResult = await ops.mkdir(".soulguard/staging");
-    if (!mkdirResult.ok) {
-      return err({ kind: "staging_failed", message: `mkdir failed: ${mkdirResult.error.kind}` });
-    }
-    // .soulguard/ owned by soulguardian — agent CANNOT create/delete files here.
-    // Only staging/ is agent-writable. proposal.json is written by sudo propose.
-    const chownSg = await ops.chown(".soulguard", { user: identity.user, group: identity.group });
-    if (!chownSg.ok) {
-      return err({
-        kind: "staging_failed",
-        message: `chown .soulguard failed: ${chownSg.error.kind}`,
-      });
-    }
-    const chmodSg = await ops.chmod(".soulguard", "755");
-    if (!chmodSg.ok) {
-      return err({
-        kind: "staging_failed",
-        message: `chmod .soulguard failed: ${chmodSg.error.kind}`,
-      });
-    }
-    const chownStaging = await ops.chown(".soulguard/staging", {
-      user: agentUser,
-      group: identity.group,
+  // Always (re)create staging — idempotent, self-healing on partial state
+  const stagingCreated = true;
+  // Check for active proposal — block re-init unless it's a fresh setup
+  const proposalExists = await ops.exists(".soulguard/proposal.json");
+  if (proposalExists.ok && proposalExists.value) {
+    return err({
+      kind: "staging_failed",
+      message: "Active proposal exists. Approve or reject it before re-initializing.",
     });
-    if (!chownStaging.ok) {
-      return err({
-        kind: "staging_failed",
-        message: `chown staging failed: ${chownStaging.error.kind}`,
-      });
-    }
-    const chmodStaging = await ops.chmod(".soulguard/staging", "755");
-    if (!chmodStaging.ok) {
-      return err({
-        kind: "staging_failed",
-        message: `chmod staging failed: ${chmodStaging.error.kind}`,
-      });
-    }
-    // Copy vault files to staging
-    for (const vaultFile of config.vault) {
-      if (vaultFile.includes("*")) continue; // skip globs
-      const fileExists = await ops.exists(vaultFile);
-      if (fileExists.ok && fileExists.value) {
-        const copyResult = await ops.copyFile(vaultFile, `.soulguard/staging/${vaultFile}`);
-        if (!copyResult.ok) {
-          return err({
-            kind: "staging_failed",
-            message: `copy ${vaultFile} failed: ${copyResult.error.kind}`,
-          });
-        }
-        // Make staging copy agent-writable
-        const chownFile = await ops.chown(`.soulguard/staging/${vaultFile}`, {
-          user: agentUser,
-          group: identity.group,
+  }
+
+  const mkdirResult = await ops.mkdir(".soulguard/staging");
+  if (!mkdirResult.ok) {
+    return err({ kind: "staging_failed", message: `mkdir failed: ${mkdirResult.error.kind}` });
+  }
+  // .soulguard/ owned by soulguardian — agent CANNOT create/delete files here.
+  // Only staging/ is agent-writable. proposal.json is written by sudo propose.
+  const chownSg = await ops.chown(".soulguard", { user: identity.user, group: identity.group });
+  if (!chownSg.ok) {
+    return err({
+      kind: "staging_failed",
+      message: `chown .soulguard failed: ${chownSg.error.kind}`,
+    });
+  }
+  const chmodSg = await ops.chmod(".soulguard", "755");
+  if (!chmodSg.ok) {
+    return err({
+      kind: "staging_failed",
+      message: `chmod .soulguard failed: ${chmodSg.error.kind}`,
+    });
+  }
+  const chownStaging = await ops.chown(".soulguard/staging", {
+    user: agentUser,
+    group: identity.group,
+  });
+  if (!chownStaging.ok) {
+    return err({
+      kind: "staging_failed",
+      message: `chown staging failed: ${chownStaging.error.kind}`,
+    });
+  }
+  const chmodStaging = await ops.chmod(".soulguard/staging", "755");
+  if (!chmodStaging.ok) {
+    return err({
+      kind: "staging_failed",
+      message: `chmod staging failed: ${chmodStaging.error.kind}`,
+    });
+  }
+  // Copy vault files to staging
+  for (const vaultFile of config.vault) {
+    if (vaultFile.includes("*")) continue; // skip globs
+    const fileExists = await ops.exists(vaultFile);
+    if (fileExists.ok && fileExists.value) {
+      const copyResult = await ops.copyFile(vaultFile, `.soulguard/staging/${vaultFile}`);
+      if (!copyResult.ok) {
+        return err({
+          kind: "staging_failed",
+          message: `copy ${vaultFile} failed: ${copyResult.error.kind}`,
         });
-        if (!chownFile.ok) {
-          return err({
-            kind: "staging_failed",
-            message: `chown staging/${vaultFile} failed: ${chownFile.error.kind}`,
-          });
-        }
-        const chmodFile = await ops.chmod(`.soulguard/staging/${vaultFile}`, "644");
-        if (!chmodFile.ok) {
-          return err({
-            kind: "staging_failed",
-            message: `chmod staging/${vaultFile} failed: ${chmodFile.error.kind}`,
-          });
-        }
+      }
+      // Make staging copy agent-writable
+      const chownFile = await ops.chown(`.soulguard/staging/${vaultFile}`, {
+        user: agentUser,
+        group: identity.group,
+      });
+      if (!chownFile.ok) {
+        return err({
+          kind: "staging_failed",
+          message: `chown staging/${vaultFile} failed: ${chownFile.error.kind}`,
+        });
+      }
+      const chmodFile = await ops.chmod(`.soulguard/staging/${vaultFile}`, "644");
+      if (!chmodFile.ok) {
+        return err({
+          kind: "staging_failed",
+          message: `chmod staging/${vaultFile} failed: ${chmodFile.error.kind}`,
+        });
       }
     }
-    stagingCreated = true;
   }
 
   // ── 6. Write sudoers ─────────────────────────────────────────────────
