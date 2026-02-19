@@ -20,6 +20,8 @@ export type ApproveOptions = {
   ops: SystemOperations;
   /** Expected vault ownership to restore after writing */
   vaultOwnership: FileOwnership;
+  /** Ownership for staging copies after sync (agent-writable) */
+  stagingOwnership?: FileOwnership;
   /** Password provided by owner (undefined if no password set) */
   password?: string;
   /** Verify password callback — returns true if valid */
@@ -145,7 +147,16 @@ export async function approve(
 
   // ── Phase 4: Sync staging copies + cleanup ─────────────────────────
   for (const file of proposal.files) {
-    await ops.copyFile(file.path, `.soulguard/staging/${file.path}`);
+    const stagingPath = `.soulguard/staging/${file.path}`;
+    await ops.copyFile(file.path, stagingPath);
+    // Re-apply agent-writable ownership to staging copy
+    if (options.stagingOwnership) {
+      await ops.chown(stagingPath, {
+        user: options.stagingOwnership.user,
+        group: options.stagingOwnership.group,
+      });
+      await ops.chmod(stagingPath, options.stagingOwnership.mode);
+    }
   }
 
   // Clean up backup and proposal
