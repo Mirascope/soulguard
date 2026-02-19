@@ -58,10 +58,17 @@ async function nameToGid(name: string): Promise<number> {
       "PrimaryGroupID",
     ]);
     const gid = stdout.trim().split(/\s+/).pop();
-    return parseInt(gid ?? "0", 10);
+    if (!gid || !/^\d+$/.test(gid)) {
+      throw new Error(`Could not resolve GID for group '${name}'`);
+    }
+    return parseInt(gid, 10);
   }
   const { stdout } = await execFileAsync("getent", ["group", name]);
-  return parseInt(stdout.split(":")[2] ?? "0", 10);
+  const field = stdout.split(":")[2];
+  if (!field || !/^\d+$/.test(field.trim())) {
+    throw new Error(`Could not resolve GID for group '${name}'`);
+  }
+  return parseInt(field.trim(), 10);
 }
 
 /** Look up username for a uid via `id -un` (works on macOS + Linux) */
@@ -235,10 +242,10 @@ export class NodeSystemOps implements SystemOperations {
           });
         }
         await execFileAsync("dscl", [".", "-create", `/Users/${name}`]);
-        // macOS requires manually assigning a UID — find an unused one starting at 400
+        // macOS requires manually assigning a UID — find an unused one in system range
+        const MAX_SYSTEM_ID = 499;
         let uid = 400;
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
+        while (uid <= MAX_SYSTEM_ID) {
           const { stdout: uidSearch } = await execFileAsync("dscl", [
             ".",
             "-search",
@@ -248,6 +255,13 @@ export class NodeSystemOps implements SystemOperations {
           ]);
           if (!uidSearch.trim()) break;
           uid++;
+        }
+        if (uid > MAX_SYSTEM_ID) {
+          return err({
+            kind: "io_error",
+            path: "",
+            message: `No available UID in system range (400-${MAX_SYSTEM_ID})`,
+          });
         }
         await execFileAsync("dscl", [".", "-create", `/Users/${name}`, "UniqueID", String(uid)]);
         await execFileAsync("dscl", [".", "-create", `/Users/${name}`, "PrimaryGroupID", gid]);
@@ -275,10 +289,10 @@ export class NodeSystemOps implements SystemOperations {
     try {
       if (process.platform === "darwin") {
         await execFileAsync("dscl", [".", "-create", `/Groups/${name}`]);
-        // macOS requires manually assigning a GID — find an unused one starting at 400
+        // macOS requires manually assigning a GID — find an unused one in system range
+        const MAX_SYSTEM_GID = 499;
         let gid = 400;
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
+        while (gid <= MAX_SYSTEM_GID) {
           const { stdout: searchOut } = await execFileAsync("dscl", [
             ".",
             "-search",
@@ -288,6 +302,13 @@ export class NodeSystemOps implements SystemOperations {
           ]);
           if (!searchOut.trim()) break; // No match = GID is available
           gid++;
+        }
+        if (gid > MAX_SYSTEM_GID) {
+          return err({
+            kind: "io_error",
+            path: "",
+            message: `No available GID in system range (400-${MAX_SYSTEM_GID})`,
+          });
         }
         await execFileAsync("dscl", [
           ".",
