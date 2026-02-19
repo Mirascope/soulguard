@@ -235,6 +235,27 @@ export class NodeSystemOps implements SystemOperations {
     try {
       if (process.platform === "darwin") {
         await execFileAsync("dscl", [".", "-create", `/Groups/${name}`]);
+        // macOS requires manually assigning a GID — find an unused one starting at 400
+        let gid = 400;
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { stdout: searchOut } = await execFileAsync("dscl", [
+            ".",
+            "-search",
+            "/Groups",
+            "PrimaryGroupID",
+            String(gid),
+          ]);
+          if (!searchOut.trim()) break; // No match = GID is available
+          gid++;
+        }
+        await execFileAsync("dscl", [
+          ".",
+          "-create",
+          `/Groups/${name}`,
+          "PrimaryGroupID",
+          String(gid),
+        ]);
       } else {
         await execFileAsync("groupadd", [name]);
       }
