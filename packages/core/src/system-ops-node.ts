@@ -14,6 +14,7 @@ import {
   mkdir as fsMkdir,
   copyFile as fsCopyFile,
   unlink as fsUnlink,
+  chown as fsChown,
   access,
 } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -39,6 +40,28 @@ function mapError(e: unknown, path: string, operation: string): FileError {
   }
   const message = e instanceof Error ? e.message : String(e);
   return { kind: "io_error", path, message };
+}
+
+/** Resolve username to numeric uid */
+async function nameToUid(name: string): Promise<number> {
+  const { stdout } = await execFileAsync("id", ["-u", name]);
+  return parseInt(stdout.trim(), 10);
+}
+
+/** Resolve group name to numeric gid */
+async function nameToGid(name: string): Promise<number> {
+  if (process.platform === "darwin") {
+    const { stdout } = await execFileAsync("dscl", [
+      ".",
+      "-read",
+      `/Groups/${name}`,
+      "PrimaryGroupID",
+    ]);
+    const gid = stdout.trim().split(/\s+/).pop();
+    return parseInt(gid ?? "0", 10);
+  }
+  const { stdout } = await execFileAsync("getent", ["group", name]);
+  return parseInt(stdout.split(":")[2] ?? "0", 10);
 }
 
 /** Look up username for a uid via `id -un` (works on macOS + Linux) */
@@ -160,8 +183,9 @@ export class NodeSystemOps implements SystemOperations {
     if (!resolved.ok) return resolved;
 
     try {
-      const chownBin = process.platform === "darwin" ? "/usr/sbin/chown" : "chown";
-      await execFileAsync(chownBin, [`${owner.user}:${owner.group}`, resolved.value]);
+      const uid = await nameToUid(owner.user);
+      const gid = await nameToGid(owner.group);
+      await fsChown(resolved.value, uid, gid);
       return ok(undefined);
     } catch (e) {
       return err(mapError(e, path, "chown"));
