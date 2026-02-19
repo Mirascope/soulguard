@@ -210,6 +210,21 @@ export class NodeSystemOps implements SystemOperations {
           });
         }
         await execFileAsync("dscl", [".", "-create", `/Users/${name}`]);
+        // macOS requires manually assigning a UID — find an unused one starting at 400
+        let uid = 400;
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { stdout: uidSearch } = await execFileAsync("dscl", [
+            ".",
+            "-search",
+            "/Users",
+            "UniqueID",
+            String(uid),
+          ]);
+          if (!uidSearch.trim()) break;
+          uid++;
+        }
+        await execFileAsync("dscl", [".", "-create", `/Users/${name}`, "UniqueID", String(uid)]);
         await execFileAsync("dscl", [".", "-create", `/Users/${name}`, "PrimaryGroupID", gid]);
         await execFileAsync("dscl", [
           ".",
