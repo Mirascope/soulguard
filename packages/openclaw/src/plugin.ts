@@ -32,9 +32,9 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
     version: "0.1.0",
 
     activate(api) {
-      const workspaceDir = api.runtime.workspaceDir ?? ".";
+      const workspaceDir = api.resolvePath?.(".") ?? api.runtime.workspaceDir ?? ".";
       const configFile = options?.configPath ?? "soulguard.json";
-      const configPath = join(workspaceDir, configFile);
+      const configPath = api.resolvePath?.(configFile) ?? join(workspaceDir, configFile);
 
       // Load config — fail gracefully if missing
       let config: SoulguardConfig;
@@ -169,7 +169,9 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
       );
 
       // Register the guard hook
-      api.on("before_tool_call", (...args: unknown[]) => {
+      // Use registerHook (OpenClaw's actual API) with fallback to on()
+      const hookFn = api.registerHook ?? api.on;
+      hookFn("before_tool_call", (...args: unknown[]) => {
         const event = args[0];
         // Defense in depth — verify event shape before casting
         if (!event || typeof event !== "object" || !("toolName" in event)) {
