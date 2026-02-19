@@ -201,10 +201,12 @@ program
     const out = new LiveConsoleOutput();
     try {
       const statusOpts = await makeOptions(workspace);
+      const agentUser = process.env.SUDO_USER ?? "agent";
       const cmd = new ApproveCommand(
         {
           ops: statusOpts.ops,
           vaultOwnership: VAULT_OWNERSHIP,
+          stagingOwnership: { user: agentUser, group: IDENTITY.group, mode: "644" },
           // No password verification yet — pre-argon2
         },
         out,
@@ -225,7 +227,14 @@ program
     const out = new LiveConsoleOutput();
     try {
       const statusOpts = await makeOptions(workspace);
-      const cmd = new RejectCommand({ ops: statusOpts.ops }, out);
+      const agentUser = process.env.SUDO_USER ?? "agent";
+      const cmd = new RejectCommand(
+        {
+          ops: statusOpts.ops,
+          stagingOwnership: { user: agentUser, group: IDENTITY.group, mode: "644" },
+        },
+        out,
+      );
       process.exitCode = await cmd.execute();
     } catch (e) {
       out.error(e instanceof Error ? e.message : String(e));

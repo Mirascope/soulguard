@@ -14,6 +14,7 @@ import {
   mkdir as fsMkdir,
   copyFile as fsCopyFile,
   unlink as fsUnlink,
+  chown as fsChown,
   access,
 } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -39,6 +40,35 @@ function mapError(e: unknown, path: string, operation: string): FileError {
   }
   const message = e instanceof Error ? e.message : String(e);
   return { kind: "io_error", path, message };
+}
+
+/** Resolve username to numeric uid */
+async function nameToUid(name: string): Promise<number> {
+  const { stdout } = await execFileAsync("id", ["-u", name]);
+  return parseInt(stdout.trim(), 10);
+}
+
+/** Resolve group name to numeric gid */
+async function nameToGid(name: string): Promise<number> {
+  if (process.platform === "darwin") {
+    const { stdout } = await execFileAsync("dscl", [
+      ".",
+      "-read",
+      `/Groups/${name}`,
+      "PrimaryGroupID",
+    ]);
+    const gid = stdout.trim().split(/\s+/).pop();
+    if (!gid || !/^\d+$/.test(gid)) {
+      throw new Error(`Could not resolve GID for group '${name}'`);
+    }
+    return parseInt(gid, 10);
+  }
+  const { stdout } = await execFileAsync("getent", ["group", name]);
+  const field = stdout.split(":")[2];
+  if (!field || !/^\d+$/.test(field.trim())) {
+    throw new Error(`Could not resolve GID for group '${name}'`);
+  }
+  return parseInt(field.trim(), 10);
 }
 
 /** Look up username for a uid via `id -un` (works on macOS + Linux) */
@@ -160,7 +190,9 @@ export class NodeSystemOps implements SystemOperations {
     if (!resolved.ok) return resolved;
 
     try {
-      await execFileAsync("chown", [`${owner.user}:${owner.group}`, resolved.value]);
+      const uid = await nameToUid(owner.user);
+      const gid = await nameToGid(owner.group);
+      await fsChown(resolved.value, uid, gid);
       return ok(undefined);
     } catch (e) {
       return err(mapError(e, path, "chown"));
@@ -210,6 +242,28 @@ export class NodeSystemOps implements SystemOperations {
           });
         }
         await execFileAsync("dscl", [".", "-create", `/Users/${name}`]);
+        // macOS requires manually assigning a UID — find an unused one in system range
+        const MAX_SYSTEM_ID = 499;
+        let uid = 400;
+        while (uid <= MAX_SYSTEM_ID) {
+          const { stdout: uidSearch } = await execFileAsync("dscl", [
+            ".",
+            "-search",
+            "/Users",
+            "UniqueID",
+            String(uid),
+          ]);
+          if (!uidSearch.trim()) break;
+          uid++;
+        }
+        if (uid > MAX_SYSTEM_ID) {
+          return err({
+            kind: "io_error",
+            path: "",
+            message: `No available UID in system range (400-${MAX_SYSTEM_ID})`,
+          });
+        }
+        await execFileAsync("dscl", [".", "-create", `/Users/${name}`, "UniqueID", String(uid)]);
         await execFileAsync("dscl", [".", "-create", `/Users/${name}`, "PrimaryGroupID", gid]);
         await execFileAsync("dscl", [
           ".",
@@ -235,6 +289,34 @@ export class NodeSystemOps implements SystemOperations {
     try {
       if (process.platform === "darwin") {
         await execFileAsync("dscl", [".", "-create", `/Groups/${name}`]);
+        // macOS requires manually assigning a GID — find an unused one in system range
+        const MAX_SYSTEM_GID = 499;
+        let gid = 400;
+        while (gid <= MAX_SYSTEM_GID) {
+          const { stdout: searchOut } = await execFileAsync("dscl", [
+            ".",
+            "-search",
+            "/Groups",
+            "PrimaryGroupID",
+            String(gid),
+          ]);
+          if (!searchOut.trim()) break; // No match = GID is available
+          gid++;
+        }
+        if (gid > MAX_SYSTEM_GID) {
+          return err({
+            kind: "io_error",
+            path: "",
+            message: `No available GID in system range (400-${MAX_SYSTEM_GID})`,
+          });
+        }
+        await execFileAsync("dscl", [
+          ".",
+          "-create",
+          `/Groups/${name}`,
+          "PrimaryGroupID",
+          String(gid),
+        ]);
       } else {
         await execFileAsync("groupadd", [name]);
       }

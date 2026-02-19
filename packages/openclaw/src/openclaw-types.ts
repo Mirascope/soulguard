@@ -16,9 +16,15 @@ export type OpenClawPluginDefinition = {
 
 export type OpenClawPluginApi = {
   on: (hookName: string, handler: (...args: unknown[]) => unknown) => void;
+  registerHook: (
+    events: string | string[],
+    handler: (...args: unknown[]) => unknown,
+    opts?: { priority?: number },
+  ) => void;
   registerTool: (tool: AgentTool, opts?: { optional?: boolean }) => void;
   config: Record<string, unknown>;
   runtime: { workspaceDir?: string };
+  resolvePath?: (input: string) => string;
   logger?: { warn: (msg: string) => void; error: (msg: string) => void };
 };
 

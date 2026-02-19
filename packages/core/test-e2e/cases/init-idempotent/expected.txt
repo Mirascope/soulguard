@@ -8,4 +8,6 @@ Soulguard Init — /workspace
 Done.
 --- SECOND RUN ---
 Soulguard Init — /workspace
-Already initialized — nothing to do.
+  Created .soulguard/staging/
+
+Done.
