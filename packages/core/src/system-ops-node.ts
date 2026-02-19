@@ -160,7 +160,8 @@ export class NodeSystemOps implements SystemOperations {
     if (!resolved.ok) return resolved;
 
     try {
-      await execFileAsync("chown", [`${owner.user}:${owner.group}`, resolved.value]);
+      const chownBin = process.platform === "darwin" ? "/usr/sbin/chown" : "chown";
+      await execFileAsync(chownBin, [`${owner.user}:${owner.group}`, resolved.value]);
       return ok(undefined);
     } catch (e) {
       return err(mapError(e, path, "chown"));
