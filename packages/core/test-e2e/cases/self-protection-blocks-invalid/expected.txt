@@ -1,0 +1,12 @@
+Soulguard Init — /workspace
+  Created group: soulguard
+  Created user: soulguardian
+  Wrote /etc/sudoers.d/soulguard
+  Created .soulguard/staging/
+  Synced 2 vault file(s)
+
+Done.
+APPROVE:
+Self-protection: soulguard.json would be invalid after this change: ledger: Required
+CONFIG:
+{"vault":["SOUL.md","soulguard.json"],"ledger":[]}

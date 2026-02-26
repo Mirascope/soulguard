@@ -65,6 +65,9 @@ export type {
   ApprovalContext,
 } from "./policy.js";
 
+// Self-protection (hardcoded, cannot be bypassed)
+export { validateSelfProtection } from "./self-protection.js";
+
 // Approve
 export { approve } from "./approve.js";
 export type { ApproveOptions, ApproveResult, ApprovalError } from "./approve.js";

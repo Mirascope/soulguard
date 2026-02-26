@@ -21,6 +21,7 @@ import type { FileDiff } from "./diff.js";
 import { ok, err } from "./result.js";
 import type { Policy, ApprovalContext } from "./policy.js";
 import { validatePolicies, evaluatePolicies } from "./policy.js";
+import { validateSelfProtection } from "./self-protection.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -42,6 +43,7 @@ export type ApproveOptions = {
 export type ApprovalError =
   | { kind: "no_changes" }
   | { kind: "hash_mismatch"; message: string }
+  | { kind: "self_protection"; message: string }
   | { kind: "policy_violation"; violations: Array<{ policy: string; message: string }> }
   | { kind: "policy_name_collision"; duplicates: string[] }
   | { kind: "apply_failed"; message: string }
@@ -124,19 +126,33 @@ export async function approve(
     });
   }
 
-  // ── Phase 3b: Run policy hooks against frozen content ───────────────
+  // ── Phase 3a: Read all pending file contents (used by self-protection + policies) ──
+  const pendingContents = new Map<string, string>();
+  for (const file of changedFiles) {
+    const content = await ops.readFile(`.soulguard/pending/${file.path}`);
+    if (!content.ok) {
+      await cleanupPending(ops, changedFiles);
+      return err({
+        kind: "apply_failed",
+        message: `Cannot read pending/${file.path}`,
+      });
+    }
+    pendingContents.set(file.path, content.value);
+  }
+
+  // ── Phase 3b: Built-in self-protection (hardcoded, cannot be bypassed) ──
+  {
+    const selfCheck = validateSelfProtection(pendingContents);
+    if (!selfCheck.ok) {
+      await cleanupPending(ops, changedFiles);
+      return err(selfCheck.error);
+    }
+  }
+
+  // ── Phase 3c: Run user-provided policy hooks against frozen content ──
   if (policies && policies.length > 0) {
     const ctx: ApprovalContext = new Map();
     for (const file of changedFiles) {
-      const pendingContent = await ops.readFile(`.soulguard/pending/${file.path}`);
-      if (!pendingContent.ok) {
-        await cleanupPending(ops, changedFiles);
-        return err({
-          kind: "apply_failed",
-          message: `Cannot read pending/${file.path} for policy check`,
-        });
-      }
-      // For new files (vault_missing), previous is empty string
       let previous = "";
       if (file.status === "modified") {
         const vaultContent = await ops.readFile(file.path);
@@ -145,7 +161,7 @@ export async function approve(
         }
       }
       ctx.set(file.path, {
-        final: pendingContent.value,
+        final: pendingContents.get(file.path)!,
         diff: file.diff ?? "",
         previous,
       });
