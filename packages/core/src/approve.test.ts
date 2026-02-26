@@ -217,4 +217,33 @@ describe("approve (implicit proposals)", () => {
     expect(pendingExists.ok).toBe(true);
     if (pendingExists.ok) expect(pendingExists.value).toBe(false);
   });
+
+  test("auto-commits vault changes when git enabled", async () => {
+    const ops = setup();
+    ops.addFile(".git", ""); // git repo exists
+    ops.failingExecs.add("git diff --cached --quiet");
+
+    const gitConfig: SoulguardConfig = { ...config, git: true };
+    const hash = await getApprovalHash(ops, gitConfig);
+    const result = await approve({ ops, config: gitConfig, hash, vaultOwnership });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.gitResult).toBeDefined();
+    expect(result.value.gitResult!.committed).toBe(true);
+    expect(result.value.gitResult!.message).toContain("SOUL.md");
+  });
+
+  test("skips git commit when git disabled", async () => {
+    const ops = setup();
+    ops.addFile(".git", "");
+
+    const gitConfig: SoulguardConfig = { ...config, git: false };
+    const hash = await getApprovalHash(ops, gitConfig);
+    const result = await approve({ ops, config: gitConfig, hash, vaultOwnership });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.gitResult).toBeUndefined();
+  });
 });
