@@ -84,4 +84,4 @@ MIT
 
 ---
 
-\*Built by [Mirascope](https://mirascope.com).
+\*Built with love ❤️  by [Mirascope](https://mirascope.com).
