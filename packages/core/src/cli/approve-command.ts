@@ -88,9 +88,6 @@ export class ApproveCommand {
       }
     }
 
-    if (!this.opts.hash) {
-      // Only print heading in interactive mode (already printed above in non-interactive)
-    }
     this.out.write("");
     this.out.success(`Approved ${result.value.appliedFiles.length} file(s):`);
     for (const file of result.value.appliedFiles) {

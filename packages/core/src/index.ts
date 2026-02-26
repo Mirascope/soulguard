@@ -41,7 +41,7 @@ export { status } from "./status.js";
 export type { FileStatus, StatusResult, StatusOptions } from "./status.js";
 
 // Diff
-export { diff, computeApprovalHash } from "./diff.js";
+export { diff } from "./diff.js";
 export type { FileDiff, DiffResult, DiffError, DiffOptions } from "./diff.js";
 
 // Sync

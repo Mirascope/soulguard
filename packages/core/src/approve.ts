@@ -108,6 +108,7 @@ export async function approve(
   }
 
   // ── Phase 2: Build approval context and run policy hook ────────────
+  // Reuse diff results from Phase 1 to avoid redundant file reads.
   const modifiedFiles = diffResult.value.files.filter((f) => f.status === "modified");
 
   if (beforeApprove) {
@@ -131,12 +132,15 @@ export async function approve(
     }
   }
 
-  // ── Phase 3: Re-verify hash (guard against changes during policy check)
+  // ── Phase 3: Re-verify hash (guard against changes during policy check) ──
+  // This catches both staging AND vault changes since the diff is recomputed.
+  // The approval hash covers staged content hashes; if vault changed, the diff
+  // itself changes (different protectedHash), producing a different approval hash.
   const recheck = await diff({ ops, config });
   if (!recheck.ok || recheck.value.approvalHash !== hash) {
     return err({
       kind: "hash_mismatch",
-      message: "Staging changed during approval. Please re-review.",
+      message: "Files changed during approval. Please re-review.",
     });
   }
 
