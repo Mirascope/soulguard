@@ -68,7 +68,7 @@ export function guardToolCall(
     blocked: true,
     reason:
       `${fileName} is vault-protected by soulguard. ` +
-      `To modify it, edit .soulguard/staging/${norm} instead, ` +
-      `then run \`soulguard propose\` to submit the change for approval.`,
+      `To modify it, edit .soulguard/staging/${norm} instead. ` +
+      `Your changes will be reviewed and approved by the owner.`,
   };
 }

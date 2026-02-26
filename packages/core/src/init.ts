@@ -68,9 +68,7 @@ export type InitOptions = {
 
 /** Generate scoped sudoers content */
 export function generateSudoers(agentUser: string, soulguardBin: string): string {
-  const cmds = ["sync", "stage", "status", "propose", "diff"].map(
-    (cmd) => `${soulguardBin} ${cmd} *`,
-  );
+  const cmds = ["sync", "stage", "status", "diff"].map((cmd) => `${soulguardBin} ${cmd} *`);
   return `# Soulguard — scoped sudo for agent user\n${agentUser} ALL=(root) NOPASSWD: ${cmds.join(", ")}\n`;
 }
 
@@ -174,21 +172,12 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   // ── 5. Create staging ────────────────────────────────────────────────
   // Always (re)create staging — idempotent, self-healing on partial state
   const stagingCreated = true;
-  // Check for active proposal — block re-init unless it's a fresh setup
-  const proposalExists = await ops.exists(".soulguard/proposal.json");
-  if (proposalExists.ok && proposalExists.value) {
-    return err({
-      kind: "staging_failed",
-      message: "Active proposal exists. Approve or reject it before re-initializing.",
-    });
-  }
-
   const mkdirResult = await ops.mkdir(".soulguard/staging");
   if (!mkdirResult.ok) {
     return err({ kind: "staging_failed", message: `mkdir failed: ${mkdirResult.error.kind}` });
   }
   // .soulguard/ owned by soulguardian — agent CANNOT create/delete files here.
-  // Only staging/ is agent-writable. proposal.json is written by sudo propose.
+  // Only staging/ is agent-writable.
   const chownSg = await ops.chown(".soulguard", { user: identity.user, group: identity.group });
   if (!chownSg.ok) {
     return err({

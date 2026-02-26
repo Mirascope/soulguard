@@ -41,7 +41,7 @@ export { status } from "./status.js";
 export type { FileStatus, StatusResult, StatusOptions } from "./status.js";
 
 // Diff
-export { diff } from "./diff.js";
+export { diff, computeApprovalHash } from "./diff.js";
 export type { FileDiff, DiffResult, DiffError, DiffOptions } from "./diff.js";
 
 // Sync
@@ -51,17 +51,6 @@ export type { SyncError, SyncResult, SyncOptions } from "./sync.js";
 // Init
 export type { InitResult, InitError } from "./init.js";
 
-// Proposals
-export type {
-  ProposalFile,
-  Proposal,
-  StageError,
-  ProposeError,
-  ApprovalError,
-  RejectError,
-} from "./proposal.js";
-export { parseProposal } from "./proposal.js";
-
 // Password
 export type { PasswordHash } from "./password.js";
 
@@ -69,17 +58,19 @@ export type { PasswordHash } from "./password.js";
 export type { ConsoleOutput } from "./console.js";
 export { LiveConsoleOutput } from "./console-live.js";
 
-// Propose
-export { propose } from "./propose.js";
-export type { ProposeOptions, ProposeResult } from "./propose.js";
-
 // Approve
 export { approve } from "./approve.js";
-export type { ApproveOptions, ApproveResult } from "./approve.js";
+export type {
+  ApproveOptions,
+  ApproveResult,
+  ApprovalError,
+  ApprovalContext,
+  PolicyError,
+} from "./approve.js";
 
 // Reject
 export { reject } from "./reject.js";
-export type { RejectOptions, RejectResult } from "./reject.js";
+export type { RejectOptions, RejectResult, RejectError } from "./reject.js";
 
 // Vault check
 export { isVaultedFile, normalizePath } from "./vault-check.js";
@@ -88,6 +79,6 @@ export { isVaultedFile, normalizePath } from "./vault-check.js";
 export { StatusCommand } from "./cli/status-command.js";
 export { SyncCommand } from "./cli/sync-command.js";
 export { DiffCommand } from "./cli/diff-command.js";
-export { ProposeCommand } from "./cli/propose-command.js";
 export { ApproveCommand } from "./cli/approve-command.js";
+export type { ApproveCommandOptions } from "./cli/approve-command.js";
 export { RejectCommand } from "./cli/reject-command.js";

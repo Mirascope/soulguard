@@ -1,17 +1,18 @@
 /**
- * soulguard reject — reject the active proposal.
+ * soulguard reject — reset staging copies to match vault originals.
  *
- * Resets staging copies to match vault originals and deletes the proposal.
+ * With implicit proposals, reject simply resets staging to match vault.
+ * No proposal.json to delete — staging IS the proposal.
  */
 
 import type { SystemOperations } from "./system-ops.js";
-import type { FileOwnership, Result } from "./types.js";
-import type { RejectError } from "./proposal.js";
-import { parseProposal } from "./proposal.js";
+import type { FileOwnership, SoulguardConfig, Result } from "./types.js";
+import { diff } from "./diff.js";
 import { ok, err } from "./result.js";
 
 export type RejectOptions = {
   ops: SystemOperations;
+  config: SoulguardConfig;
   /** Ownership to apply to reset staging files (agent-writable) */
   stagingOwnership?: FileOwnership;
   /** Password provided by owner (undefined if no password set) */
@@ -25,22 +26,16 @@ export type RejectResult = {
   resetFiles: string[];
 };
 
+export type RejectError =
+  | { kind: "no_changes" }
+  | { kind: "wrong_password" }
+  | { kind: "reset_failed"; message: string };
+
 /**
- * Reject the active proposal and reset staging.
+ * Reject staging changes and reset to match vault.
  */
 export async function reject(options: RejectOptions): Promise<Result<RejectResult, RejectError>> {
-  const { ops, stagingOwnership, password, verifyPassword } = options;
-
-  // Read proposal
-  const proposalJson = await ops.readFile(".soulguard/proposal.json");
-  if (!proposalJson.ok) {
-    return err({ kind: "no_proposal" });
-  }
-
-  const proposal = parseProposal(proposalJson.value);
-  if (!proposal) {
-    return err({ kind: "reset_failed", message: "Invalid or corrupted proposal.json" });
-  }
+  const { ops, config, stagingOwnership, password, verifyPassword } = options;
 
   // Verify password if configured
   if (verifyPassword) {
@@ -53,14 +48,24 @@ export async function reject(options: RejectOptions): Promise<Result<RejectResul
     }
   }
 
-  // Reset staging copies to match vault originals
-  const resetFiles: string[] = [];
+  // Compute current diff to find what needs resetting
+  const diffResult = await diff({ ops, config });
+  if (!diffResult.ok) {
+    return err({ kind: "reset_failed", message: `Diff failed: ${diffResult.error.kind}` });
+  }
 
-  for (const file of proposal.files) {
+  if (!diffResult.value.hasChanges) {
+    return err({ kind: "no_changes" });
+  }
+
+  // Reset modified staging copies to match vault originals
+  const resetFiles: string[] = [];
+  const modifiedFiles = diffResult.value.files.filter((f) => f.status === "modified");
+
+  for (const file of modifiedFiles) {
     const stagingPath = `.soulguard/staging/${file.path}`;
     const copyResult = await ops.copyFile(file.path, stagingPath);
     if (copyResult.ok) {
-      // Re-apply agent-writable ownership to staging copy
       if (stagingOwnership) {
         await ops.chown(stagingPath, {
           user: stagingOwnership.user,
@@ -71,9 +76,6 @@ export async function reject(options: RejectOptions): Promise<Result<RejectResul
       resetFiles.push(file.path);
     }
   }
-
-  // Delete proposal
-  await ops.deleteFile(".soulguard/proposal.json");
 
   return ok({ resetFiles });
 }

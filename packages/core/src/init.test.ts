@@ -126,10 +126,10 @@ describe("generateSudoers", () => {
     expect(content).toContain("soulguard sync *");
     expect(content).toContain("soulguard stage *");
     expect(content).toContain("soulguard status *");
-    expect(content).toContain("soulguard propose *");
     expect(content).toContain("soulguard diff *");
-    // Should NOT contain approve or init
+    // Should NOT contain approve, init, or propose
     expect(content).not.toContain("approve");
     expect(content).not.toContain("init");
+    expect(content).not.toContain("propose");
   });
 });

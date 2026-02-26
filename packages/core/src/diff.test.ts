@@ -113,4 +113,61 @@ describe("diff", () => {
     expect(result.value.files).toHaveLength(1);
     expect(result.value.files[0]!.path).toBe("SOUL.md");
   });
+
+  test("approvalHash is present when changes exist", async () => {
+    const ops = makeMock();
+    ops.addFile(".soulguard/staging", "");
+    ops.addFile("SOUL.md", "original");
+    ops.addFile(".soulguard/staging/SOUL.md", "modified");
+
+    const result = await diff({ ops, config: makeConfig() });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.approvalHash).toBeDefined();
+    expect(typeof result.value.approvalHash).toBe("string");
+    expect(result.value.approvalHash!.length).toBe(64); // SHA-256 hex
+  });
+
+  test("approvalHash is undefined when no changes", async () => {
+    const ops = makeMock();
+    ops.addFile(".soulguard/staging", "");
+    ops.addFile("SOUL.md", "same");
+    ops.addFile(".soulguard/staging/SOUL.md", "same");
+
+    const result = await diff({ ops, config: makeConfig() });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.approvalHash).toBeUndefined();
+  });
+
+  test("approvalHash is deterministic", async () => {
+    const ops = makeMock();
+    ops.addFile(".soulguard/staging", "");
+    ops.addFile("SOUL.md", "original");
+    ops.addFile(".soulguard/staging/SOUL.md", "modified");
+
+    const r1 = await diff({ ops, config: makeConfig() });
+    const r2 = await diff({ ops, config: makeConfig() });
+    expect(r1.ok && r2.ok).toBe(true);
+    if (r1.ok && r2.ok) {
+      expect(r1.value.approvalHash).toBe(r2.value.approvalHash);
+    }
+  });
+
+  test("approvalHash changes when staging content changes", async () => {
+    const ops = makeMock();
+    ops.addFile(".soulguard/staging", "");
+    ops.addFile("SOUL.md", "original");
+    ops.addFile(".soulguard/staging/SOUL.md", "modified-v1");
+
+    const r1 = await diff({ ops, config: makeConfig() });
+
+    ops.addFile(".soulguard/staging/SOUL.md", "modified-v2");
+    const r2 = await diff({ ops, config: makeConfig() });
+
+    expect(r1.ok && r2.ok).toBe(true);
+    if (r1.ok && r2.ok) {
+      expect(r1.value.approvalHash).not.toBe(r2.value.approvalHash);
+    }
+  });
 });
