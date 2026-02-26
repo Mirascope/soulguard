@@ -77,6 +77,9 @@ export interface SystemOperations {
 
   /** Delete a file (relative path) */
   deleteFile(path: string): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
+
+  /** Execute a command in the workspace root */
+  exec(command: string, args: string[]): Promise<Result<void, IOError>>;
 }
 
 /** Common error type for stat/hash operations */

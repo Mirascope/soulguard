@@ -27,6 +27,10 @@ export type InitResult = {
   sudoersCreated: boolean;
   /** Whether staging directory was created */
   stagingCreated: boolean;
+  /** Whether git was initialized (false if already existed or git disabled) */
+  gitInitialized: boolean;
+  /** Whether .gitignore was updated with staging entry */
+  gitignoreUpdated: boolean;
   /** Sync result from the initial sync after setup */
   syncResult: SyncResult;
 };
@@ -38,7 +42,8 @@ export type InitError =
   | { kind: "group_creation_failed"; message: string }
   | { kind: "config_write_failed"; message: string }
   | { kind: "sudoers_write_failed"; message: string }
-  | { kind: "staging_failed"; message: string };
+  | { kind: "staging_failed"; message: string }
+  | { kind: "git_failed"; message: string };
 
 /** Write content to an absolute path (outside workspace). Used for sudoers. */
 export type AbsoluteWriter = (path: string, content: string) => Promise<Result<void, IOError>>;
@@ -238,7 +243,51 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     }
   }
 
-  // ── 6. Write sudoers ─────────────────────────────────────────────────
+  // ── 6. Git integration ────────────────────────────────────────────────
+  let gitInitialized = false;
+  let gitignoreUpdated = false;
+  if (config.git !== false) {
+    // Check if .git exists
+    const gitExists = await ops.exists(".git");
+    if (gitExists.ok && !gitExists.value) {
+      const gitResult = await ops.exec("git", ["init"]);
+      if (!gitResult.ok) {
+        return err({ kind: "git_failed", message: gitResult.error.message });
+      }
+      gitInitialized = true;
+    }
+
+    // Ensure .gitignore contains .soulguard/ (staging, pending, backup are all internal)
+    const soulguardEntry = ".soulguard/";
+    const gitignoreExists = await ops.exists(".gitignore");
+    if (gitignoreExists.ok && gitignoreExists.value) {
+      const content = await ops.readFile(".gitignore");
+      if (content.ok) {
+        const lines = content.value.split("\n");
+        if (!lines.some((line) => line.trim() === soulguardEntry)) {
+          const newContent = content.value.endsWith("\n")
+            ? content.value + soulguardEntry + "\n"
+            : content.value + "\n" + soulguardEntry + "\n";
+          const writeResult = await ops.writeFile(".gitignore", newContent);
+          if (!writeResult.ok) {
+            return err({
+              kind: "git_failed",
+              message: `write .gitignore: ${writeResult.error.kind}`,
+            });
+          }
+          gitignoreUpdated = true;
+        }
+      }
+    } else {
+      const writeResult = await ops.writeFile(".gitignore", soulguardEntry + "\n");
+      if (!writeResult.ok) {
+        return err({ kind: "git_failed", message: `create .gitignore: ${writeResult.error.kind}` });
+      }
+      gitignoreUpdated = true;
+    }
+  }
+
+  // ── 7. Write sudoers ─ ─────────────────────────────────────────────────
   let sudoersCreated = false;
   const sudoersAlreadyExists = await existsAbsolute(sudoersPath);
   if (!sudoersAlreadyExists) {
@@ -256,6 +305,8 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     configCreated,
     sudoersCreated,
     stagingCreated,
+    gitInitialized,
+    gitignoreUpdated,
     syncResult: syncResult.value,
   });
 }

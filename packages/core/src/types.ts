@@ -10,6 +10,8 @@ export type SoulguardConfig = {
   vault: string[];
   /** File patterns tracked as ledger items (agent writes freely, changes recorded) */
   ledger: string[];
+  /** Whether to initialize and track git (default: true) */
+  git?: boolean;
 };
 
 // ── Tiers ──────────────────────────────────────────────────────────────

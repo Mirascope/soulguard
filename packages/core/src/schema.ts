@@ -11,6 +11,7 @@ import type { SoulguardConfig } from "./types.js";
 export const soulguardConfigSchema: z.ZodType<SoulguardConfig> = z.object({
   vault: z.array(z.string()),
   ledger: z.array(z.string()),
+  git: z.boolean().optional(),
 });
 
 /**

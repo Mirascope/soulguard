@@ -158,6 +158,64 @@ describe("DEFAULT_CONFIG", () => {
     expect(DEFAULT_CONFIG.vault).toEqual(["soulguard.json"]);
     expect(DEFAULT_CONFIG.ledger).toEqual([]);
   });
+
+  test("git=true (default), no existing repo — git init called, .gitignore updated", async () => {
+    const ops = new MockSystemOps("/workspace");
+    ops.addFile("SOUL.md", "# My Soul", { owner: "agent", group: "staff", mode: "644" });
+
+    const result = await init(makeOptions(ops));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.gitInitialized).toBe(true);
+    expect(result.value.gitignoreUpdated).toBe(true);
+    // Verify git init was called
+    const execOps = ops.ops.filter((o) => o.kind === "exec");
+    expect(execOps).toContainEqual({ kind: "exec", command: "git", args: ["init"] });
+  });
+
+  test("git=true, existing repo — git init skipped, .gitignore still updated", async () => {
+    const ops = new MockSystemOps("/workspace");
+    ops.addFile("SOUL.md", "# My Soul", { owner: "agent", group: "staff", mode: "644" });
+    ops.addFile(".git", ""); // simulate existing git repo
+
+    const result = await init(makeOptions(ops));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.gitInitialized).toBe(false);
+    expect(result.value.gitignoreUpdated).toBe(true);
+    const execOps = ops.ops.filter((o) => o.kind === "exec");
+    expect(execOps).not.toContainEqual({ kind: "exec", command: "git", args: ["init"] });
+  });
+
+  test("git=false — no git operations", async () => {
+    const ops = new MockSystemOps("/workspace");
+    ops.addFile("SOUL.md", "# My Soul", { owner: "agent", group: "staff", mode: "644" });
+
+    const result = await init(
+      makeOptions(ops, { config: { vault: ["SOUL.md"], ledger: [], git: false } }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.gitInitialized).toBe(false);
+    expect(result.value.gitignoreUpdated).toBe(false);
+    const execOps = ops.ops.filter((o) => o.kind === "exec");
+    expect(execOps).toHaveLength(0);
+  });
+
+  test(".gitignore already has staging entry — not duplicated", async () => {
+    const ops = new MockSystemOps("/workspace");
+    ops.addFile("SOUL.md", "# My Soul", { owner: "agent", group: "staff", mode: "644" });
+    ops.addFile(".gitignore", "node_modules/\n.soulguard/\n");
+
+    const result = await init(makeOptions(ops));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.gitignoreUpdated).toBe(false);
+  });
 });
 
 describe("generateSudoers", () => {
