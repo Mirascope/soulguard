@@ -3,7 +3,7 @@ import { MockSystemOps } from "./system-ops-mock.js";
 import { diff } from "./diff.js";
 import { approve } from "./approve.js";
 import type { SoulguardConfig, FileOwnership } from "./types.js";
-import { ok, err } from "./result.js";
+import { err } from "./result.js";
 
 const config: SoulguardConfig = { vault: ["SOUL.md"], ledger: [] };
 const multiConfig: SoulguardConfig = { vault: ["SOUL.md", "AGENTS.md"], ledger: [] };
@@ -64,41 +64,8 @@ describe("approve (implicit proposals)", () => {
     expect(result.error.kind).toBe("no_changes");
   });
 
-  test("rejects wrong password", async () => {
-    const ops = setup();
-    const hash = await getApprovalHash(ops, config);
-
-    const result = await approve({
-      ops,
-      config,
-      hash,
-      vaultOwnership,
-      password: "wrong",
-      verifyPassword: async (p) => p === "correct",
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.kind).toBe("wrong_password");
-  });
-
-  test("accepts correct password", async () => {
-    const ops = setup();
-    const hash = await getApprovalHash(ops, config);
-
-    const result = await approve({
-      ops,
-      config,
-      hash,
-      vaultOwnership,
-      password: "correct",
-      verifyPassword: async (p) => p === "correct",
-    });
-    expect(result.ok).toBe(true);
-  });
-
   test("rejects hash mismatch (staging changed since review)", async () => {
     const ops = setup();
-    // Compute hash from current state
     const hash = await getApprovalHash(ops, config);
 
     // Agent sneaks in a change after hash was computed
@@ -112,74 +79,6 @@ describe("approve (implicit proposals)", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("hash_mismatch");
-  });
-
-  test("runs beforeApprove policy hook", async () => {
-    const ops = setup();
-    const hash = await getApprovalHash(ops, config);
-
-    const result = await approve({
-      ops,
-      config,
-      hash,
-      vaultOwnership,
-      beforeApprove: (ctx) => {
-        const soul = ctx.get("SOUL.md");
-        if (!soul) return err({ kind: "policy_violation" as const, message: "SOUL.md missing" });
-        if (soul.final.includes("evil")) {
-          return err({ kind: "policy_violation" as const, message: "evil content detected" });
-        }
-        return ok(undefined);
-      },
-    });
-    expect(result.ok).toBe(true);
-  });
-
-  test("blocks on policy violation", async () => {
-    const ops = setup();
-    const hash = await getApprovalHash(ops, config);
-
-    const result = await approve({
-      ops,
-      config,
-      hash,
-      vaultOwnership,
-      beforeApprove: (_ctx) => {
-        return err({ kind: "policy_violation" as const, message: "blocked by policy" });
-      },
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.kind).toBe("policy_violation");
-    if (result.error.kind === "policy_violation") {
-      expect(result.error.message).toBe("blocked by policy");
-    }
-  });
-
-  test("beforeApprove receives correct context", async () => {
-    const ops = setup();
-    const hash = await getApprovalHash(ops, config);
-
-    let capturedCtx: Map<string, { final: string; diff: string; previous: string }> | undefined;
-
-    await approve({
-      ops,
-      config,
-      hash,
-      vaultOwnership,
-      beforeApprove: (ctx) => {
-        capturedCtx = ctx;
-        return ok(undefined);
-      },
-    });
-
-    expect(capturedCtx).toBeDefined();
-    expect(capturedCtx!.size).toBe(1);
-    const soul = capturedCtx!.get("SOUL.md")!;
-    expect(soul.final).toBe("modified soul");
-    expect(soul.previous).toBe("original soul");
-    expect(soul.diff).toContain("original soul");
-    expect(soul.diff).toContain("modified soul");
   });
 
   test("rolls back on partial apply failure", async () => {
@@ -240,5 +139,18 @@ describe("approve (implicit proposals)", () => {
     const diffResult = await diff({ ops, config });
     expect(diffResult.ok).toBe(true);
     if (diffResult.ok) expect(diffResult.value.hasChanges).toBe(false);
+  });
+
+  test("cleans up pending directory after approve", async () => {
+    const ops = setup();
+    const hash = await getApprovalHash(ops, config);
+
+    const result = await approve({ ops, config, hash, vaultOwnership });
+    expect(result.ok).toBe(true);
+
+    // Pending files should be cleaned up
+    const pendingExists = await ops.exists(".soulguard/pending/SOUL.md");
+    expect(pendingExists.ok).toBe(true);
+    if (pendingExists.ok) expect(pendingExists.value).toBe(false);
   });
 });

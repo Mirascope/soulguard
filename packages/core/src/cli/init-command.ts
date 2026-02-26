@@ -36,9 +36,6 @@ export class InitCommand {
         case "config_write_failed":
           this.out.error(`Failed to write config: ${e.message}`);
           break;
-        case "password_hash_failed":
-          this.out.error(`Failed to set password: ${e.message}`);
-          break;
         case "sudoers_write_failed":
           this.out.error(`Failed to write sudoers: ${e.message}`);
           break;
@@ -58,8 +55,6 @@ export class InitCommand {
     if (r.configCreated) steps.push("Wrote soulguard.json");
     if (r.sudoersCreated) steps.push("Wrote /etc/sudoers.d/soulguard");
     if (r.stagingCreated) steps.push("Created .soulguard/staging/");
-    if (r.passwordSet) steps.push("Password set");
-
     if (steps.length > 0) {
       for (const step of steps) {
         this.out.success(`  ${step}`);

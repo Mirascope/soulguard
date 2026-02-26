@@ -1,8 +1,8 @@
 /**
- * soulguard reject — reset staging copies to match vault originals.
+ * soulguard reset — reset staging copies to match vault originals.
  *
- * With implicit proposals, reject simply resets staging to match vault.
- * No proposal.json to delete — staging IS the proposal.
+ * With implicit proposals, reset simply resets staging to match vault.
+ * Staging IS the proposal — resetting it discards all pending changes.
  */
 
 import type { SystemOperations } from "./system-ops.js";
@@ -10,43 +10,25 @@ import type { FileOwnership, SoulguardConfig, Result } from "./types.js";
 import { diff } from "./diff.js";
 import { ok, err } from "./result.js";
 
-export type RejectOptions = {
+export type ResetOptions = {
   ops: SystemOperations;
   config: SoulguardConfig;
   /** Ownership to apply to reset staging files (agent-writable) */
   stagingOwnership?: FileOwnership;
-  /** Password provided by owner (undefined if no password set) */
-  password?: string;
-  /** Verify password callback — returns true if valid */
-  verifyPassword?: (password: string) => Promise<boolean>;
 };
 
-export type RejectResult = {
+export type ResetResult = {
   /** Files whose staging copies were reset */
   resetFiles: string[];
 };
 
-export type RejectError =
-  | { kind: "no_changes" }
-  | { kind: "wrong_password" }
-  | { kind: "reset_failed"; message: string };
+export type ResetError = { kind: "no_changes" } | { kind: "reset_failed"; message: string };
 
 /**
- * Reject staging changes and reset to match vault.
+ * Reset staging changes to match vault.
  */
-export async function reject(options: RejectOptions): Promise<Result<RejectResult, RejectError>> {
-  const { ops, config, stagingOwnership, password, verifyPassword } = options;
-
-  // Verify password if configured
-  if (verifyPassword) {
-    if (!password) {
-      return err({ kind: "wrong_password" });
-    }
-    const valid = await verifyPassword(password);
-    if (!valid) {
-      return err({ kind: "wrong_password" });
-    }
-  }
+export async function reset(options: ResetOptions): Promise<Result<ResetResult, ResetError>> {
+  const { ops, config, stagingOwnership } = options;
 
   // Compute current diff to find what needs resetting
   const diffResult = await diff({ ops, config });

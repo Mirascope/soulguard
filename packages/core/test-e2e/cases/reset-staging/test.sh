@@ -1,4 +1,4 @@
-# Reject resets staging (implicit proposal)
+# Reset staging (implicit proposal)
 
 echo '# My Soul' > SOUL.md
 cat > soulguard.json <<'EOF'
@@ -11,8 +11,8 @@ soulguard init . --agent-user agent
 # Agent modifies staging
 su - agent -c "echo '# Hacked Soul' > $(pwd)/.soulguard/staging/SOUL.md"
 
-# Owner rejects
-soulguard reject .
+# Owner resets staging
+soulguard reset .
 
 # Verify vault unchanged
 echo "VAULT:"

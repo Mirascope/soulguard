@@ -70,14 +70,8 @@ export class ApproveCommand {
         case "no_changes":
           this.out.info("No changes to approve — staging matches vault.");
           return 0;
-        case "wrong_password":
-          this.out.error("Incorrect password.");
-          return 1;
         case "hash_mismatch":
-          this.out.error(`Hash mismatch: ${result.error.message}`);
-          return 1;
-        case "policy_violation":
-          this.out.error(`Policy violation: ${result.error.message}`);
+          this.out.error("Staging was modified during the approval process. Please retry.");
           return 1;
         case "apply_failed":
           this.out.error(`Apply failed: ${result.error.message}`);

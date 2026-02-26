@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { MockSystemOps } from "./system-ops-mock.js";
-import { reject } from "./reject.js";
+import { reset } from "./reset.js";
 import { diff } from "./diff.js";
 import type { SoulguardConfig } from "./types.js";
 
@@ -22,11 +22,11 @@ function setup() {
   return ops;
 }
 
-describe("reject (implicit proposals)", () => {
+describe("reset (implicit proposals)", () => {
   test("resets staging to match vault", async () => {
     const ops = setup();
 
-    const result = await reject({ ops, config });
+    const result = await reset({ ops, config });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.resetFiles).toEqual(["SOUL.md"]);
@@ -47,31 +47,17 @@ describe("reject (implicit proposals)", () => {
       mode: "644",
     });
 
-    const result = await reject({ ops, config });
+    const result = await reset({ ops, config });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("no_changes");
-  });
-
-  test("rejects wrong password", async () => {
-    const ops = setup();
-
-    const result = await reject({
-      ops,
-      config,
-      password: "wrong",
-      verifyPassword: async (p) => p === "correct",
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.kind).toBe("wrong_password");
   });
 
   test("applies staging ownership after reset", async () => {
     const ops = setup();
     const stagingOwnership = { user: "agent", group: "soulguard", mode: "644" };
 
-    const result = await reject({ ops, config, stagingOwnership });
+    const result = await reset({ ops, config, stagingOwnership });
     expect(result.ok).toBe(true);
 
     // Check staging content matches vault

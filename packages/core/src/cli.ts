@@ -11,7 +11,7 @@ import { StatusCommand } from "./cli/status-command.js";
 import { SyncCommand } from "./cli/sync-command.js";
 import { DiffCommand } from "./cli/diff-command.js";
 import { ApproveCommand } from "./cli/approve-command.js";
-import { RejectCommand } from "./cli/reject-command.js";
+import { ResetCommand } from "./cli/reset-command.js";
 import { InitCommand } from "./cli/init-command.js";
 import { NodeSystemOps, writeFileAbsolute, existsAbsolute } from "./system-ops-node.js";
 import { parseConfig } from "./schema.js";
@@ -98,49 +98,37 @@ program
   .description("Initialize soulguard for a workspace")
   .argument("[workspace]", "workspace path", process.cwd())
   .option("--agent-user <user>", "agent OS username (default: $SUDO_USER or 'agent')")
-  .option("--password", "set a password during init")
   .option("--template <name>", "protection template")
-  .action(
-    async (
-      workspace: string,
-      opts: { agentUser?: string; password?: boolean; template?: string },
-    ) => {
-      const out = new LiveConsoleOutput();
-      const absWorkspace = resolve(workspace);
-      const nodeOps = new NodeSystemOps(absWorkspace);
+  .action(async (workspace: string, opts: { agentUser?: string; template?: string }) => {
+    const out = new LiveConsoleOutput();
+    const absWorkspace = resolve(workspace);
+    const nodeOps = new NodeSystemOps(absWorkspace);
 
-      // Infer agent user: explicit flag > $SUDO_USER > "agent"
-      const agentUser = opts.agentUser ?? process.env.SUDO_USER ?? "agent";
+    // Infer agent user: explicit flag > $SUDO_USER > "agent"
+    const agentUser = opts.agentUser ?? process.env.SUDO_USER ?? "agent";
 
-      // Use existing config if present, otherwise default
-      let config: SoulguardConfig = DEFAULT_CONFIG;
-      try {
-        const raw = await readFile(resolve(absWorkspace, "soulguard.json"), "utf-8");
-        config = parseConfig(JSON.parse(raw));
-      } catch {
-        // No existing config — will be created by init
-      }
+    // Use existing config if present, otherwise default
+    let config: SoulguardConfig = DEFAULT_CONFIG;
+    try {
+      const raw = await readFile(resolve(absWorkspace, "soulguard.json"), "utf-8");
+      config = parseConfig(JSON.parse(raw));
+    } catch {
+      // No existing config — will be created by init
+    }
 
-      if (opts.password) {
-        out.error("Password support not yet implemented (argon2 pending).");
-        process.exitCode = 1;
-        return;
-      }
-
-      const cmd = new InitCommand(
-        {
-          ops: nodeOps,
-          identity: IDENTITY,
-          config,
-          agentUser,
-          writeAbsolute: writeFileAbsolute,
-          existsAbsolute,
-        },
-        out,
-      );
-      process.exitCode = await cmd.execute();
-    },
-  );
+    const cmd = new InitCommand(
+      {
+        ops: nodeOps,
+        identity: IDENTITY,
+        config,
+        agentUser,
+        writeAbsolute: writeFileAbsolute,
+        existsAbsolute,
+      },
+      out,
+    );
+    process.exitCode = await cmd.execute();
+  });
 
 program
   .command("diff")
@@ -207,7 +195,7 @@ program
   });
 
 program
-  .command("reject")
+  .command("reset")
   .description("Reset staging to match vault (discard changes)")
   .argument("[workspace]", "workspace path", process.cwd())
   .action(async (workspace: string) => {
@@ -215,7 +203,7 @@ program
     try {
       const statusOpts = await makeOptions(workspace);
       const agentUser = process.env.SUDO_USER ?? "agent";
-      const cmd = new RejectCommand(
+      const cmd = new ResetCommand(
         {
           ops: statusOpts.ops,
           config: statusOpts.config,

@@ -20,8 +20,6 @@ export type InitResult = {
   userCreated: boolean;
   /** Whether the system group was created (false if it already existed) */
   groupCreated: boolean;
-  /** Whether the password hash was written (false if it already existed) */
-  passwordSet: boolean;
   /** Whether soulguard.json was written (false if it already existed) */
   configCreated: boolean;
   /** Whether the sudoers file was written */
@@ -37,7 +35,6 @@ export type InitError =
   | { kind: "not_root"; message: string }
   | { kind: "user_creation_failed"; message: string }
   | { kind: "group_creation_failed"; message: string }
-  | { kind: "password_hash_failed"; message: string }
   | { kind: "config_write_failed"; message: string }
   | { kind: "sudoers_write_failed"; message: string }
   | { kind: "staging_failed"; message: string };
@@ -58,8 +55,6 @@ export type InitOptions = {
   writeAbsolute: AbsoluteWriter;
   /** Check if absolute path exists. Used for sudoers idempotency. */
   existsAbsolute: AbsoluteExists;
-  /** Password to hash (undefined = skip password setup) */
-  password?: string;
   /** Path to write sudoers file (default: /etc/sudoers.d/soulguard) */
   sudoersPath?: string;
   /** @internal Skip root check (for testing only) */
@@ -83,7 +78,6 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     agentUser,
     writeAbsolute,
     existsAbsolute,
-    password,
     sudoersPath = DEFAULT_SUDOERS_PATH,
   } = options;
 
@@ -254,19 +248,9 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     sudoersCreated = true;
   }
 
-  // ── 7. Password (optional) ───────────────────────────────────────────
-  let passwordSet = false;
-  if (password !== undefined) {
-    return err({
-      kind: "password_hash_failed",
-      message: "Password support not yet implemented (argon2 pending)",
-    });
-  }
-
   return ok({
     userCreated,
     groupCreated,
-    passwordSet,
     configCreated,
     sudoersCreated,
     stagingCreated,
