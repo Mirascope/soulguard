@@ -5,15 +5,15 @@ The soulguard daemon and CLI — vault enforcement, ledger tracking, proposal ma
 ## What Core Does
 
 - Owns and enforces vault file permissions
-- Watches and records ledger file changes
-- Manages proposals (create, approve, reject)
-- Validates passwords (argon2)
-- Maintains the changelog
+- Watches and records ledger file changes (TODO - via Git)
+- Manages proposals (create, approve, reject) (TODO - remove create, reject, add reset)
+- Validates passwords (argon2) (TODO)
+- Maintains the changelog (Will just be git)
 - Exposes a Unix domain socket API
 - Emits events for approval channels
-- Runs as a system service (launchd/systemd)
+- Runs as a system service (launchd/systemd) (TODO, may not be needed)
 
-## Daemon
+## Daemon (TODO)
 
 The daemon runs as the `soulguardian` (macOS) or `soulguard` (Linux) system user. It's the only process that can:
 
