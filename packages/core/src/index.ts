@@ -55,6 +55,16 @@ export type { InitResult, InitError } from "./init.js";
 export type { ConsoleOutput } from "./console.js";
 export { LiveConsoleOutput } from "./console-live.js";
 
+// Policy
+export { validatePolicies, evaluatePolicies } from "./policy.js";
+export type {
+  Policy,
+  PolicyViolation,
+  PolicyError,
+  PolicyCollisionError,
+  ApprovalContext,
+} from "./policy.js";
+
 // Approve
 export { approve } from "./approve.js";
 export type { ApproveOptions, ApproveResult, ApprovalError } from "./approve.js";
