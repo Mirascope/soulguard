@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { MockSystemOps } from "./system-ops-mock.js";
 import { init, generateSudoers } from "./init.js";
 import type { InitOptions } from "./init.js";
+import { DEFAULT_CONFIG } from "./constants.js";
 
 /** Mock absolute writer/exists that tracks what was written */
 function mockAbsolute(): {
@@ -116,6 +117,46 @@ describe("init", () => {
     // Sync should have fixed the vault file ownership
     const afterIssues = result.value.syncResult.after.issues;
     expect(afterIssues.length).toBe(0);
+  });
+
+  test("uses DEFAULT_CONFIG when no config provided", async () => {
+    const ops = new MockSystemOps("/workspace");
+    ops.addFile("openclaw.json", "{}", { owner: "agent", group: "staff", mode: "644" });
+    ops.addFile("soulguard.json", '{"vault":[],"ledger":[]}', {
+      owner: "agent",
+      group: "staff",
+      mode: "644",
+    });
+
+    const { writer, exists } = mockAbsolute();
+    const result = await init({
+      ops,
+      identity: { user: "soulguardian", group: "soulguard" },
+      agentUser: "agent",
+      writeAbsolute: writer,
+      existsAbsolute: exists,
+      sudoersPath: "/tmp/test-sudoers",
+      _skipRootCheck: true,
+      // no config — should use DEFAULT_CONFIG
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // Config file already existed so configCreated is false, but sync should
+    // have processed the default vault file (soulguard.json)
+    expect(result.value.stagingCreated).toBe(true);
+
+    // Verify staging copy was created for the default vault file
+    const stagingSoulguard = await ops.exists(".soulguard/staging/soulguard.json");
+    expect(stagingSoulguard.ok && stagingSoulguard.value).toBe(true);
+  });
+});
+
+describe("DEFAULT_CONFIG", () => {
+  test("has expected default vault files", () => {
+    expect(DEFAULT_CONFIG.vault).toEqual(["soulguard.json"]);
+    expect(DEFAULT_CONFIG.ledger).toEqual([]);
   });
 });
 

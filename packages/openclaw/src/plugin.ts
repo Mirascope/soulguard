@@ -5,6 +5,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { status, diff, parseConfig, NodeSystemOps, type SoulguardConfig } from "@soulguard/core";
+
+/** OpenClaw-specific default config — also vaults openclaw.json */
+const OPENCLAW_DEFAULT_CONFIG: SoulguardConfig = {
+  vault: ["openclaw.json", "soulguard.json"],
+  ledger: [],
+};
 import { guardToolCall } from "./guard.js";
 import type {
   BeforeToolCallEvent,
@@ -35,7 +41,7 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
       const configFile = options?.configPath ?? "soulguard.json";
       const configPath = api.resolvePath?.(configFile) ?? join(workspaceDir, configFile);
 
-      // Load config — fail gracefully if missing
+      // Load config — fall back to OpenClaw defaults if missing
       let config: SoulguardConfig;
       let vaultFiles: string[];
       try {
@@ -43,9 +49,10 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
         config = parseConfig(raw);
         vaultFiles = config.vault;
       } catch {
-        // No config or invalid — nothing to guard
-        api.logger?.warn("soulguard: could not read soulguard.json — vault protection disabled");
-        return;
+        // No config file — use OpenClaw defaults (includes openclaw.json)
+        config = OPENCLAW_DEFAULT_CONFIG;
+        vaultFiles = config.vault;
+        api.logger?.warn("soulguard: no soulguard.json found — using OpenClaw defaults");
       }
 
       if (vaultFiles.length === 0) return;
@@ -121,11 +128,14 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
                 ],
               };
             }
-            const text = result.value.files
+            const lines = result.value.files
               .filter((d) => d.status === "modified" && d.diff)
-              .map((d) => `--- ${d.path}\n${d.diff}`)
-              .join("\n\n");
-            return { content: [{ type: "text" as const, text: text || "No modified files." }] };
+              .map((d) => `--- ${d.path}\n${d.diff}`);
+            let text = lines.join("\n\n") || "No modified files.";
+            if (result.value.approvalHash) {
+              text += `\n\n────────────────────────────────────────\nApproval hash: ${result.value.approvalHash}\nTo approve: soulguard approve --hash ${result.value.approvalHash}`;
+            }
+            return { content: [{ type: "text" as const, text }] };
           },
         },
         { optional: true },
