@@ -37,7 +37,7 @@ describe("reset (implicit proposals)", () => {
     if (diffResult.ok) expect(diffResult.value.hasChanges).toBe(false);
   });
 
-  test("returns no_changes when staging matches vault", async () => {
+  test("returns empty resetFiles when staging matches vault", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile("SOUL.md", "same", { owner: "soulguardian", group: "soulguard", mode: "444" });
     ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
@@ -48,9 +48,9 @@ describe("reset (implicit proposals)", () => {
     });
 
     const result = await reset({ ops, config });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.kind).toBe("no_changes");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.resetFiles).toEqual([]);
   });
 
   test("applies staging ownership after reset", async () => {

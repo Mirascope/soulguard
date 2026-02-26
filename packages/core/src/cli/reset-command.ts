@@ -16,14 +16,13 @@ export class ResetCommand {
     const result = await reset(this.opts);
 
     if (!result.ok) {
-      switch (result.error.kind) {
-        case "no_changes":
-          this.out.info("No changes to reset — staging already matches vault.");
-          return 0;
-        case "reset_failed":
-          this.out.error(`Reset failed: ${result.error.message}`);
-          return 1;
-      }
+      this.out.error(`Reset failed: ${result.error.message}`);
+      return 1;
+    }
+
+    if (result.value.resetFiles.length === 0) {
+      this.out.info("No changes to reset — staging already matches vault.");
+      return 0;
     }
 
     this.out.heading(`Soulguard Reset — ${this.opts.ops.workspace}`);

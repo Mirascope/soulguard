@@ -22,7 +22,7 @@ export type ResetResult = {
   resetFiles: string[];
 };
 
-export type ResetError = { kind: "no_changes" } | { kind: "reset_failed"; message: string };
+export type ResetError = { kind: "reset_failed"; message: string };
 
 /**
  * Reset staging changes to match vault.
@@ -37,7 +37,7 @@ export async function reset(options: ResetOptions): Promise<Result<ResetResult, 
   }
 
   if (!diffResult.value.hasChanges) {
-    return err({ kind: "no_changes" });
+    return ok({ resetFiles: [] });
   }
 
   // Reset modified staging copies to match vault originals
@@ -49,10 +49,7 @@ export async function reset(options: ResetOptions): Promise<Result<ResetResult, 
     const copyResult = await ops.copyFile(file.path, stagingPath);
     if (copyResult.ok) {
       if (stagingOwnership) {
-        await ops.chown(stagingPath, {
-          user: stagingOwnership.user,
-          group: stagingOwnership.group,
-        });
+        await ops.chown(stagingPath, stagingOwnership);
         await ops.chmod(stagingPath, stagingOwnership.mode);
       }
       resetFiles.push(file.path);

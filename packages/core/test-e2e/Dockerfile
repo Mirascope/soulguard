@@ -3,8 +3,8 @@ FROM oven/bun:latest
 # Create agent user only — soulguardian/soulguard are created by `soulguard init`
 RUN useradd -m -s /bin/bash agent
 
-# Install sudo
-RUN apt-get update && apt-get install -y sudo && rm -rf /var/lib/apt/lists/*
+# Install sudo + git (git needed for e2e tests with git integration)
+RUN apt-get update && apt-get install -y sudo git && rm -rf /var/lib/apt/lists/*
 
 # No broad sudoers for agent — init generates scoped rules.
 # Agent gets sudo only after `soulguard init` writes /etc/sudoers.d/soulguard.

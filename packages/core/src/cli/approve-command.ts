@@ -71,7 +71,8 @@ export class ApproveCommand {
           this.out.info("No changes to approve — staging matches vault.");
           return 0;
         case "hash_mismatch":
-          this.out.error("Staging was modified during the approval process. Please retry.");
+          this.out.error(result.error.message);
+          this.out.info("Please run `soulguard diff` again and re-review.");
           return 1;
         case "apply_failed":
           this.out.error(`Apply failed: ${result.error.message}`);

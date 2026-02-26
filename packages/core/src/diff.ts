@@ -96,7 +96,13 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
       continue;
     }
     if (!vaultExists.value && stagingFileExists.value) {
-      fileDiffs.push({ path, status: "vault_missing" });
+      // New file — hash staging so it's covered by the approval hash
+      const newHash = await ops.hashFile(stagingPath);
+      fileDiffs.push({
+        path,
+        status: "vault_missing",
+        stagedHash: newHash.ok ? newHash.value : undefined,
+      });
       continue;
     }
     if (!vaultExists.value && !stagingFileExists.value) {
@@ -173,8 +179,9 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
  * This is the integrity token for hash-based approve.
  */
 export function computeApprovalHash(files: FileDiff[]): string {
+  // Include both modified and new (vault_missing) files in the hash
   const modified = files
-    .filter((f) => f.status === "modified" && f.stagedHash)
+    .filter((f) => (f.status === "modified" || f.status === "vault_missing") && f.stagedHash)
     .sort((a, b) => a.path.localeCompare(b.path));
 
   const hash = createHash("sha256");
