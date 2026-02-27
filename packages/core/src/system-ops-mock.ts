@@ -93,6 +93,7 @@ export class MockSystemOps implements SystemOperations {
     return ok({
       path,
       ownership: { user: file.owner, group: file.group, mode: file.mode },
+      isDirectory: false,
     });
   }
 
