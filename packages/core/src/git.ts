@@ -98,3 +98,26 @@ export function vaultCommitMessage(files: string[], approvalMessage?: string): s
 export function ledgerCommitMessage(): string {
   return "soulguard: ledger sync";
 }
+
+/**
+ * Commit all ledger files to git (best-effort).
+ *
+ * Intended to be called by the daemon/cove on its own schedule,
+ * NOT by sync (which focuses on permissions/ownership health).
+ * Stages all non-glob ledger files and commits if anything changed.
+ */
+export async function commitLedgerFiles(
+  ops: SystemOperations,
+  config: SoulguardConfig,
+): Promise<Result<GitCommitResult, GitError>> {
+  if (!(await isGitEnabled(ops, config))) {
+    return ok({ committed: false, message: ledgerCommitMessage(), files: [] });
+  }
+
+  const ledgerFiles = config.ledger.filter((f) => !f.includes("*"));
+  if (ledgerFiles.length === 0) {
+    return ok({ committed: false, message: ledgerCommitMessage(), files: [] });
+  }
+
+  return gitCommit(ops, ledgerFiles, ledgerCommitMessage());
+}

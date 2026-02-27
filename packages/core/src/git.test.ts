@@ -1,6 +1,12 @@
 import { describe, test, expect } from "bun:test";
 import { MockSystemOps } from "./system-ops-mock.js";
-import { isGitEnabled, gitCommit, vaultCommitMessage, ledgerCommitMessage } from "./git.js";
+import {
+  isGitEnabled,
+  gitCommit,
+  vaultCommitMessage,
+  ledgerCommitMessage,
+  commitLedgerFiles,
+} from "./git.js";
 
 describe("isGitEnabled", () => {
   test("returns true when git not false and .git exists", async () => {
@@ -91,5 +97,59 @@ describe("commit messages", () => {
 
   test("ledgerCommitMessage", () => {
     expect(ledgerCommitMessage()).toBe("soulguard: ledger sync");
+  });
+});
+
+describe("commitLedgerFiles", () => {
+  test("commits ledger files when git enabled and changes exist", async () => {
+    const ops = new MockSystemOps("/workspace");
+    ops.addFile(".git", "");
+    ops.failingExecs.add("git diff --cached --quiet");
+
+    const result = await commitLedgerFiles(ops, {
+      vault: [],
+      ledger: ["MEMORY.md", "memory/*.md"],
+      git: true,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.committed).toBe(true);
+    expect(result.value.message).toBe("soulguard: ledger sync");
+    // Globs are filtered out — only MEMORY.md staged
+    expect(result.value.files).toEqual(["MEMORY.md"]);
+  });
+
+  test("returns committed=false when git disabled", async () => {
+    const ops = new MockSystemOps("/workspace");
+    const result = await commitLedgerFiles(ops, { vault: [], ledger: ["MEMORY.md"], git: false });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.committed).toBe(false);
+  });
+
+  test("returns committed=false when no ledger files", async () => {
+    const ops = new MockSystemOps("/workspace");
+    ops.addFile(".git", "");
+    const result = await commitLedgerFiles(ops, { vault: [], ledger: [], git: true });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.committed).toBe(false);
+  });
+
+  test("returns committed=false when only glob patterns", async () => {
+    const ops = new MockSystemOps("/workspace");
+    ops.addFile(".git", "");
+    const result = await commitLedgerFiles(ops, {
+      vault: [],
+      ledger: ["memory/*.md"],
+      git: true,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.committed).toBe(false);
   });
 });
