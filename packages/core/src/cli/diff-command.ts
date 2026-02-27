@@ -58,6 +58,10 @@ export class DiffCommand {
           changeCount++;
           this.out.warn(`  ⚠️ ${file.path} (vault file missing — new file)`);
           break;
+        case "deleted":
+          changeCount++;
+          this.out.warn(`  🗑️ ${file.path} (staged for deletion)`);
+          break;
       }
     }
 

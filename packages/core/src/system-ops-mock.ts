@@ -34,6 +34,7 @@ export class MockSystemOps implements SystemOperations {
   public ops: RecordedOp[] = [];
   /** Commands that should fail (for testing error paths). Key: "command arg1 arg2" */
   public failingExecs: Set<string> = new Set();
+  public failingDeletes: Set<string> = new Set();
 
   constructor(workspace: string) {
     this.workspace = workspace;
@@ -181,6 +182,9 @@ export class MockSystemOps implements SystemOperations {
     path: string,
   ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
     const full = this.resolve(path);
+    if (this.failingDeletes.has(path) || this.failingDeletes.has(full)) {
+      return err({ kind: "permission_denied", path, operation: "unlink" });
+    }
     if (!this.files.has(full)) return err({ kind: "not_found", path });
     this.files.delete(full);
     return ok(undefined);

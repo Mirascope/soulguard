@@ -13,7 +13,7 @@ import type { SystemOperations } from "./system-ops.js";
 
 export type FileDiff = {
   path: string;
-  status: "modified" | "unchanged" | "vault_missing" | "staging_missing";
+  status: "modified" | "unchanged" | "vault_missing" | "staging_missing" | "deleted";
   /** Unified diff string (only for modified) */
   diff?: string;
   protectedHash?: string;
@@ -92,7 +92,13 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
 
     // Missing cases
     if (vaultExists.value && !stagingFileExists.value) {
-      fileDiffs.push({ path, status: "staging_missing" });
+      // Vault file exists but staging copy deleted → agent wants to delete this file
+      const vaultHash = await ops.hashFile(path);
+      fileDiffs.push({
+        path,
+        status: "deleted",
+        protectedHash: vaultHash.ok ? vaultHash.value : undefined,
+      });
       continue;
     }
     if (!vaultExists.value && stagingFileExists.value) {
@@ -179,14 +185,23 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
  * This is the integrity token for hash-based approve.
  */
 export function computeApprovalHash(files: FileDiff[]): string {
-  // Include both modified and new (vault_missing) files in the hash
-  const modified = files
-    .filter((f) => (f.status === "modified" || f.status === "vault_missing") && f.stagedHash)
+  // Include modified, new (vault_missing), and deleted files in the hash
+  const actionable = files
+    .filter(
+      (f) =>
+        ((f.status === "modified" || f.status === "vault_missing") && f.stagedHash) ||
+        f.status === "deleted",
+    )
     .sort((a, b) => a.path.localeCompare(b.path));
 
   const hash = createHash("sha256");
-  for (const f of modified) {
-    hash.update(`${f.path}\0${f.stagedHash}\0`);
+  for (const f of actionable) {
+    if (f.status === "deleted") {
+      // Use a sentinel for deletions — hash includes the vault hash to prevent replay
+      hash.update(`${f.path}\0DELETED\0${f.protectedHash ?? ""}\0`);
+    } else {
+      hash.update(`${f.path}\0${f.stagedHash}\0`);
+    }
   }
   return hash.digest("hex");
 }

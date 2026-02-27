@@ -84,16 +84,16 @@ export async function approve(
     return err({ kind: "no_changes" });
   }
 
-  // Files that need to be applied (modified or new)
+  // Files that need to be applied (modified, new, or deleted)
   const changedFiles = diffResult.value.files.filter(
-    (f) => f.status === "modified" || f.status === "vault_missing",
+    (f) => f.status === "modified" || f.status === "vault_missing" || f.status === "deleted",
   );
 
   // ── Phase 2: Copy staging to protected working dir ─────────────────
   // Once in .soulguard/pending/ (owned by soulguardian), the agent cannot
   // modify these files. This freezes the content before we verify the hash.
   await ops.mkdir(".soulguard/pending");
-  for (const file of changedFiles) {
+  for (const file of changedFiles.filter((f) => f.status !== "deleted")) {
     const copyResult = await ops.copyFile(
       `.soulguard/staging/${file.path}`,
       `.soulguard/pending/${file.path}`,
@@ -132,7 +132,7 @@ export async function approve(
 
   // ── Phase 3a: Read all pending file contents (used by self-protection + policies) ──
   const pendingContents = new Map<string, string>();
-  for (const file of changedFiles) {
+  for (const file of changedFiles.filter((f) => f.status !== "deleted")) {
     const content = await ops.readFile(`.soulguard/pending/${file.path}`);
     if (!content.ok) {
       await cleanupPending(ops, changedFiles);
@@ -146,7 +146,10 @@ export async function approve(
 
   // ── Phase 3b: Built-in self-protection (hardcoded, cannot be bypassed) ──
   {
-    const selfCheck = validateSelfProtection(pendingContents);
+    const selfCheck = validateSelfProtection(
+      pendingContents,
+      changedFiles.filter((f) => f.status === "deleted"),
+    );
     if (!selfCheck.ok) {
       await cleanupPending(ops, changedFiles);
       return err(selfCheck.error);
@@ -157,18 +160,27 @@ export async function approve(
   if (policies && policies.length > 0) {
     const ctx: ApprovalContext = new Map();
     for (const file of changedFiles) {
-      let previous = "";
-      if (file.status === "modified") {
+      if (file.status === "deleted") {
         const vaultContent = await ops.readFile(file.path);
-        if (vaultContent.ok) {
-          previous = vaultContent.value;
+        ctx.set(file.path, {
+          final: "",
+          diff: `File deleted: ${file.path}`,
+          previous: vaultContent.ok ? vaultContent.value : "",
+        });
+      } else {
+        let previous = "";
+        if (file.status === "modified") {
+          const vaultContent = await ops.readFile(file.path);
+          if (vaultContent.ok) {
+            previous = vaultContent.value;
+          }
         }
+        ctx.set(file.path, {
+          final: pendingContents.get(file.path)!,
+          diff: file.diff ?? "",
+          previous,
+        });
       }
-      ctx.set(file.path, {
-        final: pendingContents.get(file.path)!,
-        diff: file.diff ?? "",
-        previous,
-      });
     }
 
     const policyResult = await evaluatePolicies(policies, ctx);
@@ -193,49 +205,61 @@ export async function approve(
     backedUpFiles.push(file.path);
   }
 
-  // ── Phase 5: Apply from protected copies ───────────────────────────
+  // ── Phase 5: Apply changes ─────────────────────────────────────────
   const appliedFiles: string[] = [];
 
   for (const file of changedFiles) {
-    const content = await ops.readFile(`.soulguard/pending/${file.path}`);
-    if (!content.ok) {
-      await rollback(ops, changedFiles, appliedFiles, backedUpFiles, vaultOwnership);
-      return err({ kind: "apply_failed", message: `Cannot read pending/${file.path}` });
-    }
+    if (file.status === "deleted") {
+      // Delete vault file
+      const deleteResult = await ops.deleteFile(file.path);
+      if (!deleteResult.ok) {
+        await rollback(ops, changedFiles, appliedFiles, backedUpFiles, vaultOwnership);
+        return err({
+          kind: "apply_failed",
+          message: `Cannot delete ${file.path}: ${deleteResult.error.kind}`,
+        });
+      }
+    } else {
+      // Write content from pending
+      const content = await ops.readFile(`.soulguard/pending/${file.path}`);
+      if (!content.ok) {
+        await rollback(ops, changedFiles, appliedFiles, backedUpFiles, vaultOwnership);
+        return err({ kind: "apply_failed", message: `Cannot read pending/${file.path}` });
+      }
 
-    const writeResult = await ops.writeFile(file.path, content.value);
-    if (!writeResult.ok) {
-      await rollback(ops, changedFiles, appliedFiles, backedUpFiles, vaultOwnership);
-      return err({
-        kind: "apply_failed",
-        message: `Cannot write ${file.path}: ${writeResult.error.kind}`,
-      });
-    }
+      const writeResult = await ops.writeFile(file.path, content.value);
+      if (!writeResult.ok) {
+        await rollback(ops, changedFiles, appliedFiles, backedUpFiles, vaultOwnership);
+        return err({
+          kind: "apply_failed",
+          message: `Cannot write ${file.path}: ${writeResult.error.kind}`,
+        });
+      }
 
-    // Re-protect
-    const chownResult = await ops.chown(file.path, vaultOwnership);
-    if (!chownResult.ok) {
-      await rollback(ops, changedFiles, appliedFiles, backedUpFiles, vaultOwnership);
-      return err({
-        kind: "apply_failed",
-        message: `Cannot chown ${file.path}: ${chownResult.error.kind}`,
-      });
-    }
+      // Re-protect
+      const chownResult = await ops.chown(file.path, vaultOwnership);
+      if (!chownResult.ok) {
+        await rollback(ops, changedFiles, appliedFiles, backedUpFiles, vaultOwnership);
+        return err({
+          kind: "apply_failed",
+          message: `Cannot chown ${file.path}: ${chownResult.error.kind}`,
+        });
+      }
 
-    const chmodResult = await ops.chmod(file.path, vaultOwnership.mode);
-    if (!chmodResult.ok) {
-      await rollback(ops, changedFiles, appliedFiles, backedUpFiles, vaultOwnership);
-      return err({
-        kind: "apply_failed",
-        message: `Cannot chmod ${file.path}: ${chmodResult.error.kind}`,
-      });
+      const chmodResult = await ops.chmod(file.path, vaultOwnership.mode);
+      if (!chmodResult.ok) {
+        await rollback(ops, changedFiles, appliedFiles, backedUpFiles, vaultOwnership);
+        return err({
+          kind: "apply_failed",
+          message: `Cannot chmod ${file.path}: ${chmodResult.error.kind}`,
+        });
+      }
     }
-
     appliedFiles.push(file.path);
   }
 
   // ── Phase 6: Sync staging copies + cleanup ─────────────────────────
-  for (const file of changedFiles) {
+  for (const file of changedFiles.filter((f) => f.status !== "deleted")) {
     const stagingPath = `.soulguard/staging/${file.path}`;
     await ops.copyFile(file.path, stagingPath);
     if (options.stagingOwnership) {
@@ -243,6 +267,7 @@ export async function approve(
       await ops.chmod(stagingPath, options.stagingOwnership.mode);
     }
   }
+  // Deleted files: staging copy is already gone (that's how we detected the deletion)
 
   // Clean up backup and pending
   await cleanupBackup(ops, backedUpFiles);
@@ -268,16 +293,20 @@ export async function approve(
  */
 async function computePendingHash(
   ops: SystemOperations,
-  files: FileDiff[],
+  changedFiles: FileDiff[],
 ): Promise<Result<string, string>> {
-  // Build FileDiff-compatible entries with hashes from pending copies
   const withHashes: FileDiff[] = [];
-  for (const f of files) {
-    const fileHash = await ops.hashFile(`.soulguard/pending/${f.path}`);
-    if (!fileHash.ok) {
-      return err(`Cannot hash pending/${f.path}`);
+  for (const f of changedFiles) {
+    if (f.status === "deleted") {
+      // Deleted files pass through — they use protectedHash from the vault file
+      withHashes.push(f);
+    } else {
+      const fileHash = await ops.hashFile(`.soulguard/pending/${f.path}`);
+      if (!fileHash.ok) {
+        return err(`Cannot hash pending/${f.path}`);
+      }
+      withHashes.push({ ...f, stagedHash: fileHash.value });
     }
-    withHashes.push({ ...f, stagedHash: fileHash.value });
   }
   return ok(computeApprovalHash(withHashes));
 }
@@ -305,7 +334,7 @@ async function cleanupBackup(ops: SystemOperations, backedUpFiles: string[]): Pr
  */
 async function rollback(
   ops: SystemOperations,
-  allFiles: FileDiff[],
+  changedFiles: FileDiff[],
   appliedFiles: string[],
   backedUpFiles: string[],
   vaultOwnership: FileOwnership,
@@ -319,5 +348,5 @@ async function rollback(
     }
   }
   await cleanupBackup(ops, backedUpFiles);
-  await cleanupPending(ops, allFiles);
+  await cleanupPending(ops, changedFiles);
 }

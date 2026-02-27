@@ -45,7 +45,7 @@ describe("diff", () => {
     expect(result.value.files[0]!.diff).toContain("+modified");
   });
 
-  test("staging missing for a vault file → staging_missing status", async () => {
+  test("vault exists but staging deleted → deleted status", async () => {
     const ops = makeMock();
     ops.addFile(".soulguard/staging", "");
     ops.addFile("SOUL.md", "# Soul");
@@ -55,6 +55,19 @@ describe("diff", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.hasChanges).toBe(true);
+    expect(result.value.files[0]!.status).toBe("deleted");
+    expect(result.value.files[0]!.protectedHash).toBeDefined();
+    expect(result.value.approvalHash).toBeDefined();
+  });
+
+  test("neither vault nor staging exists → staging_missing status", async () => {
+    const ops = makeMock();
+    ops.addFile(".soulguard/staging", "");
+
+    const result = await diff({ ops, config: makeConfig() });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
     expect(result.value.files[0]!.status).toBe("staging_missing");
   });
 
