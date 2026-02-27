@@ -1,0 +1,124 @@
+#!/usr/bin/env bun
+import { readdir } from "node:fs/promises";
+import { join } from "node:path";
+
+const rootDir = join(import.meta.dir, "..");
+const packagesDir = join(rootDir, "packages");
+
+interface PackageInfo {
+  name: string;
+  version: string;
+  private?: boolean;
+  dependencies?: Record<string, string>;
+  dir: string;
+}
+
+async function readPackageJson(dir: string) {
+  const raw = await Bun.file(join(dir, "package.json")).json();
+  return raw;
+}
+
+async function isPublished(name: string, version: string): Promise<boolean> {
+  const proc = Bun.spawn(["npm", "view", `${name}@${version}`, "version"], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const exitCode = await proc.exited;
+  return exitCode === 0;
+}
+
+async function publish(pkg: PackageInfo) {
+  console.log(`📦 Publishing ${pkg.name}@${pkg.version}...`);
+  const proc = Bun.spawn(["bun", "publish", "--access", "public"], {
+    cwd: pkg.dir,
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  const exitCode = await proc.exited;
+  if (exitCode !== 0) {
+    throw new Error(`Failed to publish ${pkg.name}@${pkg.version}`);
+  }
+  console.log(`✅ Published ${pkg.name}@${pkg.version}`);
+}
+
+/** Topological sort based on internal dependency edges. */
+function topoSort(packages: Map<string, PackageInfo>): PackageInfo[] {
+  const names = new Set(packages.keys());
+  // Build adjacency: edges[A] = [B] means A depends on B (B must come first)
+  const deps = new Map<string, string[]>();
+  for (const [name, pkg] of packages) {
+    deps.set(
+      name,
+      Object.keys(pkg.dependencies ?? {}).filter((d) => names.has(d)),
+    );
+  }
+
+  const sorted: PackageInfo[] = [];
+  const visited = new Set<string>();
+  const visiting = new Set<string>();
+
+  function visit(name: string) {
+    if (visited.has(name)) return;
+    if (visiting.has(name)) {
+      throw new Error(`Circular dependency detected involving ${name}`);
+    }
+    visiting.add(name);
+    for (const dep of deps.get(name) ?? []) {
+      visit(dep);
+    }
+    visiting.delete(name);
+    visited.add(name);
+    sorted.push(packages.get(name)!);
+  }
+
+  for (const name of names) {
+    visit(name);
+  }
+  return sorted;
+}
+
+async function main() {
+  const entries = await readdir(packagesDir, { withFileTypes: true });
+  const packages = new Map<string, PackageInfo>();
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const dir = join(packagesDir, entry.name);
+    const pkg = await readPackageJson(dir);
+    packages.set(pkg.name, {
+      name: pkg.name,
+      version: pkg.version,
+      private: pkg.private,
+      dependencies: pkg.dependencies,
+      dir,
+    });
+  }
+
+  // Publish in topologically-sorted dependency order
+  const sorted = topoSort(packages);
+
+  for (const pkg of sorted) {
+    if (pkg.private) {
+      console.log(`⏭️  Skipping ${pkg.name} (private)`);
+      continue;
+    }
+    if (pkg.version === "0.0.0") {
+      console.log(`⏭️  Skipping ${pkg.name} (version 0.0.0, not ready)`);
+      continue;
+    }
+
+    if (await isPublished(pkg.name, pkg.version)) {
+      console.log(`✅ ${pkg.name}@${pkg.version} already published, skipping`);
+      continue;
+    }
+
+    await publish(pkg);
+  }
+
+  console.log("\n🎉 Done!");
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
