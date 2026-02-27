@@ -40,8 +40,9 @@ describe("gitCommit", () => {
     ops.failingExecs.add("git diff --cached --quiet");
     const result = await gitCommit(ops, ["SOUL.md", "AGENTS.md"], "test commit");
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.value.committed).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.committed).toBe(true);
+    if (result.value.committed) {
       expect(result.value.files).toEqual(["SOUL.md", "AGENTS.md"]);
       expect(result.value.message).toBe("test commit");
     }
@@ -64,22 +65,25 @@ describe("gitCommit", () => {
     ]);
   });
 
-  test("returns committed=false when nothing staged", async () => {
+  test("returns nothing_staged when nothing to commit", async () => {
     const ops = new MockSystemOps("/workspace");
     const result = await gitCommit(ops, ["SOUL.md"], "test commit");
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.value.committed).toBe(false);
+    if (!result.ok) return;
+    expect(result.value.committed).toBe(false);
+    if (!result.value.committed) {
+      expect(result.value.reason).toBe("nothing_staged");
     }
   });
 
-  test("returns committed=false with empty files", async () => {
+  test("returns no_files with empty files array", async () => {
     const ops = new MockSystemOps("/workspace");
     const result = await gitCommit(ops, [], "empty");
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.value.committed).toBe(false);
-      expect(result.value.files).toEqual([]);
+    if (!result.ok) return;
+    expect(result.value.committed).toBe(false);
+    if (!result.value.committed) {
+      expect(result.value.reason).toBe("no_files");
     }
   });
 });
@@ -115,31 +119,33 @@ describe("commitLedgerFiles", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.committed).toBe(true);
-    expect(result.value.message).toBe("soulguard: ledger sync");
-    // Globs are filtered out — only MEMORY.md staged
-    expect(result.value.files).toEqual(["MEMORY.md"]);
+    if (result.value.committed) {
+      expect(result.value.message).toBe("soulguard: ledger sync");
+      // Globs are filtered out — only MEMORY.md staged
+      expect(result.value.files).toEqual(["MEMORY.md"]);
+    }
   });
 
-  test("returns committed=false when git disabled", async () => {
+  test("returns git_disabled when git not enabled", async () => {
     const ops = new MockSystemOps("/workspace");
     const result = await commitLedgerFiles(ops, { vault: [], ledger: ["MEMORY.md"], git: false });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.committed).toBe(false);
+    expect(result.value).toEqual({ committed: false, reason: "git_disabled" });
   });
 
-  test("returns committed=false when no ledger files", async () => {
+  test("returns no_files when no ledger files", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile(".git", "");
     const result = await commitLedgerFiles(ops, { vault: [], ledger: [], git: true });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.committed).toBe(false);
+    expect(result.value).toEqual({ committed: false, reason: "no_files" });
   });
 
-  test("returns committed=false when only glob patterns", async () => {
+  test("returns no_files when only glob patterns", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile(".git", "");
     const result = await commitLedgerFiles(ops, {
@@ -150,6 +156,6 @@ describe("commitLedgerFiles", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.committed).toBe(false);
+    expect(result.value).toEqual({ committed: false, reason: "no_files" });
   });
 });

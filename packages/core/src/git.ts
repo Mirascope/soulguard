@@ -9,14 +9,9 @@ import type { SystemOperations } from "./system-ops.js";
 import type { SoulguardConfig, Result } from "./types.js";
 import { ok, err } from "./result.js";
 
-export type GitCommitResult = {
-  /** Whether a commit was actually created (false if nothing to commit) */
-  committed: boolean;
-  /** Commit message used */
-  message: string;
-  /** Files that were staged */
-  files: string[];
-};
+export type GitCommitResult =
+  | { committed: true; message: string; files: string[] }
+  | { committed: false; reason: "git_disabled" | "no_files" | "nothing_staged" };
 
 export type GitError = { kind: "git_error"; message: string };
 
@@ -44,7 +39,7 @@ export async function gitCommit(
   message: string,
 ): Promise<Result<GitCommitResult, GitError>> {
   if (files.length === 0) {
-    return ok({ committed: false, message, files: [] });
+    return ok({ committed: false, reason: "no_files" });
   }
 
   // Stage each file individually
@@ -60,7 +55,7 @@ export async function gitCommit(
   const diffResult = await ops.exec("git", ["diff", "--cached", "--quiet"]);
   if (diffResult.ok) {
     // Nothing staged — files were already committed or unchanged
-    return ok({ committed: false, message, files });
+    return ok({ committed: false, reason: "nothing_staged" });
   }
 
   // Commit with soulguard author
@@ -111,12 +106,12 @@ export async function commitLedgerFiles(
   config: SoulguardConfig,
 ): Promise<Result<GitCommitResult, GitError>> {
   if (!(await isGitEnabled(ops, config))) {
-    return ok({ committed: false, message: ledgerCommitMessage(), files: [] });
+    return ok({ committed: false, reason: "git_disabled" });
   }
 
   const ledgerFiles = config.ledger.filter((f) => !f.includes("*"));
   if (ledgerFiles.length === 0) {
-    return ok({ committed: false, message: ledgerCommitMessage(), files: [] });
+    return ok({ committed: false, reason: "no_files" });
   }
 
   return gitCommit(ops, ledgerFiles, ledgerCommitMessage());
