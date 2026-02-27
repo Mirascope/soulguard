@@ -16,7 +16,8 @@ import { ok, err } from "./result.js";
  */
 export type RecordedOp =
   | { kind: "chown"; path: string; owner: { user: string; group: string } }
-  | { kind: "chmod"; path: string; mode: string };
+  | { kind: "chmod"; path: string; mode: string }
+  | { kind: "exec"; command: string; args: string[] };
 
 type MockFile = {
   content: string;
@@ -192,5 +193,10 @@ export class MockSystemOps implements SystemOperations {
     const hash = new Bun.CryptoHasher("sha256");
     hash.update(file.content);
     return ok(hash.digest("hex"));
+  }
+
+  async exec(command: string, args: string[]): Promise<Result<void, IOError>> {
+    this.ops.push({ kind: "exec", command, args });
+    return ok(undefined);
   }
 }

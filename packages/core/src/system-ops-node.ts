@@ -417,6 +417,20 @@ export class NodeSystemOps implements SystemOperations {
       stream.on("error", (e) => resolve(err(mapError(e, path, "hashFile"))));
     });
   }
+
+  async exec(command: string, args: string[]): Promise<Result<void, IOError>> {
+    const execFileAsync = promisify(execFile);
+    try {
+      await execFileAsync(command, args, { cwd: this.workspace });
+      return ok(undefined);
+    } catch (e) {
+      return err({
+        kind: "io_error",
+        path: this.workspace,
+        message: `exec ${command}: ${e instanceof Error ? e.message : String(e)}`,
+      });
+    }
+  }
 }
 
 /**
