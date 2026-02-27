@@ -126,4 +126,47 @@ describe("sync", () => {
     expect(result.value.after.issues).toHaveLength(0);
     expect(result.value.errors).toHaveLength(0);
   });
+
+  test("commits vault and ledger files to git when enabled", async () => {
+    const ops = makeMock();
+    ops.addFile(".git", "");
+    ops.addFile("SOUL.md", "# Soul", {
+      owner: VAULT_OWNERSHIP.user,
+      group: VAULT_OWNERSHIP.group,
+      mode: "444",
+    });
+    ops.addFile("notes.md", "# Notes", {
+      owner: LEDGER_OWNERSHIP.user,
+      group: LEDGER_OWNERSHIP.group,
+      mode: LEDGER_OWNERSHIP.mode,
+    });
+
+    // Make post-add diff check fail (= files staged)
+    ops.execFailOnCall.set("git diff --cached --quiet", new Set([1]));
+
+    const result = await sync(
+      opts({ vault: ["SOUL.md"], ledger: ["notes.md"], git: true } as never, ops),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.git).toBeDefined();
+    expect(result.value.git?.committed).toBe(true);
+    if (result.value.git?.committed) {
+      expect(result.value.git.files).toEqual(["SOUL.md", "notes.md"]);
+    }
+  });
+
+  test("skips git commit when git disabled", async () => {
+    const ops = makeMock();
+    ops.addFile("SOUL.md", "# Soul", {
+      owner: VAULT_OWNERSHIP.user,
+      group: VAULT_OWNERSHIP.group,
+      mode: "444",
+    });
+
+    const result = await sync(opts({ vault: ["SOUL.md"], ledger: [], git: false } as never, ops));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.git).toBeUndefined();
+  });
 });
