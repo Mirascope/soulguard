@@ -221,7 +221,7 @@ describe("approve (implicit proposals)", () => {
   test("auto-commits vault changes when git enabled", async () => {
     const ops = setup();
     ops.addFile(".git", ""); // git repo exists
-    ops.failingExecs.add("git diff --cached --quiet");
+    ops.execFailOnCall.set("git diff --cached --quiet", new Set([1]));
 
     const gitConfig: SoulguardConfig = { ...config, git: true };
     const hash = await getApprovalHash(ops, gitConfig);
@@ -369,7 +369,7 @@ describe("approve (implicit proposals)", () => {
     });
     ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
     // No staging/SOUL.md — agent deleted it
-    ops.failingExecs.add("git diff --cached --quiet");
+    ops.execFailOnCall.set("git diff --cached --quiet", new Set([1]));
 
     const gitConfig: SoulguardConfig = { ...config, git: true };
     const hash = await getApprovalHash(ops, gitConfig);

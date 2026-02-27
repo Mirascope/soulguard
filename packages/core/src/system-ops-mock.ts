@@ -36,6 +36,13 @@ export class MockSystemOps implements SystemOperations {
   /** Commands that should fail (for testing error paths). Key: "command arg1 arg2" */
   public failingExecs: Set<string> = new Set();
   public failingDeletes: Set<string> = new Set();
+  /** Per-command call counters for execFailAfter/execFailBefore */
+  private execCallCounts: Map<string, number> = new Map();
+  /**
+   * Commands that should fail only on the Nth call (0-indexed).
+   * Key: "command arg1 arg2", Value: set of call indices that should fail.
+   */
+  public execFailOnCall: Map<string, Set<number>> = new Map();
 
   constructor(workspace: string) {
     this.workspace = workspace;
@@ -222,6 +229,13 @@ export class MockSystemOps implements SystemOperations {
     this.ops.push({ kind: "exec", command, args });
     const key = [command, ...args].join(" ");
     if (this.failingExecs.has(key)) {
+      return err({ kind: "io_error", path: "", message: `${key} failed` });
+    }
+    // Support call-index-specific failures
+    const callIndex = this.execCallCounts.get(key) ?? 0;
+    this.execCallCounts.set(key, callIndex + 1);
+    const failIndices = this.execFailOnCall.get(key);
+    if (failIndices?.has(callIndex)) {
       return err({ kind: "io_error", path: "", message: `${key} failed` });
     }
     return ok(undefined);
