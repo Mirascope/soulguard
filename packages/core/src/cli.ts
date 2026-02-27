@@ -5,6 +5,7 @@
 
 import { Command } from "commander";
 import { resolve } from "node:path";
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { LiveConsoleOutput } from "./console-live.js";
 import { StatusCommand } from "./cli/status-command.js";
@@ -62,7 +63,7 @@ async function makeOptions(workspace: string): Promise<StatusOptions> {
 const program = new Command()
   .name("soulguard")
   .description("Identity protection for AI agents")
-  .version("0.0.0");
+  .version(JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version);
 
 program
   .command("status")
