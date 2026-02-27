@@ -14,6 +14,7 @@ import type { SoulguardConfig, SystemIdentity, FileOwnership, Result, IOError } 
 import { ok, err } from "./result.js";
 import { sync } from "./sync.js";
 import { DEFAULT_CONFIG } from "./constants.js";
+import { resolvePatterns } from "./glob.js";
 
 /** Result of `soulguard init` — idempotent, booleans report what was done */
 export type InitResult = {
@@ -210,9 +211,9 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
       message: `chmod staging failed: ${chmodStaging.error.kind}`,
     });
   }
-  // Copy vault files to staging
-  for (const vaultFile of config.vault) {
-    if (vaultFile.includes("*")) continue; // skip globs
+  // Copy vault files to staging (resolve globs first)
+  const vaultFiles = await resolvePatterns(ops, config.vault);
+  for (const vaultFile of vaultFiles) {
     const fileExists = await ops.exists(vaultFile);
     if (fileExists.ok && fileExists.value) {
       const copyResult = await ops.copyFile(vaultFile, `.soulguard/staging/${vaultFile}`);

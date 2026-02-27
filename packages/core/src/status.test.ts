@@ -118,7 +118,32 @@ describe("status", () => {
     expect(file.file.hash).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  test("reports glob_skipped for glob patterns", async () => {
+  test("resolves glob patterns to matching files", async () => {
+    const ops = makeMock();
+    ops.addFile("memory/day1.md", "notes", {
+      owner: VAULT_OWNERSHIP.user,
+      group: VAULT_OWNERSHIP.group,
+      mode: VAULT_OWNERSHIP.mode,
+    });
+    ops.addFile("skills/python.md", "skill", {
+      owner: LEDGER_OWNERSHIP.user,
+      group: LEDGER_OWNERSHIP.group,
+      mode: LEDGER_OWNERSHIP.mode,
+    });
+
+    const result = await status(opts({ vault: ["memory/**"], ledger: ["skills/**"] }, ops));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.vault).toHaveLength(1);
+    expect(result.value.vault[0]!.status).toBe("ok");
+    expect(result.value.ledger).toHaveLength(1);
+    expect(result.value.ledger[0]!.status).toBe("ok");
+    expect(result.value.issues).toHaveLength(0);
+  });
+
+  test("glob with no matches returns empty", async () => {
     const ops = makeMock();
 
     const result = await status(opts({ vault: ["memory/**"], ledger: ["skills/**"] }, ops));
@@ -126,9 +151,8 @@ describe("status", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.vault[0]!.status).toBe("glob_skipped");
-    expect(result.value.ledger[0]!.status).toBe("glob_skipped");
-    expect(result.value.issues).toHaveLength(0);
+    expect(result.value.vault).toHaveLength(0);
+    expect(result.value.ledger).toHaveLength(0);
   });
 
   test("reports multiple semantic issues on same file", async () => {

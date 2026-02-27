@@ -112,19 +112,22 @@ describe("diff", () => {
     expect(result.value.files[0]!.path).toBe("SOUL.md");
   });
 
-  test("globs are skipped", async () => {
+  test("globs resolve to matching files", async () => {
     const ops = makeMock();
     ops.addFile(".soulguard/staging", "");
     ops.addFile("SOUL.md", "# Soul");
     ops.addFile(".soulguard/staging/SOUL.md", "# Soul");
+    ops.addFile("memory/day1.md", "notes");
+    ops.addFile(".soulguard/staging/memory/day1.md", "notes");
 
     const config = makeConfig(["SOUL.md", "memory/**"]);
     const result = await diff({ ops, config });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.files).toHaveLength(1);
-    expect(result.value.files[0]!.path).toBe("SOUL.md");
+    expect(result.value.files).toHaveLength(2);
+    expect(result.value.files.map((f) => f.path)).toContain("SOUL.md");
+    expect(result.value.files.map((f) => f.path)).toContain("memory/day1.md");
   });
 
   test("approvalHash is present when changes exist", async () => {

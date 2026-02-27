@@ -85,8 +85,6 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
                 lines.push(`  ⚠️  ${f.file.path} — ${f.issues.map((i) => i.kind).join(", ")}`);
               else if (f.status === "missing") lines.push(`  ❌ ${f.path} — missing`);
               else if (f.status === "error") lines.push(`  ❌ ${f.path} — error: ${f.error.kind}`);
-              else if (f.status === "glob_skipped")
-                lines.push(`  ⏭️  ${f.pattern} — glob (skipped)`);
             }
             if (result.value.issues.length === 0) lines.push("", "All files ok.");
             else lines.push("", `${result.value.issues.length} issue(s) found.`);

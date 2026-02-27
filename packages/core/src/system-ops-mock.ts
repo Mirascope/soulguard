@@ -201,6 +201,37 @@ export class MockSystemOps implements SystemOperations {
     return ok(hash.digest("hex"));
   }
 
+  async glob(pattern: string): Promise<Result<string[], IOError>> {
+    // Simple glob matching against mock filesystem
+    const prefix = this.workspace + "/";
+    const matches: string[] = [];
+
+    for (const fullPath of this.files.keys()) {
+      if (!fullPath.startsWith(prefix)) continue;
+      const relPath = fullPath.slice(prefix.length);
+      if (this.matchGlob(pattern, relPath)) {
+        matches.push(relPath);
+      }
+    }
+
+    return ok(matches.sort());
+  }
+
+  /** Simple glob matcher supporting * and ** */
+  private matchGlob(pattern: string, path: string): boolean {
+    // Convert glob to regex
+    const regexStr = pattern
+      .split("**")
+      .map((segment) =>
+        segment
+          .split("*")
+          .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+          .join("[^/]*"),
+      )
+      .join(".*");
+    return new RegExp(`^${regexStr}$`).test(path);
+  }
+
   async exec(command: string, args: string[]): Promise<Result<void, IOError>> {
     this.ops.push({ kind: "exec", command, args });
     const key = [command, ...args].join(" ");

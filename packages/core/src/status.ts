@@ -14,6 +14,7 @@ import type {
 import { ok } from "./result.js";
 import type { SystemOperations } from "./system-ops.js";
 import { getFileInfo } from "./system-ops.js";
+import { resolvePatterns } from "./glob.js";
 
 // ── File status ────────────────────────────────────────────────────────
 
@@ -21,8 +22,7 @@ export type FileStatus =
   | { tier: Tier; status: "ok"; file: FileInfo }
   | { tier: Tier; status: "drifted"; file: FileInfo; issues: DriftIssue[] }
   | { tier: Tier; status: "missing"; path: string }
-  | { tier: Tier; status: "error"; path: string; error: FileSystemError }
-  | { tier: Tier; status: "glob_skipped"; pattern: string };
+  | { tier: Tier; status: "error"; path: string; error: FileSystemError };
 
 export type StatusResult = {
   vault: FileStatus[];
@@ -46,16 +46,18 @@ export type StatusOptions = {
 export async function status(options: StatusOptions): Promise<Result<StatusResult, never>> {
   const { config, expectedVaultOwnership, expectedLedgerOwnership, ops } = options;
 
-  const [vault, ledger] = await Promise.all([
-    Promise.all(config.vault.map((path) => checkPath(path, "vault", expectedVaultOwnership, ops))),
-    Promise.all(
-      config.ledger.map((path) => checkPath(path, "ledger", expectedLedgerOwnership, ops)),
-    ),
+  // Resolve glob patterns to concrete file paths
+  const [vaultPaths, ledgerPaths] = await Promise.all([
+    resolvePatterns(ops, config.vault),
+    resolvePatterns(ops, config.ledger),
   ]);
 
-  const issues = [...vault, ...ledger].filter(
-    (f) => f.status !== "ok" && f.status !== "glob_skipped",
-  );
+  const [vault, ledger] = await Promise.all([
+    Promise.all(vaultPaths.map((path) => checkPath(path, "vault", expectedVaultOwnership, ops))),
+    Promise.all(ledgerPaths.map((path) => checkPath(path, "ledger", expectedLedgerOwnership, ops))),
+  ]);
+
+  const issues = [...vault, ...ledger].filter((f) => f.status !== "ok");
 
   return ok({ vault, ledger, issues });
 }
@@ -66,10 +68,6 @@ async function checkPath(
   expectedOwnership: FileOwnership,
   ops: SystemOperations,
 ): Promise<FileStatus> {
-  if (filePath.includes("*")) {
-    return { tier, status: "glob_skipped", pattern: filePath };
-  }
-
   const infoResult = await getFileInfo(filePath, ops);
 
   if (!infoResult.ok) {

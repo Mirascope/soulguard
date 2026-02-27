@@ -61,9 +61,6 @@ export class StatusCommand {
       case "error":
         this.out.error(`  ❌ ${f.path} (${f.error.kind})`);
         break;
-      case "glob_skipped":
-        this.out.info(`  ⏭️  ${f.pattern} (glob)`);
-        break;
     }
   }
 

@@ -8,6 +8,7 @@
 import type { SystemOperations } from "./system-ops.js";
 import type { SoulguardConfig, Result } from "./types.js";
 import { ok, err } from "./result.js";
+import { resolvePatterns } from "./glob.js";
 
 export type GitCommitResult =
   | { committed: true; message: string; files: string[] }
@@ -109,7 +110,7 @@ export async function commitLedgerFiles(
     return ok({ committed: false, reason: "git_disabled" });
   }
 
-  const ledgerFiles = config.ledger.filter((f) => !f.includes("*"));
+  const ledgerFiles = await resolvePatterns(ops, config.ledger);
   if (ledgerFiles.length === 0) {
     return ok({ committed: false, reason: "no_files" });
   }

@@ -418,6 +418,28 @@ export class NodeSystemOps implements SystemOperations {
     });
   }
 
+  async glob(pattern: string): Promise<Result<string[], IOError>> {
+    try {
+      const fs = await import("node:fs");
+      const { promisify } = await import("node:util");
+      // fs.glob is available in Node 22+ but not yet in @types/node
+      const globFn = (fs as Record<string, unknown>).glob as (
+        pattern: string,
+        options: { cwd: string },
+        cb: (err: Error | null, matches: string[]) => void,
+      ) => void;
+      const globAsync = promisify(globFn);
+      const matches = await globAsync(pattern, { cwd: this.workspace });
+      return ok([...matches].sort());
+    } catch (e) {
+      return err({
+        kind: "io_error",
+        path: pattern,
+        message: `glob: ${e instanceof Error ? e.message : String(e)}`,
+      });
+    }
+  }
+
   async exec(command: string, args: string[]): Promise<Result<void, IOError>> {
     const execFileAsync = promisify(execFile);
     try {

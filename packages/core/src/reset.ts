@@ -40,11 +40,14 @@ export async function reset(options: ResetOptions): Promise<Result<ResetResult, 
     return ok({ resetFiles: [] });
   }
 
-  // Reset modified staging copies to match vault originals
+  // Reset staging copies to match vault originals
+  // Handles modified (overwrite) and deleted (recreate staging copy)
   const resetFiles: string[] = [];
-  const modifiedFiles = diffResult.value.files.filter((f) => f.status === "modified");
+  const resettableFiles = diffResult.value.files.filter(
+    (f) => f.status === "modified" || f.status === "deleted",
+  );
 
-  for (const file of modifiedFiles) {
+  for (const file of resettableFiles) {
     const stagingPath = `.soulguard/staging/${file.path}`;
     const copyResult = await ops.copyFile(file.path, stagingPath);
     if (copyResult.ok) {
