@@ -14,6 +14,7 @@ Soulguard provides two protection tiers:
 
 - **Vault 🔒** — locked files that require owner approval to modify
 - **Ledger 📒** — tracked files where the agent writes freely but ownership/permissions are enforced
+- **Git integration** — all changes are auto-committed for audit trail and rollback
 
 ## Threat Model: Alohomora
 
@@ -190,9 +191,9 @@ sequenceDiagram
 
 When the workspace is a git repository and `git` is not disabled:
 
-- **`init`** — commits all tracked files (vault + ledger) as initial snapshot
+- **`init`** — creates git repo if needed, commits all tracked files (vault + ledger) as initial snapshot
 - **`approve`** — auto-commits changed vault files after applying
-- **`commitLedgerFiles(ops, config)`** — standalone function exported from `@soulguard/core` for daemon/cove integration
+- **`sync`** — commits all tracked files (vault + ledger) after fixing drift
 
 **Safety:** Before staging files, `gitCommit()` checks for pre-existing staged changes in the index. If found, it skips the commit (returns `dirty_staging`) to avoid absorbing unrelated work.
 
@@ -244,14 +245,6 @@ The approval hash is computed over the sorted set of file diffs. This provides:
 
 Git integration is a convenience, not a security mechanism. If git fails (not a repo, staging dirty, disk full), the vault/ledger operations must still succeed. Git failures are swallowed and reported in the result, never thrown.
 
-### Why `commitLedgerFiles` is standalone?
-
-`sync()` focuses on ownership/permission health. Ledger commits are a daemon concern — the daemon/cove calls `commitLedgerFiles()` on its own schedule (e.g. after heartbeats, after memory writes). This separation keeps `sync` fast and focused.
-
-### Why remove `glob_skipped` status?
-
-Early design had a `glob_skipped` status for unresolved globs. This leaked implementation details to every call site. Instead, `resolvePatterns()` resolves globs upfront, so all downstream code only sees concrete file paths.
-
 ### Why `DELETED` sentinel in approval hash?
 
 When a file is deleted from staging, the diff uses a `DELETED` sentinel combined with the vault's `protectedHash`. This prevents replay attacks — the hash is unique to the specific deletion of that specific file version.
@@ -260,12 +253,12 @@ When a file is deleted from staging, the diff uses a `DELETED` sentinel combined
 
 **Requires sudo:**
 
-| Command                                               | Description                                             |
-| ----------------------------------------------------- | ------------------------------------------------------- |
-| `sudo soulguard init <workspace> --agent-user <user>` | One-time setup: create users, set permissions, init git |
-| `sudo soulguard approve <workspace> --hash <hash>`    | Apply staged changes to vault                           |
-| `sudo soulguard sync <workspace>`                     | Fix ownership/permission drift                          |
-| `sudo soulguard reset <workspace>`                    | Reset staging to match vault                            |
+| Command                              | Description                                             |
+| ------------------------------------ | ------------------------------------------------------- |
+| `sudo soulguard init <workspace>`    | One-time setup: create users, set permissions, init git |
+| `sudo soulguard approve <workspace>` | Apply staged changes to vault                           |
+| `sudo soulguard sync <workspace>`    | Fix ownership/permission drift + commit to git          |
+| `sudo soulguard reset <workspace>`   | Reset staging to match vault                            |
 
 **No sudo required:**
 
@@ -282,7 +275,8 @@ When a file is deleted from staging, the diff uses a `DELETED` sentinel combined
 - Implicit proposals with hash-based approval
 - Vault file deletion through staging
 - Glob pattern support for vault and ledger
-- Git auto-commit on init and approve
+- Git auto-commit on init, approve, and sync
+- Protection templates for OpenClaw
 - Self-protection (soulguard.json cannot be deleted or have invalid content approved)
 - Scoped sudoers generation
 - Idempotent init
@@ -290,8 +284,6 @@ When a file is deleted from staging, the diff uses a `DELETED` sentinel combined
 ### Next (v0.2)
 
 - **OpenClaw plugin** — tool interception, helpful errors, staging redirect
-- **Ledger changelog** — JSONL recording of ledger file changes
-- **Protection templates** — pre-configured vault/ledger mappings per framework
 
 ### Future
 
@@ -300,12 +292,6 @@ When a file is deleted from staging, the diff uses a `DELETED` sentinel combined
 - **Daemon mode** — persistent process with socket API, replaces sudo workflow
 - **Guardian LLM** — second model reviews proposals for identity drift
 - **Shields Up mode** — temporarily promote all ledger to vault during active attack
-
-## Open Questions
-
-1. **Cross-agent proposals:** When multiple agents share vault files, how are proposals handled?
-2. **Ledger revert workflow:** What's the UX for reverting a compromised memory file?
-3. **macOS system user creation:** Platform-specific complexity (`sysadminctl`/`dscl`) — currently Linux-only for init.
 
 ---
 

@@ -27,48 +27,47 @@ See [DESIGN.md](DESIGN.md) for the full threat model, architecture, and design d
 
 ```bash
 # Install
-npm install -g @soulguard/core
+npm install -g soulguard
 
 # Initialize workspace (requires sudo)
-# Creates soulguardian user, soulguard group, sets up permissions
-sudo soulguard init /path/to/workspace --agent-user <agent-username>
+sudo soulguard init /path/to/workspace
 
 # Check status
-sudo soulguard status /path/to/workspace
+soulguard status /path/to/workspace
 
 # Agent edits staging copies in .soulguard/staging/
 # Then owner reviews and approves:
 soulguard diff /path/to/workspace
-sudo soulguard approve /path/to/workspace --hash <approval-hash>
+sudo soulguard approve /path/to/workspace
 ```
 
 ## How It Works
 
 ### Init
 
-`sudo soulguard init <workspace> --agent-user <user>`:
+`sudo soulguard init <workspace>`:
 
-1. Creates `soulguard` group and `soulguardian` system user
+1. Creates `soulguard` group (if not already created) and `soulguardian` system user (if not already present)
 2. Writes scoped sudoers rules (`/etc/sudoers.d/soulguard`)
 3. Creates `.soulguard/staging/` with agent-writable copies of vault files
 4. Sets vault file ownership to `soulguardian:soulguard 444`
 5. Sets ledger file ownership to `<agent>:soulguard 644`
-6. Commits initial state to git (if repo exists)
+6. Initializes a git repo if one doesn't exist, and commits initial state (both vault and ledger files)
 
 Init is idempotent — running it again skips completed steps.
 
-### Implicit Proposals
+### Approval Workflow
 
-There is no explicit `propose` command. The agent edits files in `.soulguard/staging/` directly. When the owner runs `diff`, soulguard compares staging against vault and computes an approval hash over all changes. The owner approves by passing this hash to `approve`.
+The agent edits files in `.soulguard/staging/` directly. When the owner runs `diff`, soulguard compares staging against vault and shows a unified diff of all changes. The owner then runs `approve` to review and apply:
 
 ```
 Agent edits .soulguard/staging/SOUL.md
   ↓
-Owner: soulguard diff .        → shows diff + approval hash
-Owner: sudo soulguard approve . --hash <hash>  → applies changes
+Owner: soulguard diff .        → shows what changed
+Owner: sudo soulguard approve .  → reviews and applies changes
 ```
 
-The hash covers all file diffs atomically — if anything changes between `diff` and `approve`, the hash won't match.
+Approve computes a hash over all diffs and applies changes atomically. If anything changes between diff and approve, the hashes won't match and approve will reject.
 
 ### File Deletion
 
@@ -91,18 +90,18 @@ Globs are resolved to concrete file paths at runtime. All commands (status, diff
 
 ### Git Integration
 
-When the workspace is a git repo and `git` is not disabled in config:
+When the workspace has a git repo and `git` is not disabled in config:
 
-- **`init`** commits all tracked files as an initial snapshot
+- **`init`** creates a git repo if needed, then commits all tracked files (vault + ledger) as an initial snapshot
 - **`approve`** auto-commits vault changes after applying them
-- **`commitLedgerFiles()`** — exported function for daemon/cove integration to commit ledger changes on their own schedule
+- **`sync`** commits all tracked files (vault + ledger) after fixing drift
 
 All git commits use author `SoulGuardian <soulguardian@soulguard.ai>`. Git operations are best-effort — failures never block core operations. If the staging area has pre-existing staged changes, soulguard skips the commit to avoid absorbing unrelated work.
 
 ### Status & Sync
 
 - `soulguard status` — reports vault and ledger file health (ownership, permissions, missing files)
-- `soulguard sync` — fixes ownership/permission drift on vault and ledger files
+- `soulguard sync` — fixes ownership/permission drift on vault and ledger files, then commits all tracked files to git
 - `soulguard reset` — resets staging to match current vault state
 
 ## Configuration
@@ -135,9 +134,9 @@ All git commits use author `SoulGuardian <soulguardian@soulguard.ai>`. Git opera
 
 **Requires sudo:**
 
-- `sudo soulguard init <workspace> --agent-user <user>` — one-time setup
-- `sudo soulguard approve <workspace> --hash <hash>` — apply staged changes
-- `sudo soulguard sync <workspace>` — fix ownership/permission drift
+- `sudo soulguard init <workspace>` — one-time setup
+- `sudo soulguard approve <workspace>` — apply staged changes
+- `sudo soulguard sync <workspace>` — fix ownership/permission drift + commit
 - `sudo soulguard reset <workspace>` — reset staging to match vault
 
 **No sudo required:**
@@ -157,4 +156,4 @@ MIT
 
 ---
 
-_Built by [Mirascope](https://mirascope.com)._
+_Built with ❤️ for 🦞 by [Mirascope](https://mirascope.com)._
