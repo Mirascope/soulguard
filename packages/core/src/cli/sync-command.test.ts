@@ -5,9 +5,9 @@ import { SyncCommand } from "./sync-command.js";
 import type { SyncOptions } from "../sync.js";
 
 const VAULT_OWNERSHIP = { user: "soulguardian", group: "soulguard", mode: "444" };
-const LEDGER_OWNERSHIP = { user: "agent", group: "staff", mode: "644" };
+const LEDGER_OWNERSHIP = { user: "agent", group: "soulguard", mode: "644" };
 const VAULT_MOCK = { owner: "soulguardian", group: "soulguard", mode: "444" };
-const LEDGER_MOCK = { owner: "agent", group: "staff", mode: "644" };
+const LEDGER_MOCK = { owner: "agent", group: "soulguard", mode: "644" };
 
 function setup(configureMock: (ops: MockSystemOps) => void): {
   cmd: SyncCommand;

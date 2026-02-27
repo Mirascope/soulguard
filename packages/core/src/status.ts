@@ -9,11 +9,13 @@ import type {
   Tier,
   DriftIssue,
   FileSystemError,
+  IOError,
   Result,
 } from "./types.js";
 import { ok } from "./result.js";
 import type { SystemOperations } from "./system-ops.js";
 import { getFileInfo } from "./system-ops.js";
+import { resolvePatterns } from "./glob.js";
 
 // ── File status ────────────────────────────────────────────────────────
 
@@ -21,8 +23,7 @@ export type FileStatus =
   | { tier: Tier; status: "ok"; file: FileInfo }
   | { tier: Tier; status: "drifted"; file: FileInfo; issues: DriftIssue[] }
   | { tier: Tier; status: "missing"; path: string }
-  | { tier: Tier; status: "error"; path: string; error: FileSystemError }
-  | { tier: Tier; status: "glob_skipped"; pattern: string };
+  | { tier: Tier; status: "error"; path: string; error: FileSystemError };
 
 export type StatusResult = {
   vault: FileStatus[];
@@ -43,19 +44,25 @@ export type StatusOptions = {
 /**
  * Check the protection status of all configured files.
  */
-export async function status(options: StatusOptions): Promise<Result<StatusResult, never>> {
+export async function status(options: StatusOptions): Promise<Result<StatusResult, IOError>> {
   const { config, expectedVaultOwnership, expectedLedgerOwnership, ops } = options;
 
+  // Resolve glob patterns to concrete file paths
+  const [vaultResult, ledgerResult] = await Promise.all([
+    resolvePatterns(ops, config.vault),
+    resolvePatterns(ops, config.ledger),
+  ]);
+  if (!vaultResult.ok) return vaultResult;
+  if (!ledgerResult.ok) return ledgerResult;
+  const vaultPaths = vaultResult.value;
+  const ledgerPaths = ledgerResult.value;
+
   const [vault, ledger] = await Promise.all([
-    Promise.all(config.vault.map((path) => checkPath(path, "vault", expectedVaultOwnership, ops))),
-    Promise.all(
-      config.ledger.map((path) => checkPath(path, "ledger", expectedLedgerOwnership, ops)),
-    ),
+    Promise.all(vaultPaths.map((path) => checkPath(path, "vault", expectedVaultOwnership, ops))),
+    Promise.all(ledgerPaths.map((path) => checkPath(path, "ledger", expectedLedgerOwnership, ops))),
   ]);
 
-  const issues = [...vault, ...ledger].filter(
-    (f) => f.status !== "ok" && f.status !== "glob_skipped",
-  );
+  const issues = [...vault, ...ledger].filter((f) => f.status !== "ok");
 
   return ok({ vault, ledger, issues });
 }
@@ -66,10 +73,6 @@ async function checkPath(
   expectedOwnership: FileOwnership,
   ops: SystemOperations,
 ): Promise<FileStatus> {
-  if (filePath.includes("*")) {
-    return { tier, status: "glob_skipped", pattern: filePath };
-  }
-
   const infoResult = await getFileInfo(filePath, ops);
 
   if (!infoResult.ok) {

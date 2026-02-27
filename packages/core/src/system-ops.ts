@@ -78,6 +78,9 @@ export interface SystemOperations {
   /** Delete a file (relative path) */
   deleteFile(path: string): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
 
+  /** List files matching a glob pattern (relative paths, resolved within workspace) */
+  glob(pattern: string): Promise<Result<string[], IOError>>;
+
   /** Execute a command in the workspace root */
   exec(command: string, args: string[]): Promise<Result<void, IOError>>;
 }

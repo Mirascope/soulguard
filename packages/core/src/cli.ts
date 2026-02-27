@@ -19,7 +19,10 @@ import type { StatusOptions } from "./status.js";
 import type { SoulguardConfig } from "./types.js";
 
 import { IDENTITY, VAULT_OWNERSHIP } from "./constants.js";
-const LEDGER_OWNERSHIP = { user: "agent", group: "staff", mode: "644" } as const;
+function ledgerOwnership(): { user: string; group: string; mode: string } {
+  const agentUser = process.env.SUDO_USER ?? "agent";
+  return { user: agentUser, group: IDENTITY.group, mode: "644" };
+}
 
 const DEFAULT_CONFIG: SoulguardConfig = {
   vault: [
@@ -51,7 +54,7 @@ async function makeOptions(workspace: string): Promise<StatusOptions> {
   return {
     config,
     expectedVaultOwnership: VAULT_OWNERSHIP,
-    expectedLedgerOwnership: LEDGER_OWNERSHIP,
+    expectedLedgerOwnership: ledgerOwnership(),
     ops,
   };
 }

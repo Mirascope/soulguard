@@ -8,10 +8,11 @@
 import type { SystemOperations } from "./system-ops.js";
 import type { SoulguardConfig, Result } from "./types.js";
 import { ok, err } from "./result.js";
+import { resolvePatterns } from "./glob.js";
 
 export type GitCommitResult =
   | { committed: true; message: string; files: string[] }
-  | { committed: false; reason: "git_disabled" | "no_files" | "nothing_staged" };
+  | { committed: false; reason: "git_disabled" | "no_files" | "nothing_staged" | "dirty_staging" };
 
 export type GitError = { kind: "git_error"; message: string };
 
@@ -40,6 +41,14 @@ export async function gitCommit(
 ): Promise<Result<GitCommitResult, GitError>> {
   if (files.length === 0) {
     return ok({ committed: false, reason: "no_files" });
+  }
+
+  // Check for pre-existing staged changes — refuse to commit if the user
+  // has something staged, so we don't absorb their work into a soulguard commit.
+  const preCheck = await ops.exec("git", ["diff", "--cached", "--quiet"]);
+  if (!preCheck.ok) {
+    // exit code 1 = there are staged changes already
+    return ok({ committed: false, reason: "dirty_staging" });
   }
 
   // Stage each file individually
@@ -109,7 +118,11 @@ export async function commitLedgerFiles(
     return ok({ committed: false, reason: "git_disabled" });
   }
 
-  const ledgerFiles = config.ledger.filter((f) => !f.includes("*"));
+  const resolved = await resolvePatterns(ops, config.ledger);
+  if (!resolved.ok) {
+    return err({ kind: "git_error", message: `glob failed: ${resolved.error.message}` });
+  }
+  const ledgerFiles = resolved.value;
   if (ledgerFiles.length === 0) {
     return ok({ committed: false, reason: "no_files" });
   }

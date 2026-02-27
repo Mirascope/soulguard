@@ -5,7 +5,7 @@
  * before and after IS what happened. Errors are explicit.
  */
 
-import type { DriftIssue, FileSystemError } from "./types.js";
+import type { DriftIssue, FileSystemError, IOError } from "./types.js";
 import { ok } from "./result.js";
 import type { Result } from "./result.js";
 import { status } from "./status.js";
@@ -28,7 +28,7 @@ export type SyncOptions = StatusOptions;
 /**
  * Run status, fix drifted files, run status again.
  */
-export async function sync(options: SyncOptions): Promise<Result<SyncResult, never>> {
+export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOError>> {
   const { ops } = options;
 
   const beforeResult = await status(options);

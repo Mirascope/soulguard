@@ -77,8 +77,6 @@ export class SyncCommand {
       case "missing":
       case "error":
         return f.path;
-      case "glob_skipped":
-        return f.pattern;
     }
   }
 

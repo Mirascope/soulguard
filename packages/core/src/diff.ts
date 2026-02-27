@@ -8,6 +8,7 @@ import type { Result } from "./result.js";
 import { ok, err } from "./result.js";
 import type { SoulguardConfig } from "./types.js";
 import type { SystemOperations } from "./system-ops.js";
+import { resolvePatterns } from "./glob.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -62,8 +63,12 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
     return err({ kind: "no_staging" });
   }
 
-  // Determine which files to check
-  let vaultFiles = config.vault.filter((p) => !p.includes("*"));
+  // Resolve glob patterns to concrete file paths
+  const resolved = await resolvePatterns(ops, config.vault);
+  if (!resolved.ok) {
+    return err({ kind: "read_failed", path: "glob", message: resolved.error.message });
+  }
+  let vaultFiles = resolved.value;
   if (filterFiles && filterFiles.length > 0) {
     const filterSet = new Set(filterFiles);
     vaultFiles = vaultFiles.filter((p) => filterSet.has(p));

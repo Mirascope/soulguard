@@ -1,11 +1,19 @@
 /**
  * Check if a file path matches a vault entry.
- * For 0.1, only exact match is supported. Glob patterns are not evaluated.
- * TODO: add glob matching (*.md, extensions/**)
+ * Supports exact matches and glob patterns (*, **).
  */
+
+import { isGlob, matchGlob } from "./glob.js";
+
 export function isVaultedFile(vaultFiles: string[], filePath: string): boolean {
   const norm = normalizePath(filePath);
-  return vaultFiles.some((pattern) => norm === normalizePath(pattern));
+  return vaultFiles.some((pattern) => {
+    const normPattern = normalizePath(pattern);
+    if (isGlob(normPattern)) {
+      return matchGlob(normPattern, norm);
+    }
+    return norm === normPattern;
+  });
 }
 
 export function normalizePath(p: string): string {

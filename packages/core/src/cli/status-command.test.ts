@@ -5,9 +5,9 @@ import { StatusCommand } from "./status-command.js";
 import type { StatusOptions } from "../status.js";
 
 const VAULT_OWNERSHIP = { user: "soulguardian", group: "soulguard", mode: "444" };
-const LEDGER_OWNERSHIP = { user: "agent", group: "staff", mode: "644" };
+const LEDGER_OWNERSHIP = { user: "agent", group: "soulguard", mode: "644" };
 const VAULT_MOCK = { owner: "soulguardian", group: "soulguard", mode: "444" };
-const LEDGER_MOCK = { owner: "agent", group: "staff", mode: "644" };
+const LEDGER_MOCK = { owner: "agent", group: "soulguard", mode: "644" };
 
 function setup(configureMock: (ops: MockSystemOps) => void): {
   cmd: StatusCommand;
@@ -65,9 +65,14 @@ describe("StatusCommand", () => {
     expect(out.hasText("1 missing")).toBe(true);
   });
 
-  it("shows ⏭️ for glob patterns", async () => {
+  it("resolves glob patterns and shows matched files", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile("SOUL.md", "soul content", VAULT_MOCK);
+    ops.addFile("memory/day1.md", "notes", {
+      owner: LEDGER_OWNERSHIP.user,
+      group: LEDGER_OWNERSHIP.group,
+      mode: LEDGER_OWNERSHIP.mode,
+    });
     const out = new MockConsoleOutput();
     const opts: StatusOptions = {
       config: { vault: ["SOUL.md"], ledger: ["memory/*.md"] },
@@ -80,6 +85,6 @@ describe("StatusCommand", () => {
     const code = await cmd.execute();
 
     expect(code).toBe(0);
-    expect(out.hasText("⏭️")).toBe(true);
+    expect(out.hasText("memory/day1.md")).toBe(true);
   });
 });

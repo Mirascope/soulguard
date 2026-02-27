@@ -36,8 +36,9 @@ describe("isGitEnabled", () => {
 describe("gitCommit", () => {
   test("stages files and commits when changes exist", async () => {
     const ops = new MockSystemOps("/workspace");
-    // diff --cached --quiet exits non-zero when there ARE staged changes
-    ops.failingExecs.add("git diff --cached --quiet");
+    // First diff --cached --quiet (pre-check) succeeds (no pre-existing staged changes)
+    // Second diff --cached --quiet (post-add) fails (= our files are staged)
+    ops.execFailOnCall.set("git diff --cached --quiet", new Set([1]));
     const result = await gitCommit(ops, ["SOUL.md", "AGENTS.md"], "test commit");
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -48,6 +49,7 @@ describe("gitCommit", () => {
     }
     const execOps = ops.ops.filter((op) => op.kind === "exec");
     expect(execOps).toEqual([
+      { kind: "exec", command: "git", args: ["diff", "--cached", "--quiet"] },
       { kind: "exec", command: "git", args: ["add", "--", "SOUL.md"] },
       { kind: "exec", command: "git", args: ["add", "--", "AGENTS.md"] },
       { kind: "exec", command: "git", args: ["diff", "--cached", "--quiet"] },
@@ -74,6 +76,22 @@ describe("gitCommit", () => {
     if (!result.value.committed) {
       expect(result.value.reason).toBe("nothing_staged");
     }
+  });
+
+  test("returns dirty_staging when user has pre-existing staged changes", async () => {
+    const ops = new MockSystemOps("/workspace");
+    // Make the pre-check diff --cached --quiet fail (= there are staged changes)
+    ops.failingExecs.add("git diff --cached --quiet");
+    const result = await gitCommit(ops, ["SOUL.md"], "test commit");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.committed).toBe(false);
+    if (!result.value.committed) {
+      expect(result.value.reason).toBe("dirty_staging");
+    }
+    // Should NOT have called git add or git commit
+    const gitOps = ops.ops.filter((o) => o.kind === "exec" && o.command === "git");
+    expect(gitOps).toHaveLength(1); // only the diff check
   });
 
   test("returns no_files with empty files array", async () => {
@@ -108,7 +126,8 @@ describe("commitLedgerFiles", () => {
   test("commits ledger files when git enabled and changes exist", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile(".git", "");
-    ops.failingExecs.add("git diff --cached --quiet");
+    // Pre-check succeeds (no pre-existing staged), post-add fails (= our files staged)
+    ops.execFailOnCall.set("git diff --cached --quiet", new Set([1]));
 
     const result = await commitLedgerFiles(ops, {
       vault: [],
