@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@soulguard/core": "workspace:*"
+    "@soulguard/core": "workspace:^0.1.0"
   },
   "devDependencies": {
     "@types/bun": "latest",
