@@ -326,6 +326,39 @@ describe("approve (implicit proposals)", () => {
     expect(agentsContent.ok && agentsContent.value).toBe("modified agents");
   });
 
+  test("rollback restores deleted files when subsequent deletion fails", async () => {
+    const twoDeleteConfig: SoulguardConfig = { vault: ["SOUL.md", "AGENTS.md"], ledger: [] };
+    const ops = new MockSystemOps("/workspace");
+    ops.addFile("SOUL.md", "original soul", {
+      owner: "soulguardian",
+      group: "soulguard",
+      mode: "444",
+    });
+    ops.addFile("AGENTS.md", "original agents", {
+      owner: "soulguardian",
+      group: "soulguard",
+      mode: "444",
+    });
+    ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
+    // Both files deleted from staging
+
+    const hash = await getApprovalHash(ops, twoDeleteConfig);
+
+    // Make AGENTS.md deletion fail (SOUL.md deletes first alphabetically)
+    ops.failingDeletes.add("AGENTS.md");
+
+    const result = await approve({ ops, config: twoDeleteConfig, hash, vaultOwnership });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe("apply_failed");
+
+    // SOUL.md should be restored from backup
+    const soulContent = await ops.readFile("SOUL.md");
+    expect(soulContent.ok).toBe(true);
+    if (soulContent.ok) expect(soulContent.value).toBe("original soul");
+  });
+
   test("deleted file with git commits deletion", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile(".git", "");
