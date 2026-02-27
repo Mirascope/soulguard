@@ -8,6 +8,7 @@
 import { resolve } from "node:path";
 import type { FileStat, SystemOperations } from "./system-ops.js";
 import type { Result, NotFoundError, PermissionDeniedError, IOError } from "./types.js";
+import { matchGlob } from "./glob.js";
 import { ok, err } from "./result.js";
 
 /**
@@ -209,27 +210,12 @@ export class MockSystemOps implements SystemOperations {
     for (const fullPath of this.files.keys()) {
       if (!fullPath.startsWith(prefix)) continue;
       const relPath = fullPath.slice(prefix.length);
-      if (this.matchGlob(pattern, relPath)) {
+      if (matchGlob(pattern, relPath)) {
         matches.push(relPath);
       }
     }
 
     return ok(matches.sort());
-  }
-
-  /** Simple glob matcher supporting * and ** */
-  private matchGlob(pattern: string, path: string): boolean {
-    // Convert glob to regex
-    const regexStr = pattern
-      .split("**")
-      .map((segment) =>
-        segment
-          .split("*")
-          .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-          .join("[^/]*"),
-      )
-      .join(".*");
-    return new RegExp(`^${regexStr}$`).test(path);
   }
 
   async exec(command: string, args: string[]): Promise<Result<void, IOError>> {

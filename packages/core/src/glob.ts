@@ -12,6 +12,20 @@ export function isGlob(path: string): boolean {
   return path.includes("*");
 }
 
+/** Simple glob matcher supporting * (single segment) and ** (any depth) */
+export function matchGlob(pattern: string, path: string): boolean {
+  const regexStr = pattern
+    .split("**")
+    .map((segment) =>
+      segment
+        .split("*")
+        .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+        .join("[^/]*"),
+    )
+    .join(".*");
+  return new RegExp(`^${regexStr}$`).test(path);
+}
+
 /**
  * Resolve a list of paths/patterns into concrete file paths.
  * Literal paths are included as-is (even if they don't exist on disk).
