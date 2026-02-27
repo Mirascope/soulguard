@@ -14,18 +14,44 @@ export function isGlob(path: string): boolean {
   return path.includes("*");
 }
 
+/**
+ * Create a compiled glob matcher supporting * (single segment) and ** (any depth).
+ * Handles /**\/ matching zero or more directories (e.g. src/**\/*.ts matches src/main.ts).
+ */
+export function createGlobMatcher(pattern: string): (path: string) => boolean {
+  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  // Step 1: normalize /**/ to a placeholder, handling edge cases
+  let normalized = pattern;
+  // /**/ → match zero or more directory segments (including none, consume both slashes)
+  normalized = normalized.replace(/\/\*\*\//g, "<GLOBSTAR>");
+  // **/ at start → match zero or more directory prefixes
+  normalized = normalized.replace(/^\*\*\//, "<GLOBSTAR_PREFIX>");
+  // /** at end → match everything remaining (consume the leading /)
+  normalized = normalized.replace(/\/\*\*$/, "<GLOBSTAR_SUFFIX>");
+  // standalone ** → match everything
+  normalized = normalized.replace(/^\*\*$/, "<GLOBSTAR_ALL>");
+
+  // Step 2: escape literals and convert single * to [^/]*
+  const regexStr = normalized
+    .split(/(<GLOBSTAR(?:_PREFIX|_SUFFIX|_ALL)?>)/)
+    .map((part) => {
+      if (part === "<GLOBSTAR>") return "/(?:.+/)?";
+      if (part === "<GLOBSTAR_PREFIX>") return "(?:.+/)?";
+      if (part === "<GLOBSTAR_SUFFIX>") return "(?:/.*)?";
+
+      if (part === "<GLOBSTAR_ALL>") return ".*";
+      return part.split("*").map(escape).join("[^/]*");
+    })
+    .join("");
+
+  const regex = new RegExp(`^${regexStr}$`);
+  return (path: string) => regex.test(path);
+}
+
 /** Simple glob matcher supporting * (single segment) and ** (any depth) */
 export function matchGlob(pattern: string, path: string): boolean {
-  const regexStr = pattern
-    .split("**")
-    .map((segment) =>
-      segment
-        .split("*")
-        .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-        .join("[^/]*"),
-    )
-    .join(".*");
-  return new RegExp(`^${regexStr}$`).test(path);
+  return createGlobMatcher(pattern)(path);
 }
 
 /**

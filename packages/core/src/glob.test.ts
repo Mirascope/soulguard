@@ -1,73 +1,74 @@
 import { describe, test, expect } from "bun:test";
-import { MockSystemOps } from "./system-ops-mock.js";
-import { isGlob, resolvePatterns } from "./glob.js";
+import { isGlob, matchGlob, createGlobMatcher } from "./glob.js";
 
 describe("isGlob", () => {
   test("returns true for patterns with *", () => {
-    expect(isGlob("memory/*.md")).toBe(true);
-    expect(isGlob("skills/**")).toBe(true);
     expect(isGlob("*.md")).toBe(true);
+    expect(isGlob("memory/*.md")).toBe(true);
+    expect(isGlob("**/*.ts")).toBe(true);
   });
 
   test("returns false for literal paths", () => {
     expect(isGlob("SOUL.md")).toBe(false);
-    expect(isGlob("memory/day1.md")).toBe(false);
-    expect(isGlob("soulguard.json")).toBe(false);
+    expect(isGlob("memory/2026-01-01.md")).toBe(false);
   });
 });
 
-describe("resolvePatterns", () => {
-  test("literal paths pass through as-is", async () => {
-    const ops = new MockSystemOps("/workspace");
-    const result = await resolvePatterns(ops, ["SOUL.md", "AGENTS.md"]);
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value).toEqual(["AGENTS.md", "SOUL.md"]);
+describe("matchGlob", () => {
+  test("* matches single segment", () => {
+    expect(matchGlob("*.md", "SOUL.md")).toBe(true);
+    expect(matchGlob("*.md", "README.md")).toBe(true);
+    expect(matchGlob("*.md", "src/SOUL.md")).toBe(false);
+    expect(matchGlob("*.ts", "SOUL.md")).toBe(false);
   });
 
-  test("glob patterns expand to matching files", async () => {
-    const ops = new MockSystemOps("/workspace");
-    ops.addFile("memory/day1.md", "notes");
-    ops.addFile("memory/day2.md", "more notes");
-    ops.addFile("memory/archive/old.md", "archived");
-
-    const result = await resolvePatterns(ops, ["memory/*.md"]);
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value).toEqual(["memory/day1.md", "memory/day2.md"]);
+  test("* in directory", () => {
+    expect(matchGlob("memory/*.md", "memory/day1.md")).toBe(true);
+    expect(matchGlob("memory/*.md", "memory/deep/day1.md")).toBe(false);
+    expect(matchGlob("memory/*.md", "other/day1.md")).toBe(false);
   });
 
-  test("** matches nested paths", async () => {
-    const ops = new MockSystemOps("/workspace");
-    ops.addFile("memory/day1.md", "notes");
-    ops.addFile("memory/archive/old.md", "archived");
-
-    const result = await resolvePatterns(ops, ["memory/**"]);
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value).toEqual(["memory/archive/old.md", "memory/day1.md"]);
+  test("** matches any depth", () => {
+    expect(matchGlob("src/**", "src/a.ts")).toBe(true);
+    expect(matchGlob("src/**", "src/deep/a.ts")).toBe(true);
+    expect(matchGlob("src/**", "other/a.ts")).toBe(false);
   });
 
-  test("mixed literal and glob patterns", async () => {
-    const ops = new MockSystemOps("/workspace");
-    ops.addFile("SOUL.md", "soul");
-    ops.addFile("memory/day1.md", "notes");
-
-    const result = await resolvePatterns(ops, ["SOUL.md", "memory/*.md"]);
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value).toEqual(["SOUL.md", "memory/day1.md"]);
+  test("**/*.ext matches files at any depth", () => {
+    expect(matchGlob("**/*.md", "README.md")).toBe(true);
+    expect(matchGlob("**/*.md", "docs/guide.md")).toBe(true);
+    expect(matchGlob("**/*.md", "deep/nested/file.md")).toBe(true);
+    expect(matchGlob("**/*.md", "file.ts")).toBe(false);
   });
 
-  test("glob with no matches returns only literals", async () => {
-    const ops = new MockSystemOps("/workspace");
-    const result = await resolvePatterns(ops, ["SOUL.md", "memory/*.md"]);
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value).toEqual(["SOUL.md"]);
+  test("/**/  matches zero or more directories", () => {
+    // src/**/*.ts should match src/main.ts (zero intermediate dirs)
+    expect(matchGlob("src/**/*.ts", "src/main.ts")).toBe(true);
+    // and also deeper paths
+    expect(matchGlob("src/**/*.ts", "src/utils/math.ts")).toBe(true);
+    expect(matchGlob("src/**/*.ts", "src/a/b/c.ts")).toBe(true);
+    // but not non-matching
+    expect(matchGlob("src/**/*.ts", "test/main.ts")).toBe(false);
   });
 
-  test("deduplicates when glob matches a literal", async () => {
-    const ops = new MockSystemOps("/workspace");
-    ops.addFile("memory/day1.md", "notes");
+  test("exact match for non-glob patterns", () => {
+    expect(matchGlob("SOUL.md", "SOUL.md")).toBe(true);
+    expect(matchGlob("SOUL.md", "OTHER.md")).toBe(false);
+  });
+});
 
-    const result = await resolvePatterns(ops, ["memory/day1.md", "memory/*.md"]);
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value).toEqual(["memory/day1.md"]);
+describe("createGlobMatcher", () => {
+  test("returns reusable matcher function", () => {
+    const matcher = createGlobMatcher("*.md");
+    expect(matcher("SOUL.md")).toBe(true);
+    expect(matcher("README.md")).toBe(true);
+    expect(matcher("file.ts")).toBe(false);
+  });
+
+  test("compiles once for repeated use", () => {
+    const matcher = createGlobMatcher("src/**/*.ts");
+    const paths = ["src/a.ts", "src/b/c.ts", "test/d.ts", "src/e.md"];
+    const results = paths.filter(matcher);
+    expect(results).toEqual(["src/a.ts", "src/b/c.ts"]);
   });
 });

@@ -89,7 +89,7 @@ export type { GitCommitResult, GitError } from "./git.js";
 
 // Vault check + glob
 export { isVaultedFile, normalizePath } from "./vault-check.js";
-export { isGlob, matchGlob, resolvePatterns } from "./glob.js";
+export { isGlob, matchGlob, createGlobMatcher, resolvePatterns } from "./glob.js";
 
 // CLI commands
 export { StatusCommand } from "./cli/status-command.js";
