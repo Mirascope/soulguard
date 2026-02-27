@@ -77,6 +77,16 @@ export type { ApproveOptions, ApproveResult, ApprovalError } from "./approve.js"
 export { reset } from "./reset.js";
 export type { ResetOptions, ResetResult, ResetError } from "./reset.js";
 
+// Git integration
+export {
+  isGitEnabled,
+  gitCommit,
+  vaultCommitMessage,
+  ledgerCommitMessage,
+  commitLedgerFiles,
+} from "./git.js";
+export type { GitCommitResult, GitError } from "./git.js";
+
 // Vault check
 export { isVaultedFile, normalizePath } from "./vault-check.js";
 

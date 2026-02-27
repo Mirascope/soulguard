@@ -231,7 +231,9 @@ describe("approve (implicit proposals)", () => {
 
     expect(result.value.gitResult).toBeDefined();
     expect(result.value.gitResult!.committed).toBe(true);
-    expect(result.value.gitResult!.message).toContain("SOUL.md");
+    if (result.value.gitResult!.committed) {
+      expect(result.value.gitResult!.message).toContain("SOUL.md");
+    }
   });
 
   test("skips git commit when git disabled", async () => {
