@@ -13,12 +13,10 @@ Vault
   ✅ soulguard.json
 
 Ledger
-  ⚠️  memory/2026-01-01.md
-      group is soulguard, expected staff
-  ⚠️  memory/2026-01-02.md
-      group is soulguard, expected staff
+  ✅ memory/2026-01-01.md
+  ✅ memory/2026-01-02.md
 
-1 files ok, 2 drifted, 0 missing
+3 files ok, 0 drifted, 0 missing
 STATUS AFTER DRIFT:
 Soulguard Status — /workspace
 
@@ -28,20 +26,17 @@ Vault
 Ledger
   ⚠️  memory/2026-01-01.md
       owner is root, expected agent
-      group is root, expected staff
-  ⚠️  memory/2026-01-02.md
-      group is soulguard, expected staff
+      group is root, expected soulguard
+  ✅ memory/2026-01-02.md
 
-1 files ok, 2 drifted, 0 missing
+2 files ok, 1 drifted, 0 missing
 SYNC:
 Soulguard Sync — /workspace
 
 Fixed:
   🔧 memory/2026-01-01.md
       owner is root, expected agent
-      group is root, expected staff
-  🔧 memory/2026-01-02.md
-      group is soulguard, expected staff
+      group is root, expected soulguard
 
 All files now ok.
 STATUS AFTER SYNC:
