@@ -9,6 +9,7 @@ import type {
   Tier,
   DriftIssue,
   FileSystemError,
+  IOError,
   Result,
 } from "./types.js";
 import { ok } from "./result.js";
@@ -43,14 +44,18 @@ export type StatusOptions = {
 /**
  * Check the protection status of all configured files.
  */
-export async function status(options: StatusOptions): Promise<Result<StatusResult, never>> {
+export async function status(options: StatusOptions): Promise<Result<StatusResult, IOError>> {
   const { config, expectedVaultOwnership, expectedLedgerOwnership, ops } = options;
 
   // Resolve glob patterns to concrete file paths
-  const [vaultPaths, ledgerPaths] = await Promise.all([
+  const [vaultResult, ledgerResult] = await Promise.all([
     resolvePatterns(ops, config.vault),
     resolvePatterns(ops, config.ledger),
   ]);
+  if (!vaultResult.ok) return vaultResult;
+  if (!ledgerResult.ok) return ledgerResult;
+  const vaultPaths = vaultResult.value;
+  const ledgerPaths = ledgerResult.value;
 
   const [vault, ledger] = await Promise.all([
     Promise.all(vaultPaths.map((path) => checkPath(path, "vault", expectedVaultOwnership, ops))),

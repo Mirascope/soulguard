@@ -64,7 +64,11 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
   }
 
   // Resolve glob patterns to concrete file paths
-  let vaultFiles = await resolvePatterns(ops, config.vault);
+  const resolved = await resolvePatterns(ops, config.vault);
+  if (!resolved.ok) {
+    return err({ kind: "read_failed", path: "glob", message: resolved.error.message });
+  }
+  let vaultFiles = resolved.value;
   if (filterFiles && filterFiles.length > 0) {
     const filterSet = new Set(filterFiles);
     vaultFiles = vaultFiles.filter((p) => filterSet.has(p));

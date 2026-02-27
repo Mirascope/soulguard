@@ -20,7 +20,8 @@ describe("resolvePatterns", () => {
   test("literal paths pass through as-is", async () => {
     const ops = new MockSystemOps("/workspace");
     const result = await resolvePatterns(ops, ["SOUL.md", "AGENTS.md"]);
-    expect(result).toEqual(["AGENTS.md", "SOUL.md"]);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toEqual(["AGENTS.md", "SOUL.md"]);
   });
 
   test("glob patterns expand to matching files", async () => {
@@ -30,7 +31,8 @@ describe("resolvePatterns", () => {
     ops.addFile("memory/archive/old.md", "archived");
 
     const result = await resolvePatterns(ops, ["memory/*.md"]);
-    expect(result).toEqual(["memory/day1.md", "memory/day2.md"]);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toEqual(["memory/day1.md", "memory/day2.md"]);
   });
 
   test("** matches nested paths", async () => {
@@ -39,7 +41,8 @@ describe("resolvePatterns", () => {
     ops.addFile("memory/archive/old.md", "archived");
 
     const result = await resolvePatterns(ops, ["memory/**"]);
-    expect(result).toEqual(["memory/archive/old.md", "memory/day1.md"]);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toEqual(["memory/archive/old.md", "memory/day1.md"]);
   });
 
   test("mixed literal and glob patterns", async () => {
@@ -48,13 +51,15 @@ describe("resolvePatterns", () => {
     ops.addFile("memory/day1.md", "notes");
 
     const result = await resolvePatterns(ops, ["SOUL.md", "memory/*.md"]);
-    expect(result).toEqual(["SOUL.md", "memory/day1.md"]);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toEqual(["SOUL.md", "memory/day1.md"]);
   });
 
   test("glob with no matches returns only literals", async () => {
     const ops = new MockSystemOps("/workspace");
     const result = await resolvePatterns(ops, ["SOUL.md", "memory/*.md"]);
-    expect(result).toEqual(["SOUL.md"]);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toEqual(["SOUL.md"]);
   });
 
   test("deduplicates when glob matches a literal", async () => {
@@ -62,6 +67,7 @@ describe("resolvePatterns", () => {
     ops.addFile("memory/day1.md", "notes");
 
     const result = await resolvePatterns(ops, ["memory/day1.md", "memory/*.md"]);
-    expect(result).toEqual(["memory/day1.md"]);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toEqual(["memory/day1.md"]);
   });
 });

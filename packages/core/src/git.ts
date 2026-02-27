@@ -110,7 +110,11 @@ export async function commitLedgerFiles(
     return ok({ committed: false, reason: "git_disabled" });
   }
 
-  const ledgerFiles = await resolvePatterns(ops, config.ledger);
+  const resolved = await resolvePatterns(ops, config.ledger);
+  if (!resolved.ok) {
+    return err({ kind: "git_error", message: `glob failed: ${resolved.error.message}` });
+  }
+  const ledgerFiles = resolved.value;
   if (ledgerFiles.length === 0) {
     return ok({ committed: false, reason: "no_files" });
   }

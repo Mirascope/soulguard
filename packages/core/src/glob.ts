@@ -6,6 +6,8 @@
  */
 
 import type { SystemOperations } from "./system-ops.js";
+import type { Result, IOError } from "./types.js";
+import { ok, err } from "./result.js";
 
 /** Check if a path contains glob characters */
 export function isGlob(path: string): boolean {
@@ -35,22 +37,22 @@ export function matchGlob(pattern: string, path: string): boolean {
 export async function resolvePatterns(
   ops: SystemOperations,
   patterns: string[],
-): Promise<string[]> {
+): Promise<Result<string[], IOError>> {
   const files = new Set<string>();
 
   for (const pattern of patterns) {
     if (isGlob(pattern)) {
       const result = await ops.glob(pattern);
-      if (result.ok) {
-        for (const match of result.value) {
-          files.add(match);
-        }
+      if (!result.ok) {
+        return err(result.error);
       }
-      // Glob errors are swallowed — pattern just expands to nothing
+      for (const match of result.value) {
+        files.add(match);
+      }
     } else {
       files.add(pattern);
     }
   }
 
-  return [...files].sort();
+  return ok([...files].sort());
 }

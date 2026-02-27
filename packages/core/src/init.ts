@@ -212,7 +212,11 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     });
   }
   // Copy vault files to staging (resolve globs first)
-  const vaultFiles = await resolvePatterns(ops, config.vault);
+  const vaultGlob = await resolvePatterns(ops, config.vault);
+  if (!vaultGlob.ok) {
+    return err({ kind: "staging_failed", message: `glob failed: ${vaultGlob.error.message}` });
+  }
+  const vaultFiles = vaultGlob.value;
   for (const vaultFile of vaultFiles) {
     const fileExists = await ops.exists(vaultFile);
     if (fileExists.ok && fileExists.value) {
