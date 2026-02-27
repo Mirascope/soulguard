@@ -1,0 +1,57 @@
+Soulguard Init — /workspace
+  Created group: soulguard
+  Created user: soulguardian
+  Wrote /etc/sudoers.d/soulguard
+  Created .soulguard/staging/
+  Synced 3 vault file(s)
+
+Done.
+STATUS:
+Soulguard Status — /workspace
+
+Vault
+  ✅ soulguard.json
+
+Ledger
+  ⚠️  memory/2026-01-01.md
+      group is soulguard, expected staff
+  ⚠️  memory/2026-01-02.md
+      group is soulguard, expected staff
+
+1 files ok, 2 drifted, 0 missing
+STATUS AFTER DRIFT:
+Soulguard Status — /workspace
+
+Vault
+  ✅ soulguard.json
+
+Ledger
+  ⚠️  memory/2026-01-01.md
+      owner is root, expected agent
+      group is root, expected staff
+  ⚠️  memory/2026-01-02.md
+      group is soulguard, expected staff
+
+1 files ok, 2 drifted, 0 missing
+SYNC:
+Soulguard Sync — /workspace
+
+Fixed:
+  🔧 memory/2026-01-01.md
+      owner is root, expected agent
+      group is root, expected staff
+  🔧 memory/2026-01-02.md
+      group is soulguard, expected staff
+
+All files now ok.
+STATUS AFTER SYNC:
+Soulguard Status — /workspace
+
+Vault
+  ✅ soulguard.json
+
+Ledger
+  ✅ memory/2026-01-01.md
+  ✅ memory/2026-01-02.md
+
+3 files ok, 0 drifted, 0 missing
