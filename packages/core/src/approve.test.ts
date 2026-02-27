@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { MockSystemOps } from "./system-ops-mock.js";
-import { propose } from "./propose.js";
+import { diff } from "./diff.js";
 import { approve } from "./approve.js";
 import type { SoulguardConfig, FileOwnership } from "./types.js";
 import { err } from "./result.js";
@@ -25,16 +25,19 @@ function setup() {
   return ops;
 }
 
-describe("approve", () => {
-  test("applies proposal and re-protects vault files", async () => {
+/** Helper to compute hash from current staging diff */
+async function getApprovalHash(ops: MockSystemOps, cfg: SoulguardConfig): Promise<string> {
+  const result = await diff({ ops, config: cfg });
+  if (!result.ok) throw new Error("diff failed");
+  return result.value.approvalHash!;
+}
+
+describe("approve (implicit proposals)", () => {
+  test("applies changes when hash matches", async () => {
     const ops = setup();
+    const hash = await getApprovalHash(ops, config);
 
-    // Create proposal first
-    const propResult = await propose({ ops, config });
-    expect(propResult.ok).toBe(true);
-
-    // Approve it
-    const result = await approve({ ops, vaultOwnership });
+    const result = await approve({ ops, config, hash, vaultOwnership });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.appliedFiles).toEqual(["SOUL.md"]);
@@ -43,87 +46,43 @@ describe("approve", () => {
     const content = await ops.readFile("SOUL.md");
     expect(content.ok).toBe(true);
     if (content.ok) expect(content.value).toBe("modified soul");
-
-    // Proposal should be deleted
-    const proposalExists = await ops.exists(".soulguard/proposal.json");
-    expect(proposalExists.ok).toBe(true);
-    if (proposalExists.ok) expect(proposalExists.value).toBe(false);
   });
 
-  test("rejects when no proposal exists", async () => {
-    const ops = setup();
-    const result = await approve({ ops, vaultOwnership });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.kind).toBe("no_proposal");
-  });
-
-  test("rejects wrong password", async () => {
-    const ops = setup();
-    await propose({ ops, config });
-
-    const result = await approve({
-      ops,
-      vaultOwnership,
-      password: "wrong",
-      verifyPassword: async (p) => p === "correct",
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.kind).toBe("wrong_password");
-  });
-
-  test("accepts correct password", async () => {
-    const ops = setup();
-    await propose({ ops, config });
-
-    const result = await approve({
-      ops,
-      vaultOwnership,
-      password: "correct",
-      verifyPassword: async (p) => p === "correct",
-    });
-    expect(result.ok).toBe(true);
-  });
-
-  test("detects stale proposal when vault changed", async () => {
-    const ops = setup();
-    await propose({ ops, config });
-
-    // Simulate vault file changing after propose (e.g., another owner edit)
-    ops.addFile("SOUL.md", "someone else edited", {
-      owner: "soulguardian",
-      group: "soulguard",
-      mode: "444",
-    });
-
-    const result = await approve({ ops, vaultOwnership });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.kind).toBe("stale_proposal");
-  });
-
-  test("rejects corrupted proposal.json", async () => {
-    const ops = setup();
-    // Write garbage to proposal.json
-    ops.addFile(".soulguard/proposal.json", '{"garbage": true}', {
+  test("rejects when no changes exist", async () => {
+    const ops = new MockSystemOps("/workspace");
+    ops.addFile("SOUL.md", "same", { owner: "soulguardian", group: "soulguard", mode: "444" });
+    ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
+    ops.addFile(".soulguard/staging/SOUL.md", "same", {
       owner: "agent",
       group: "soulguard",
       mode: "644",
     });
 
-    const result = await approve({ ops, vaultOwnership });
+    const result = await approve({ ops, config, hash: "anyhash", vaultOwnership });
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error.kind).toBe("apply_failed");
-    if (result.error.kind === "apply_failed") {
-      expect(result.error.message).toContain("Invalid or corrupted");
-    }
+    expect(result.error.kind).toBe("no_changes");
+  });
+
+  test("rejects hash mismatch (staging changed since review)", async () => {
+    const ops = setup();
+    const hash = await getApprovalHash(ops, config);
+
+    // Agent sneaks in a change after hash was computed
+    ops.addFile(".soulguard/staging/SOUL.md", "sneaky different content", {
+      owner: "agent",
+      group: "soulguard",
+      mode: "644",
+    });
+
+    const result = await approve({ ops, config, hash, vaultOwnership });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe("hash_mismatch");
   });
 
   test("rolls back on partial apply failure", async () => {
     const ops = new MockSystemOps("/workspace");
-    // Two vault files
     ops.addFile("SOUL.md", "original soul", {
       owner: "soulguardian",
       group: "soulguard",
@@ -146,24 +105,18 @@ describe("approve", () => {
       mode: "644",
     });
 
-    // Create proposal with both files
-    const propResult = await propose({ ops, config: multiConfig });
-    expect(propResult.ok).toBe(true);
-    if (!propResult.ok) return;
-    expect(propResult.value.changedCount).toBe(2);
+    const hash = await getApprovalHash(ops, multiConfig);
 
-    // Inject failure: make chown fail on AGENTS.md (second file)
+    // Inject failure: make chown fail on AGENTS.md
     const originalChown = ops.chown.bind(ops);
     ops.chown = async (path, owner) => {
-      // Fail on the 2nd chown during apply (AGENTS.md protection)
-      // Skip backup chowns (they don't happen) and SOUL.md chown
       if (path === "AGENTS.md") {
         return err({ kind: "permission_denied" as const, path, operation: "chown" });
       }
       return originalChown(path, owner);
     };
 
-    const result = await approve({ ops, vaultOwnership });
+    const result = await approve({ ops, config: multiConfig, hash, vaultOwnership });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("apply_failed");
@@ -172,5 +125,32 @@ describe("approve", () => {
     const soulContent = await ops.readFile("SOUL.md");
     expect(soulContent.ok).toBe(true);
     if (soulContent.ok) expect(soulContent.value).toBe("original soul");
+  });
+
+  test("syncs staging after successful approve", async () => {
+    const ops = setup();
+    const hash = await getApprovalHash(ops, config);
+    const stagingOwnership = { user: "agent", group: "soulguard", mode: "644" };
+
+    const result = await approve({ ops, config, hash, vaultOwnership, stagingOwnership });
+    expect(result.ok).toBe(true);
+
+    // Staging should now match vault (no diff)
+    const diffResult = await diff({ ops, config });
+    expect(diffResult.ok).toBe(true);
+    if (diffResult.ok) expect(diffResult.value.hasChanges).toBe(false);
+  });
+
+  test("cleans up pending directory after approve", async () => {
+    const ops = setup();
+    const hash = await getApprovalHash(ops, config);
+
+    const result = await approve({ ops, config, hash, vaultOwnership });
+    expect(result.ok).toBe(true);
+
+    // Pending files should be cleaned up
+    const pendingExists = await ops.exists(".soulguard/pending/SOUL.md");
+    expect(pendingExists.ok).toBe(true);
+    if (pendingExists.ok) expect(pendingExists.value).toBe(false);
   });
 });

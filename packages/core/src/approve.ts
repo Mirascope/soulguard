@@ -1,32 +1,44 @@
 /**
- * soulguard approve — apply a proposal to vault files.
+ * soulguard approve — apply staging changes to vault files.
  *
- * Validates password (if set), checks proposal isn't stale (vault hashes
- * match what proposal recorded), then applies atomically:
- * 1. Backup all affected vault files to .soulguard/backup/
- * 2. Apply all staging → vault copies
- * 3. Re-protect all files
- * 4. On any failure, rollback from backups
- * 5. Clear proposal + backups on success
+ * Implicit proposal model: staging IS the proposal. At approval time:
+ * 1. Compute diff to find modified files
+ * 2. Copy modified staging files to protected .soulguard/pending/
+ * 3. Hash the frozen pending copies and verify against reviewer's hash
+ * 4. Backup current vault files
+ * 5. Apply from pending copies, re-protect vault files
+ * 6. Sync staging, cleanup
+ *
+ * The protected copy step eliminates timing attacks — once files are in
+ * .soulguard/pending/ (owned by soulguardian), the agent cannot modify them.
+ * The hash is verified against these frozen copies, not the live staging dir.
  */
 
 import type { SystemOperations } from "./system-ops.js";
-import type { FileOwnership, Result } from "./types.js";
-import type { Proposal, ApprovalError } from "./proposal.js";
-import { parseProposal } from "./proposal.js";
+import type { FileOwnership, SoulguardConfig, Result } from "./types.js";
+import { diff, computeApprovalHash } from "./diff.js";
+import type { FileDiff } from "./diff.js";
 import { ok, err } from "./result.js";
+
+// ── Types ──────────────────────────────────────────────────────────────
 
 export type ApproveOptions = {
   ops: SystemOperations;
+  config: SoulguardConfig;
+  /** SHA-256 approval hash — must match computed hash of frozen pending copies */
+  hash: string;
   /** Expected vault ownership to restore after writing */
   vaultOwnership: FileOwnership;
   /** Ownership for staging copies after sync (agent-writable) */
   stagingOwnership?: FileOwnership;
-  /** Password provided by owner (undefined if no password set) */
-  password?: string;
-  /** Verify password callback — returns true if valid */
-  verifyPassword?: (password: string) => Promise<boolean>;
 };
+
+/** Errors from approve. */
+export type ApprovalError =
+  | { kind: "no_changes" }
+  | { kind: "hash_mismatch"; message: string }
+  | { kind: "apply_failed"; message: string }
+  | { kind: "diff_failed"; message: string };
 
 export type ApproveResult = {
   /** Files that were updated */
@@ -34,86 +46,97 @@ export type ApproveResult = {
 };
 
 /**
- * Approve and apply the active proposal.
+ * Approve and apply staging changes to vault.
  */
 export async function approve(
   options: ApproveOptions,
 ): Promise<Result<ApproveResult, ApprovalError>> {
-  const { ops, vaultOwnership, password, verifyPassword } = options;
+  const { ops, config, hash, vaultOwnership } = options;
 
-  // Read proposal
-  const proposalJson = await ops.readFile(".soulguard/proposal.json");
-  if (!proposalJson.ok) {
-    return err({ kind: "no_proposal" });
+  // ── Phase 1: Compute diff to find changed files ────────────────────
+  const diffResult = await diff({ ops, config });
+  if (!diffResult.ok) {
+    return err({ kind: "diff_failed", message: diffResult.error.kind });
   }
 
-  const proposal = parseProposal(proposalJson.value);
-  if (!proposal) {
-    return err({ kind: "apply_failed", message: "Invalid or corrupted proposal.json" });
+  if (!diffResult.value.hasChanges) {
+    return err({ kind: "no_changes" });
   }
 
-  // Verify password if configured
-  if (verifyPassword) {
-    if (!password) {
-      return err({ kind: "wrong_password" });
-    }
-    const valid = await verifyPassword(password);
-    if (!valid) {
-      return err({ kind: "wrong_password" });
-    }
-  }
+  // Files that need to be applied (modified or new)
+  const changedFiles = diffResult.value.files.filter(
+    (f) => f.status === "modified" || f.status === "vault_missing",
+  );
 
-  // ── Phase 1: Validate all hashes (staleness check) ─────────────────
-  for (const file of proposal.files) {
-    const currentHash = await ops.hashFile(file.path);
-    if (!currentHash.ok) {
-      return err({
-        kind: "stale_proposal",
-        message: `Cannot read ${file.path}: ${currentHash.error.kind}`,
-      });
-    }
-    if (currentHash.value !== file.protectedHash) {
-      return err({
-        kind: "stale_proposal",
-        message: `${file.path} has changed since the proposal was created. Re-propose.`,
-      });
-    }
-
-    // Also verify staged file still matches proposal
-    const stagedHash = await ops.hashFile(`.soulguard/staging/${file.path}`);
-    if (!stagedHash.ok) {
-      return err({ kind: "apply_failed", message: `Cannot read staging/${file.path}` });
-    }
-    if (stagedHash.value !== file.stagedHash) {
-      return err({
-        kind: "stale_proposal",
-        message: `Staging copy of ${file.path} changed after propose. Re-propose.`,
-      });
+  // ── Phase 2: Copy staging to protected working dir ─────────────────
+  // Once in .soulguard/pending/ (owned by soulguardian), the agent cannot
+  // modify these files. This freezes the content before we verify the hash.
+  await ops.mkdir(".soulguard/pending");
+  for (const file of changedFiles) {
+    const copyResult = await ops.copyFile(
+      `.soulguard/staging/${file.path}`,
+      `.soulguard/pending/${file.path}`,
+    );
+    if (!copyResult.ok) {
+      await cleanupPending(ops, changedFiles);
+      return err({ kind: "apply_failed", message: `Cannot copy staging/${file.path} to pending` });
     }
   }
 
-  // ── Phase 2: Backup all affected vault files ───────────────────────
+  // Protect the pending dir so agent can't tamper during approval
+  // TODO: chown recursively (needs ops interface change — tracked upstack)
+  const chownPending = await ops.chown(".soulguard/pending", vaultOwnership);
+  if (!chownPending.ok) {
+    await cleanupPending(ops, changedFiles);
+    return err({ kind: "apply_failed", message: "Cannot protect pending directory" });
+  }
+
+  // ── Phase 3: Hash the frozen pending copies and verify ─────────────
+  // Compute the approval hash from the now-protected pending files.
+  // This is the authoritative check — if the agent modified staging between
+  // the diff and the copy, the pending hash won't match the reviewer's hash.
+  const pendingHash = await computePendingHash(ops, changedFiles);
+  if (!pendingHash.ok) {
+    await cleanupPending(ops, changedFiles);
+    return err({ kind: "apply_failed", message: pendingHash.error });
+  }
+
+  if (pendingHash.value !== hash) {
+    await cleanupPending(ops, changedFiles);
+    return err({
+      kind: "hash_mismatch",
+      message: `Expected hash ${hash} but got hash ${pendingHash.value}`,
+    });
+  }
+
+  // ── Phase 4: Backup all affected vault files ───────────────────────
+  const backedUpFiles: string[] = [];
   await ops.mkdir(".soulguard/backup");
-  for (const file of proposal.files) {
+  for (const file of changedFiles) {
+    // Only backup files that exist in vault (skip new files)
+    if (file.status === "vault_missing") continue;
     const backupResult = await ops.copyFile(file.path, `.soulguard/backup/${file.path}`);
     if (!backupResult.ok) {
+      await cleanupBackup(ops, backedUpFiles);
+      await cleanupPending(ops, changedFiles);
       return err({ kind: "apply_failed", message: `Backup of ${file.path} failed` });
     }
+    backedUpFiles.push(file.path);
   }
 
-  // ── Phase 3: Apply all changes ─────────────────────────────────────
+  // ── Phase 5: Apply from protected copies ───────────────────────────
   const appliedFiles: string[] = [];
 
-  for (const file of proposal.files) {
-    const content = await ops.readFile(`.soulguard/staging/${file.path}`);
+  for (const file of changedFiles) {
+    const content = await ops.readFile(`.soulguard/pending/${file.path}`);
     if (!content.ok) {
-      await rollback(ops, proposal, appliedFiles, vaultOwnership);
-      return err({ kind: "apply_failed", message: `Cannot read staging/${file.path}` });
+      await rollback(ops, changedFiles, appliedFiles, backedUpFiles, vaultOwnership);
+      return err({ kind: "apply_failed", message: `Cannot read pending/${file.path}` });
     }
 
     const writeResult = await ops.writeFile(file.path, content.value);
     if (!writeResult.ok) {
-      await rollback(ops, proposal, appliedFiles, vaultOwnership);
+      await rollback(ops, changedFiles, appliedFiles, backedUpFiles, vaultOwnership);
       return err({
         kind: "apply_failed",
         message: `Cannot write ${file.path}: ${writeResult.error.kind}`,
@@ -121,12 +144,9 @@ export async function approve(
     }
 
     // Re-protect
-    const chownResult = await ops.chown(file.path, {
-      user: vaultOwnership.user,
-      group: vaultOwnership.group,
-    });
+    const chownResult = await ops.chown(file.path, vaultOwnership);
     if (!chownResult.ok) {
-      await rollback(ops, proposal, appliedFiles, vaultOwnership);
+      await rollback(ops, changedFiles, appliedFiles, backedUpFiles, vaultOwnership);
       return err({
         kind: "apply_failed",
         message: `Cannot chown ${file.path}: ${chownResult.error.kind}`,
@@ -135,7 +155,7 @@ export async function approve(
 
     const chmodResult = await ops.chmod(file.path, vaultOwnership.mode);
     if (!chmodResult.ok) {
-      await rollback(ops, proposal, appliedFiles, vaultOwnership);
+      await rollback(ops, changedFiles, appliedFiles, backedUpFiles, vaultOwnership);
       return err({
         kind: "apply_failed",
         message: `Cannot chmod ${file.path}: ${chmodResult.error.kind}`,
@@ -145,27 +165,59 @@ export async function approve(
     appliedFiles.push(file.path);
   }
 
-  // ── Phase 4: Sync staging copies + cleanup ─────────────────────────
-  for (const file of proposal.files) {
+  // ── Phase 6: Sync staging copies + cleanup ─────────────────────────
+  for (const file of changedFiles) {
     const stagingPath = `.soulguard/staging/${file.path}`;
     await ops.copyFile(file.path, stagingPath);
-    // Re-apply agent-writable ownership to staging copy
     if (options.stagingOwnership) {
-      await ops.chown(stagingPath, {
-        user: options.stagingOwnership.user,
-        group: options.stagingOwnership.group,
-      });
+      await ops.chown(stagingPath, options.stagingOwnership);
       await ops.chmod(stagingPath, options.stagingOwnership.mode);
     }
   }
 
-  // Clean up backup and proposal
-  for (const file of proposal.files) {
-    await ops.deleteFile(`.soulguard/backup/${file.path}`);
-  }
-  await ops.deleteFile(".soulguard/proposal.json");
+  // Clean up backup and pending
+  await cleanupBackup(ops, backedUpFiles);
+  await cleanupPending(ops, changedFiles);
 
   return ok({ appliedFiles });
+}
+
+/**
+ * Compute approval hash from frozen pending copies.
+ * Reuses computeApprovalHash from diff.ts for a single hash algorithm.
+ */
+async function computePendingHash(
+  ops: SystemOperations,
+  files: FileDiff[],
+): Promise<Result<string, string>> {
+  // Build FileDiff-compatible entries with hashes from pending copies
+  const withHashes: FileDiff[] = [];
+  for (const f of files) {
+    const fileHash = await ops.hashFile(`.soulguard/pending/${f.path}`);
+    if (!fileHash.ok) {
+      return err(`Cannot hash pending/${f.path}`);
+    }
+    withHashes.push({ ...f, stagedHash: fileHash.value });
+  }
+  return ok(computeApprovalHash(withHashes));
+}
+
+/**
+ * Clean up pending directory on early exit.
+ */
+async function cleanupPending(ops: SystemOperations, files: FileDiff[]): Promise<void> {
+  for (const file of files) {
+    await ops.deleteFile(`.soulguard/pending/${file.path}`);
+  }
+}
+
+/**
+ * Clean up backup files.
+ */
+async function cleanupBackup(ops: SystemOperations, backedUpFiles: string[]): Promise<void> {
+  for (const filePath of backedUpFiles) {
+    await ops.deleteFile(`.soulguard/backup/${filePath}`);
+  }
 }
 
 /**
@@ -173,23 +225,19 @@ export async function approve(
  */
 async function rollback(
   ops: SystemOperations,
-  proposal: Proposal,
+  allFiles: FileDiff[],
   appliedFiles: string[],
+  backedUpFiles: string[],
   vaultOwnership: FileOwnership,
 ): Promise<void> {
   for (const filePath of appliedFiles) {
     const backupContent = await ops.readFile(`.soulguard/backup/${filePath}`);
     if (backupContent.ok) {
       await ops.writeFile(filePath, backupContent.value);
-      await ops.chown(filePath, {
-        user: vaultOwnership.user,
-        group: vaultOwnership.group,
-      });
+      await ops.chown(filePath, vaultOwnership);
       await ops.chmod(filePath, vaultOwnership.mode);
     }
   }
-  // Clean up backup files after rollback
-  for (const file of proposal.files) {
-    await ops.deleteFile(`.soulguard/backup/${file.path}`);
-  }
+  await cleanupBackup(ops, backedUpFiles);
+  await cleanupPending(ops, allFiles);
 }

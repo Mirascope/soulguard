@@ -11,7 +11,7 @@ describe("guardToolCall", () => {
     expect(result.blocked).toBe(true);
     expect(result.reason).toContain("vault-protected");
     expect(result.reason).toContain(".soulguard/staging/SOUL.md");
-    expect(result.reason).toContain("soulguard propose");
+    expect(result.reason).toContain("reviewed and approved by the owner");
   });
 
   it("blocks Edit to a vault file", () => {

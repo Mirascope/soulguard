@@ -6,18 +6,11 @@ Soulguard Init — /workspace
   Synced 2 vault file(s)
 
 Done.
-Soulguard Propose — /workspace
-
-Created proposal with 1 file(s):
-  📝 SOUL.md
-
-Message: update soul
-
-Run `soulguard diff` to review, `sudo soulguard approve` to apply.
-Soulguard Approve — /workspace
+HASH: 0e94615ddc559fbd6541b0b002014ab8ee99df58d6ad360ba45e8510623a8990
 
 Approved 1 file(s):
   ✅ SOUL.md
 
 Vault updated. Staging synced.
+VAULT:
 # My Updated Soul

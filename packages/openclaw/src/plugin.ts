@@ -2,7 +2,6 @@
  * Soulguard OpenClaw plugin — protects vault files from direct writes.
  */
 
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { status, diff, parseConfig, NodeSystemOps, type SoulguardConfig } from "@soulguard/core";
@@ -127,42 +126,6 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
               .map((d) => `--- ${d.path}\n${d.diff}`)
               .join("\n\n");
             return { content: [{ type: "text" as const, text: text || "No modified files." }] };
-          },
-        },
-        { optional: true },
-      );
-
-      // Propose tool — uses sudo since propose needs elevated permissions
-      api.registerTool(
-        {
-          name: "soulguard_propose",
-          description:
-            "Create a vault change proposal from staging edits. Edit .soulguard/staging/ files first, then call this to propose changes for owner approval.",
-          parameters: {
-            type: "object",
-            properties: {
-              message: {
-                type: "string",
-                description: "Description of the proposed changes",
-              },
-            },
-            required: [],
-          },
-          async execute(_id, params) {
-            try {
-              const args = ["soulguard", "propose", workspaceDir];
-              if (params.message) args.push("-m", String(params.message));
-              const output = execFileSync("sudo", args, {
-                encoding: "utf-8",
-                env: { ...process.env, NO_COLOR: "1" },
-                timeout: 5_000, // prevent blocking if sudo hangs (no tty)
-              });
-              return { content: [{ type: "text" as const, text: output }] };
-            } catch (e) {
-              const msg =
-                e instanceof Error && "stdout" in e ? (e as { stdout: string }).stdout : String(e);
-              return { content: [{ type: "text" as const, text: msg || "Propose failed" }] };
-            }
           },
         },
         { optional: true },

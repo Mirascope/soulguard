@@ -10,9 +10,8 @@ import { LiveConsoleOutput } from "./console-live.js";
 import { StatusCommand } from "./cli/status-command.js";
 import { SyncCommand } from "./cli/sync-command.js";
 import { DiffCommand } from "./cli/diff-command.js";
-import { ProposeCommand } from "./cli/propose-command.js";
 import { ApproveCommand } from "./cli/approve-command.js";
-import { RejectCommand } from "./cli/reject-command.js";
+import { ResetCommand } from "./cli/reset-command.js";
 import { InitCommand } from "./cli/init-command.js";
 import { NodeSystemOps, writeFileAbsolute, existsAbsolute } from "./system-ops-node.js";
 import { parseConfig } from "./schema.js";
@@ -99,49 +98,37 @@ program
   .description("Initialize soulguard for a workspace")
   .argument("[workspace]", "workspace path", process.cwd())
   .option("--agent-user <user>", "agent OS username (default: $SUDO_USER or 'agent')")
-  .option("--password", "set a password during init")
   .option("--template <name>", "protection template")
-  .action(
-    async (
-      workspace: string,
-      opts: { agentUser?: string; password?: boolean; template?: string },
-    ) => {
-      const out = new LiveConsoleOutput();
-      const absWorkspace = resolve(workspace);
-      const nodeOps = new NodeSystemOps(absWorkspace);
+  .action(async (workspace: string, opts: { agentUser?: string; template?: string }) => {
+    const out = new LiveConsoleOutput();
+    const absWorkspace = resolve(workspace);
+    const nodeOps = new NodeSystemOps(absWorkspace);
 
-      // Infer agent user: explicit flag > $SUDO_USER > "agent"
-      const agentUser = opts.agentUser ?? process.env.SUDO_USER ?? "agent";
+    // Infer agent user: explicit flag > $SUDO_USER > "agent"
+    const agentUser = opts.agentUser ?? process.env.SUDO_USER ?? "agent";
 
-      // Use existing config if present, otherwise default
-      let config: SoulguardConfig = DEFAULT_CONFIG;
-      try {
-        const raw = await readFile(resolve(absWorkspace, "soulguard.json"), "utf-8");
-        config = parseConfig(JSON.parse(raw));
-      } catch {
-        // No existing config — will be created by init
-      }
+    // Use existing config if present, otherwise default
+    let config: SoulguardConfig = DEFAULT_CONFIG;
+    try {
+      const raw = await readFile(resolve(absWorkspace, "soulguard.json"), "utf-8");
+      config = parseConfig(JSON.parse(raw));
+    } catch {
+      // No existing config — will be created by init
+    }
 
-      if (opts.password) {
-        out.error("Password support not yet implemented (argon2 pending).");
-        process.exitCode = 1;
-        return;
-      }
-
-      const cmd = new InitCommand(
-        {
-          ops: nodeOps,
-          identity: IDENTITY,
-          config,
-          agentUser,
-          writeAbsolute: writeFileAbsolute,
-          existsAbsolute,
-        },
-        out,
-      );
-      process.exitCode = await cmd.execute();
-    },
-  );
+    const cmd = new InitCommand(
+      {
+        ops: nodeOps,
+        identity: IDENTITY,
+        config,
+        agentUser,
+        writeAbsolute: writeFileAbsolute,
+        existsAbsolute,
+      },
+      out,
+    );
+    process.exitCode = await cmd.execute();
+  });
 
 program
   .command("diff")
@@ -168,36 +155,11 @@ program
   });
 
 program
-  .command("propose")
-  .description("Create a vault change proposal from staging edits")
-  .argument("[workspace]", "workspace path", process.cwd())
-  .option("-m, --message <message>", "describe the changes")
-  .action(async (workspace: string, opts: { message?: string }) => {
-    const out = new LiveConsoleOutput();
-    try {
-      const statusOpts = await makeOptions(workspace);
-      const cmd = new ProposeCommand(
-        {
-          ops: statusOpts.ops,
-          config: statusOpts.config,
-          message: opts.message,
-        },
-        out,
-      );
-      process.exitCode = await cmd.execute();
-    } catch (e) {
-      out.error(e instanceof Error ? e.message : String(e));
-      process.exitCode = 1;
-    }
-  });
-
-program
   .command("approve")
-  .description("Approve and apply the active proposal")
+  .description("Approve and apply staging changes to vault")
   .argument("[workspace]", "workspace path", process.cwd())
-  // Password will be prompted via stdin when argon2 is integrated.
-  // Not accepted as CLI flag — design doc says: never in shell history.
-  .action(async (workspace: string) => {
+  .option("--hash <hash>", "approval hash for non-interactive mode")
+  .action(async (workspace: string, opts: { hash?: string }) => {
     const out = new LiveConsoleOutput();
     try {
       const statusOpts = await makeOptions(workspace);
@@ -205,9 +167,23 @@ program
       const cmd = new ApproveCommand(
         {
           ops: statusOpts.ops,
+          config: statusOpts.config,
           vaultOwnership: VAULT_OWNERSHIP,
           stagingOwnership: { user: agentUser, group: IDENTITY.group, mode: "644" },
-          // No password verification yet — pre-argon2
+          hash: opts.hash,
+          prompt: opts.hash
+            ? undefined
+            : async () => {
+                // Interactive prompt via stdin
+                const rl = await import("node:readline");
+                const iface = rl.createInterface({ input: process.stdin, output: process.stdout });
+                return new Promise<boolean>((resolve) => {
+                  iface.question("Apply these changes? [y/N] ", (answer) => {
+                    iface.close();
+                    resolve(answer.toLowerCase() === "y");
+                  });
+                });
+              },
         },
         out,
       );
@@ -219,18 +195,18 @@ program
   });
 
 program
-  .command("reject")
-  .description("Reject the active proposal and reset staging")
+  .command("reset")
+  .description("Reset staging to match vault (discard changes)")
   .argument("[workspace]", "workspace path", process.cwd())
-  // Password will be prompted via stdin when argon2 is integrated.
   .action(async (workspace: string) => {
     const out = new LiveConsoleOutput();
     try {
       const statusOpts = await makeOptions(workspace);
       const agentUser = process.env.SUDO_USER ?? "agent";
-      const cmd = new RejectCommand(
+      const cmd = new ResetCommand(
         {
           ops: statusOpts.ops,
+          config: statusOpts.config,
           stagingOwnership: { user: agentUser, group: IDENTITY.group, mode: "644" },
         },
         out,

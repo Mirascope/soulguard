@@ -20,8 +20,6 @@ export type InitResult = {
   userCreated: boolean;
   /** Whether the system group was created (false if it already existed) */
   groupCreated: boolean;
-  /** Whether the password hash was written (false if it already existed) */
-  passwordSet: boolean;
   /** Whether soulguard.json was written (false if it already existed) */
   configCreated: boolean;
   /** Whether the sudoers file was written */
@@ -37,7 +35,6 @@ export type InitError =
   | { kind: "not_root"; message: string }
   | { kind: "user_creation_failed"; message: string }
   | { kind: "group_creation_failed"; message: string }
-  | { kind: "password_hash_failed"; message: string }
   | { kind: "config_write_failed"; message: string }
   | { kind: "sudoers_write_failed"; message: string }
   | { kind: "staging_failed"; message: string };
@@ -58,8 +55,6 @@ export type InitOptions = {
   writeAbsolute: AbsoluteWriter;
   /** Check if absolute path exists. Used for sudoers idempotency. */
   existsAbsolute: AbsoluteExists;
-  /** Password to hash (undefined = skip password setup) */
-  password?: string;
   /** Path to write sudoers file (default: /etc/sudoers.d/soulguard) */
   sudoersPath?: string;
   /** @internal Skip root check (for testing only) */
@@ -68,9 +63,7 @@ export type InitOptions = {
 
 /** Generate scoped sudoers content */
 export function generateSudoers(agentUser: string, soulguardBin: string): string {
-  const cmds = ["sync", "stage", "status", "propose", "diff"].map(
-    (cmd) => `${soulguardBin} ${cmd} *`,
-  );
+  const cmds = ["sync", "stage", "status", "diff"].map((cmd) => `${soulguardBin} ${cmd} *`);
   return `# Soulguard — scoped sudo for agent user\n${agentUser} ALL=(root) NOPASSWD: ${cmds.join(", ")}\n`;
 }
 
@@ -85,7 +78,6 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     agentUser,
     writeAbsolute,
     existsAbsolute,
-    password,
     sudoersPath = DEFAULT_SUDOERS_PATH,
   } = options;
 
@@ -174,21 +166,12 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   // ── 5. Create staging ────────────────────────────────────────────────
   // Always (re)create staging — idempotent, self-healing on partial state
   const stagingCreated = true;
-  // Check for active proposal — block re-init unless it's a fresh setup
-  const proposalExists = await ops.exists(".soulguard/proposal.json");
-  if (proposalExists.ok && proposalExists.value) {
-    return err({
-      kind: "staging_failed",
-      message: "Active proposal exists. Approve or reject it before re-initializing.",
-    });
-  }
-
   const mkdirResult = await ops.mkdir(".soulguard/staging");
   if (!mkdirResult.ok) {
     return err({ kind: "staging_failed", message: `mkdir failed: ${mkdirResult.error.kind}` });
   }
   // .soulguard/ owned by soulguardian — agent CANNOT create/delete files here.
-  // Only staging/ is agent-writable. proposal.json is written by sudo propose.
+  // Only staging/ is agent-writable.
   const chownSg = await ops.chown(".soulguard", { user: identity.user, group: identity.group });
   if (!chownSg.ok) {
     return err({
@@ -265,19 +248,9 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     sudoersCreated = true;
   }
 
-  // ── 7. Password (optional) ───────────────────────────────────────────
-  let passwordSet = false;
-  if (password !== undefined) {
-    return err({
-      kind: "password_hash_failed",
-      message: "Password support not yet implemented (argon2 pending)",
-    });
-  }
-
   return ok({
     userCreated,
     groupCreated,
-    passwordSet,
     configCreated,
     sudoersCreated,
     stagingCreated,

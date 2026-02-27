@@ -2,6 +2,7 @@
  * soulguard diff — compare vault files against their staging copies.
  */
 
+import { createHash } from "node:crypto";
 import { createTwoFilesPatch } from "diff";
 import type { Result } from "./result.js";
 import { ok, err } from "./result.js";
@@ -22,6 +23,12 @@ export type FileDiff = {
 export type DiffResult = {
   files: FileDiff[];
   hasChanges: boolean;
+  /**
+   * Approval hash — SHA-256 of all modified file paths + staged content hashes,
+   * sorted deterministically. Used for hash-based approve integrity check.
+   * Only present when there are changes.
+   */
+  approvalHash?: string;
 };
 
 export type DiffError =
@@ -89,7 +96,13 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
       continue;
     }
     if (!vaultExists.value && stagingFileExists.value) {
-      fileDiffs.push({ path, status: "vault_missing" });
+      // New file — hash staging so it's covered by the approval hash
+      const newHash = await ops.hashFile(stagingPath);
+      fileDiffs.push({
+        path,
+        status: "vault_missing",
+        stagedHash: newHash.ok ? newHash.value : undefined,
+      });
       continue;
     }
     if (!vaultExists.value && !stagingFileExists.value) {
@@ -151,5 +164,29 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
 
   const hasChanges = fileDiffs.some((f) => f.status !== "unchanged");
 
-  return ok({ files: fileDiffs, hasChanges });
+  // Compute approval hash from modified files (deterministic)
+  let approvalHash: string | undefined;
+  if (hasChanges) {
+    approvalHash = computeApprovalHash(fileDiffs);
+  }
+
+  return ok({ files: fileDiffs, hasChanges, approvalHash });
+}
+
+/**
+ * Compute a deterministic approval hash from file diffs.
+ * Covers all modified files — sorted by path, hashing path + stagedHash pairs.
+ * This is the integrity token for hash-based approve.
+ */
+export function computeApprovalHash(files: FileDiff[]): string {
+  // Include both modified and new (vault_missing) files in the hash
+  const modified = files
+    .filter((f) => (f.status === "modified" || f.status === "vault_missing") && f.stagedHash)
+    .sort((a, b) => a.path.localeCompare(b.path));
+
+  const hash = createHash("sha256");
+  for (const f of modified) {
+    hash.update(`${f.path}\0${f.stagedHash}\0`);
+  }
+  return hash.digest("hex");
 }

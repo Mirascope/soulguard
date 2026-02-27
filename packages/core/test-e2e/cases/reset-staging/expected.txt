@@ -6,9 +6,9 @@ Soulguard Init — /workspace
   Synced 2 vault file(s)
 
 Done.
-Soulguard Reject — /workspace
+Soulguard Reset — /workspace
 
-Rejected proposal. Reset 1 staging file(s):
+Reset 1 staging file(s):
   ↩️  SOUL.md
 VAULT:
 # My Soul
