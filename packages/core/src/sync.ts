@@ -10,6 +10,9 @@ import { ok } from "./result.js";
 import type { Result } from "./result.js";
 import { status } from "./status.js";
 import type { StatusOptions, StatusResult } from "./status.js";
+import { isGitEnabled, gitCommit } from "./git.js";
+import type { GitCommitResult } from "./git.js";
+import { resolvePatterns } from "./glob.js";
 
 export type SyncError = {
   path: string;
@@ -21,6 +24,8 @@ export type SyncResult = {
   before: StatusResult;
   after: StatusResult;
   errors: SyncError[];
+  /** Git commit result (best-effort, only when git enabled) */
+  git?: GitCommitResult;
 };
 
 export type SyncOptions = StatusOptions;
@@ -72,5 +77,25 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
   if (!afterResult.ok) return afterResult;
   const after = afterResult.value;
 
-  return ok({ before, after, errors });
+  // Best-effort git commit of all tracked files (vault + ledger)
+  let git: GitCommitResult | undefined;
+  if (await isGitEnabled(ops, options.config)) {
+    const [vaultResolved, ledgerResolved] = await Promise.all([
+      resolvePatterns(ops, options.config.vault),
+      resolvePatterns(ops, options.config.ledger),
+    ]);
+    const allFiles = [
+      ...(vaultResolved.ok ? vaultResolved.value : []),
+      ...(ledgerResolved.ok ? ledgerResolved.value : []),
+    ];
+    if (allFiles.length > 0) {
+      const gitResult = await gitCommit(ops, allFiles, "soulguard: sync");
+      if (gitResult.ok) {
+        git = gitResult.value;
+      }
+      // Git errors swallowed — best-effort
+    }
+  }
+
+  return ok({ before, after, errors, git });
 }

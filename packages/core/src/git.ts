@@ -106,9 +106,9 @@ export function ledgerCommitMessage(): string {
 /**
  * Commit all ledger files to git (best-effort).
  *
- * Intended to be called by the daemon/cove on its own schedule,
- * NOT by sync (which focuses on permissions/ownership health).
- * Stages all non-glob ledger files and commits if anything changed.
+ * Stages all resolved ledger files and commits if anything changed.
+ * Note: `sync` now also commits all tracked files (vault + ledger).
+ * This function is still useful for targeted ledger-only commits.
  */
 export async function commitLedgerFiles(
   ops: SystemOperations,

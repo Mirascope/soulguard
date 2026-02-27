@@ -7,6 +7,7 @@ import type { SyncOptions } from "../sync.js";
 import { sync } from "../sync.js";
 import { formatIssue } from "../types.js";
 import type { FileStatus } from "../status.js";
+import type { GitCommitResult } from "../git.js";
 
 export class SyncCommand {
   constructor(
@@ -18,13 +19,14 @@ export class SyncCommand {
     const result = await sync(this.opts);
     if (!result.ok) return 1;
 
-    const { before, after, errors } = result.value;
+    const { before, after, errors, git } = result.value;
 
     this.out.heading(`Soulguard Sync — ${this.opts.ops.workspace}`);
     this.out.write("");
 
     if (before.issues.length === 0 && errors.length === 0) {
       this.out.success("Nothing to fix — all files ok.");
+      this.reportGit(git);
       return 0;
     }
 
@@ -57,6 +59,7 @@ export class SyncCommand {
     // Show remaining issues
     if (after.issues.length === 0) {
       this.out.success("All files now ok.");
+      this.reportGit(git);
       return 0;
     }
 
@@ -66,6 +69,12 @@ export class SyncCommand {
     }
 
     return 1;
+  }
+
+  private reportGit(git?: GitCommitResult): void {
+    if (git?.committed) {
+      this.out.success(`  📝 Committed ${git.files.length} file(s) to git`);
+    }
   }
 
   private issuePath(f: FileStatus): string {
