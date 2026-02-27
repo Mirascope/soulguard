@@ -18,7 +18,8 @@
     "lint": "oxlint packages/*/src",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "publish:all": "bun scripts/publish.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",
