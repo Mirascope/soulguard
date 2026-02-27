@@ -248,4 +248,106 @@ describe("approve (implicit proposals)", () => {
 
     expect(result.value.gitResult).toBeUndefined();
   });
+
+  test("deletes vault file when staging copy is removed", async () => {
+    const ops = new MockSystemOps("/workspace");
+    ops.addFile("SOUL.md", "original soul", {
+      owner: "soulguardian",
+      group: "soulguard",
+      mode: "444",
+    });
+    ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
+    // No staging/SOUL.md — agent deleted it
+
+    const hash = await getApprovalHash(ops, config);
+    const result = await approve({ ops, config, hash, vaultOwnership });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.appliedFiles).toEqual(["SOUL.md"]);
+
+    // Vault file should be gone
+    const exists = await ops.exists("SOUL.md");
+    expect(exists.ok).toBe(true);
+    if (exists.ok) expect(exists.value).toBe(false);
+  });
+
+  test("blocks deletion of soulguard.json via self-protection", async () => {
+    const sgConfig: SoulguardConfig = { vault: ["soulguard.json"], ledger: [] };
+    const ops = new MockSystemOps("/workspace");
+    ops.addFile("soulguard.json", '{"vault":["soulguard.json"],"ledger":[]}', {
+      owner: "soulguardian",
+      group: "soulguard",
+      mode: "444",
+    });
+    ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
+    // No staging/soulguard.json — agent trying to delete config
+
+    const hash = await getApprovalHash(ops, sgConfig);
+    const result = await approve({ ops, config: sgConfig, hash, vaultOwnership });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe("self_protection");
+  });
+
+  test("deletion + modification in same approve", async () => {
+    const ops = new MockSystemOps("/workspace");
+    ops.addFile("SOUL.md", "original soul", {
+      owner: "soulguardian",
+      group: "soulguard",
+      mode: "444",
+    });
+    ops.addFile("AGENTS.md", "original agents", {
+      owner: "soulguardian",
+      group: "soulguard",
+      mode: "444",
+    });
+    ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
+    // SOUL.md deleted from staging, AGENTS.md modified
+    ops.addFile(".soulguard/staging/AGENTS.md", "modified agents", {
+      owner: "agent",
+      group: "soulguard",
+      mode: "644",
+    });
+
+    const hash = await getApprovalHash(ops, multiConfig);
+    const result = await approve({ ops, config: multiConfig, hash, vaultOwnership });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.appliedFiles).toContain("SOUL.md");
+    expect(result.value.appliedFiles).toContain("AGENTS.md");
+
+    // SOUL.md deleted, AGENTS.md updated
+    const soulExists = await ops.exists("SOUL.md");
+    expect(soulExists.ok && soulExists.value).toBe(false);
+    const agentsContent = await ops.readFile("AGENTS.md");
+    expect(agentsContent.ok && agentsContent.value).toBe("modified agents");
+  });
+
+  test("deleted file with git commits deletion", async () => {
+    const ops = new MockSystemOps("/workspace");
+    ops.addFile(".git", "");
+    ops.addFile("SOUL.md", "original soul", {
+      owner: "soulguardian",
+      group: "soulguard",
+      mode: "444",
+    });
+    ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
+    // No staging/SOUL.md — agent deleted it
+    ops.failingExecs.add("git diff --cached --quiet");
+
+    const gitConfig: SoulguardConfig = { ...config, git: true };
+    const hash = await getApprovalHash(ops, gitConfig);
+    const result = await approve({ ops, config: gitConfig, hash, vaultOwnership });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.gitResult).toBeDefined();
+    expect(result.value.gitResult!.committed).toBe(true);
+    // git add should have been called with SOUL.md (stages the deletion)
+    const execOps = ops.ops.filter((op) => op.kind === "exec");
+    expect(execOps.some((op) => op.kind === "exec" && op.args.includes("SOUL.md"))).toBe(true);
+  });
 });

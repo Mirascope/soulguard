@@ -46,7 +46,7 @@ describe("DiffCommand", () => {
     expect(out.hasText("1 file(s) changed")).toBe(true);
   });
 
-  test("staging_missing → exit 1, output contains warning", async () => {
+  test("deleted file → exit 1, output contains deletion marker", async () => {
     const ops = makeMock();
     ops.addFile(".soulguard/staging", "");
     ops.addFile("SOUL.md", "# Soul");
@@ -56,6 +56,6 @@ describe("DiffCommand", () => {
     const exitCode = await cmd.execute();
 
     expect(exitCode).toBe(1);
-    expect(out.hasText("no staging copy")).toBe(true);
+    expect(out.hasText("staged for deletion")).toBe(true);
   });
 });
