@@ -32,6 +32,8 @@ export class MockSystemOps implements SystemOperations {
   private users: Set<string> = new Set();
   private groups: Set<string> = new Set();
   public ops: RecordedOp[] = [];
+  /** Commands that should fail (for testing error paths). Key: "command arg1 arg2" */
+  public failingExecs: Set<string> = new Set();
 
   constructor(workspace: string) {
     this.workspace = workspace;
@@ -197,6 +199,10 @@ export class MockSystemOps implements SystemOperations {
 
   async exec(command: string, args: string[]): Promise<Result<void, IOError>> {
     this.ops.push({ kind: "exec", command, args });
+    const key = [command, ...args].join(" ");
+    if (this.failingExecs.has(key)) {
+      return err({ kind: "io_error", path: "", message: `${key} failed` });
+    }
     return ok(undefined);
   }
 }

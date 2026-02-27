@@ -19,6 +19,8 @@ import type { FileOwnership, SoulguardConfig, Result } from "./types.js";
 import { diff, computeApprovalHash } from "./diff.js";
 import type { FileDiff } from "./diff.js";
 import { ok, err } from "./result.js";
+import type { GitCommitResult } from "./git.js";
+import { isGitEnabled, gitCommit, vaultCommitMessage } from "./git.js";
 import type { Policy, ApprovalContext } from "./policy.js";
 import { validatePolicies, evaluatePolicies } from "./policy.js";
 import { validateSelfProtection } from "./self-protection.js";
@@ -52,6 +54,8 @@ export type ApprovalError =
 export type ApproveResult = {
   /** Files that were updated */
   appliedFiles: string[];
+  /** Git commit result (undefined if git not enabled) */
+  gitResult?: GitCommitResult;
 };
 
 /**
@@ -244,7 +248,18 @@ export async function approve(
   await cleanupBackup(ops, backedUpFiles);
   await cleanupPending(ops, changedFiles);
 
-  return ok({ appliedFiles });
+  // ── Git auto-commit (best-effort) ──────────────────────────────────
+  let gitResult: GitCommitResult | undefined;
+  if (await isGitEnabled(ops, config)) {
+    const message = vaultCommitMessage(appliedFiles);
+    const result = await gitCommit(ops, appliedFiles, message);
+    if (result.ok) {
+      gitResult = result.value;
+    }
+    // Git failures are swallowed — vault update already succeeded
+  }
+
+  return ok({ appliedFiles, gitResult });
 }
 
 /**
