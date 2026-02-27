@@ -6,22 +6,33 @@
  * from being bricked through its own approval flow.
  *
  * Current checks:
+ * - soulguard.json cannot be deleted
  * - If soulguard.json is being changed, the new content must be valid config
  */
 
 import type { Result } from "./types.js";
 import type { ApprovalError } from "./approve.js";
+import type { FileDiff } from "./diff.js";
 import { soulguardConfigSchema } from "./schema.js";
 import { ok, err } from "./result.js";
 
 /**
  * Validate built-in self-protection rules against pending changes.
- * Takes a map of path → content for the files being approved.
+ * Takes a map of path → content for content files, and a list of deleted files.
  * Returns an ApprovalError if any check fails.
  */
 export function validateSelfProtection(
   pendingContents: Map<string, string>,
+  deletedFiles: FileDiff[] = [],
 ): Result<void, ApprovalError> {
+  // Block deletion of soulguard.json — config must always exist
+  if (deletedFiles.some((f) => f.path === "soulguard.json")) {
+    return err({
+      kind: "self_protection",
+      message: "Cannot delete soulguard.json — it is required for soulguard to function",
+    });
+  }
+
   const sgContent = pendingContents.get("soulguard.json");
   if (sgContent === undefined) {
     return ok(undefined);

@@ -148,15 +148,7 @@ export async function approve(
 
   // ── Phase 3b: Built-in self-protection (hardcoded, cannot be bypassed) ──
   {
-    // Block deletion of soulguard.json — config must always exist
-    if (deletedFiles.some((f) => f.path === "soulguard.json")) {
-      await cleanupPending(ops, contentFiles);
-      return err({
-        kind: "self_protection",
-        message: "Cannot delete soulguard.json — it is required for soulguard to function",
-      });
-    }
-    const selfCheck = validateSelfProtection(pendingContents);
+    const selfCheck = validateSelfProtection(pendingContents, deletedFiles);
     if (!selfCheck.ok) {
       await cleanupPending(ops, contentFiles);
       return err(selfCheck.error);
