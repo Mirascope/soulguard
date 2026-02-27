@@ -18,6 +18,7 @@ import { ok } from "./result.js";
 export type FileStat = {
   path: string;
   ownership: FileOwnership;
+  isDirectory: boolean;
 };
 
 export interface SystemOperations {

@@ -73,7 +73,10 @@ export async function resolvePatterns(
         return err(result.error);
       }
       for (const match of result.value) {
-        files.add(match);
+        const statResult = await ops.stat(match);
+        if (statResult.ok && !statResult.value.isDirectory) {
+          files.add(match);
+        }
       }
     } else {
       files.add(pattern);

@@ -176,6 +176,7 @@ export class NodeSystemOps implements SystemOperations {
       return ok({
         path,
         ownership: { user, group, mode: modeToString(s.mode) },
+        isDirectory: s.isDirectory(),
       });
     } catch (e) {
       return err(mapError(e, path, "stat"));
