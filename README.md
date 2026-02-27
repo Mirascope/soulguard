@@ -2,7 +2,7 @@
 
 _Identity protection for AI agents._
 
-Soulguard allows configuring fine-grained identity protections around AI agents (e.g. OpenClaw) - even under prompt injection. It uses OS-level file permissions as the hard security floor, with optional framework plugins for better UX.
+Soulguard protects AI agent identity files from prompt injection attacks using OS-level file permissions as the hard security floor. It provides two protection tiers — **vault** (locked, requires owner approval) and **ledger** (tracked, agent writes freely) — with optional framework plugins for better UX.
 
 ## The Problem
 
@@ -12,16 +12,14 @@ AI agents read identity files (SOUL.md, AGENTS.md, config) on every session. If 
 
 **Two tiers:**
 
-- **Vault 🔒** — Vaulted files cannot be modified except with owner approval (enforced by OS level permissions). Recommended default for `SOUL.md`, `AGENTS.md`, etc.
+- **Vault 🔒** — Vaulted files are owned by a system user with mode 444 (read-only). The agent cannot modify them — OS permissions enforce this. To change a vault file, the agent edits a staging copy; the owner reviews the diff and approves.
 
-- **Ledger 📒** — Files the agent may modify freely, but generates change records for asynchronous review (or automated monitoring). Recommended default for agent memory files.
+- **Ledger 📒** — Files the agent may modify freely, but ownership and permissions are tracked. Drift (wrong ownership/mode) is detected and auto-fixed by `sync`.
 
 **Two enforcement layers:**
 
 1. OS file permissions (hard floor — works without any framework integration)
-2. Framework plugin (UX layer — helpful errors, tool interception, cron gating)
-
-**Owner approval via password** — argon2 hashed, entered via CLI or web UI, never accessible to the agent.
+2. Framework plugin (UX layer — helpful errors, tool interception)
 
 See [DESIGN.md](DESIGN.md) for the full threat model, architecture, and design decisions.
 
@@ -29,48 +27,123 @@ See [DESIGN.md](DESIGN.md) for the full threat model, architecture, and design d
 
 ```bash
 # Install
-npm install -g soulguard
+npm install -g @soulguard/core
 
-# Initialize (one-time, requires sudo)
-sudo soulguard init ~/my-agent-workspace
+# Initialize workspace (requires sudo)
+# Creates soulguardian user, soulguard group, sets up permissions
+sudo soulguard init /path/to/workspace --agent-user <agent-username>
 
-# The agent proposes changes, using the OpenClaw tool, or the CLI:
-soulguard propose
+# Check status
+sudo soulguard status /path/to/workspace
 
-# The owner approves, using the cli or the web client
-soulguard approve <proposal-id>
+# Agent edits staging copies in .soulguard/staging/
+# Then owner reviews and approves:
+soulguard diff /path/to/workspace
+sudo soulguard approve /path/to/workspace --hash <approval-hash>
 ```
-
-## Packages
-
-| Package                                   | Description                                      |
-| ----------------------------------------- | ------------------------------------------------ |
-| [@soulguard/core](packages/core/)         | Daemon, vault, ledger, proposals, approvals, CLI |
-| [@soulguard/web](packages/web/)           | Web-based approval server                        |
-| [@soulguard/openclaw](packages/openclaw/) | OpenClaw framework plugin                        |
 
 ## How It Works
 
-```mermaid
-graph TD
-    A[Agent Process] -->|proposes| D[Soulguard Daemon]
-    A -->|writes normally| L[Ledger Files]
-    D -->|records| L
-    D -->|notifies| H[Human Owner]
-    H -->|approves with password| D
-    D -->|writes to| V[Vault Files]
+### Init
 
-    style V fill:#f96,stroke:#333
-    style L fill:#9cf,stroke:#333
-    style D fill:#ff9,stroke:#333
+`sudo soulguard init <workspace> --agent-user <user>`:
+
+1. Creates `soulguard` group and `soulguardian` system user
+2. Writes scoped sudoers rules (`/etc/sudoers.d/soulguard`)
+3. Creates `.soulguard/staging/` with agent-writable copies of vault files
+4. Sets vault file ownership to `soulguardian:soulguard 444`
+5. Sets ledger file ownership to `<agent>:soulguard 644`
+6. Commits initial state to git (if repo exists)
+
+Init is idempotent — running it again skips completed steps.
+
+### Implicit Proposals
+
+There is no explicit `propose` command. The agent edits files in `.soulguard/staging/` directly. When the owner runs `diff`, soulguard compares staging against vault and computes an approval hash over all changes. The owner approves by passing this hash to `approve`.
+
+```
+Agent edits .soulguard/staging/SOUL.md
+  ↓
+Owner: soulguard diff .        → shows diff + approval hash
+Owner: sudo soulguard approve . --hash <hash>  → applies changes
 ```
 
-Vault files are physically unwritable by the agent
-(OS permissions). The daemon is the only process
-that can modify them, and only after owner approval.
+The hash covers all file diffs atomically — if anything changes between `diff` and `approve`, the hash won't match.
 
-Ledger files are agent-writable but every change is
-recorded. The owner reviews async and can revert.
+### File Deletion
+
+Vault files can be deleted through the staging workflow. If an agent removes a file from `.soulguard/staging/`, `diff` shows it as deleted and includes it in the approval hash. On approve, the vault copy is removed.
+
+`soulguard.json` itself cannot be deleted (self-protection).
+
+### Glob Patterns
+
+Vault and ledger lists in `soulguard.json` support glob patterns:
+
+```json
+{
+  "vault": ["soulguard.json", "*.md"],
+  "ledger": ["memory/*.md", "skills/**/*.md"]
+}
+```
+
+Globs are resolved to concrete file paths at runtime. All commands (status, diff, sync, approve, reset) resolve globs before operating.
+
+### Git Integration
+
+When the workspace is a git repo and `git` is not disabled in config:
+
+- **`init`** commits all tracked files as an initial snapshot
+- **`approve`** auto-commits vault changes after applying them
+- **`commitLedgerFiles()`** — exported function for daemon/cove integration to commit ledger changes on their own schedule
+
+All git commits use author `SoulGuardian <soulguardian@soulguard.ai>`. Git operations are best-effort — failures never block core operations. If the staging area has pre-existing staged changes, soulguard skips the commit to avoid absorbing unrelated work.
+
+### Status & Sync
+
+- `soulguard status` — reports vault and ledger file health (ownership, permissions, missing files)
+- `soulguard sync` — fixes ownership/permission drift on vault and ledger files
+- `soulguard reset` — resets staging to match current vault state
+
+## Configuration
+
+`soulguard.json` in the workspace root:
+
+```json
+{
+  "vault": ["soulguard.json", "SOUL.md", "AGENTS.md", "IDENTITY.md"],
+  "ledger": ["MEMORY.md", "memory/*.md"],
+  "git": true
+}
+```
+
+- **`vault`** — files/globs that require owner approval to modify (mode 444)
+- **`ledger`** — files/globs with tracked ownership (mode 644, agent-writable)
+- **`git`** — enable/disable auto-commits (default: true if not specified)
+
+`soulguard.json` is always implicitly vaulted (self-protection).
+
+## Packages
+
+| Package                                   | Description                                              |
+| ----------------------------------------- | -------------------------------------------------------- |
+| [@soulguard/core](packages/core/)         | Vault, ledger, approval workflow, CLI, git integration   |
+| [@soulguard/openclaw](packages/openclaw/) | OpenClaw framework plugin (templates, tool interception) |
+| [@soulguard/web](packages/web/)           | Web-based approval UI (planned)                          |
+
+## CLI Reference
+
+**Requires sudo:**
+
+- `sudo soulguard init <workspace> --agent-user <user>` — one-time setup
+- `sudo soulguard approve <workspace> --hash <hash>` — apply staged changes
+- `sudo soulguard sync <workspace>` — fix ownership/permission drift
+- `sudo soulguard reset <workspace>` — reset staging to match vault
+
+**No sudo required:**
+
+- `soulguard status <workspace>` — vault and ledger health
+- `soulguard diff <workspace>` — show pending changes + approval hash
 
 ## Links
 
@@ -84,4 +157,4 @@ MIT
 
 ---
 
-\*Built by [Mirascope](https://mirascope.com).
+_Built by [Mirascope](https://mirascope.com)._

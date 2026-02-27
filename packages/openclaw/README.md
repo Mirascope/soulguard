@@ -1,10 +1,10 @@
 # @soulguard/openclaw
 
-OpenClaw framework plugin for Soulguard. Provides tool interception, helpful errors, cron gating, and configuration templates.
+OpenClaw framework plugin for soulguard. Provides protection templates and soulguard integration for OpenClaw agents.
 
 For the core system, see [@soulguard/core](../core/).
 
-## Templates
+## Protection Templates
 
 Templates define which paths go to vault, ledger, or are left unprotected. Every known path is explicitly categorized — no silent omissions.
 
@@ -34,72 +34,34 @@ Templates define which paths go to vault, ledger, or are left unprotected. Every
 
 🔒 Vault (requires owner approval) · 📒 Ledger (tracked, agent writes freely) · — Unprotected
 
-**Relaxed** — Onboarding mode. Only `soulguard.json` is locked. Agent can freely modify config, add channels, tweak cron. Everything tracked.
+**Relaxed** — Onboarding mode. Only `soulguard.json` is locked. Everything else tracked.
 
-**Default** — Steady state. Identity files and attack surfaces locked. Memory and skills tracked in ledger.
+**Default** — Steady state. Identity files and config locked. Memory and skills tracked.
 
-**Paranoid** — Maximum lockdown. Everything vaulted except sessions. Skills require approval too (skill injection is a real attack vector).
+**Paranoid** — Maximum lockdown. Everything vaulted except sessions.
 
-## Why a Plugin
+## Plugin
 
-Soulguard's core provides hard security via OS file permissions. The agent literally cannot write to vault files. But without the plugin, the agent experience is poor:
+The OpenClaw plugin integrates soulguard status into the agent's context and provides helpful guidance when vault writes fail.
 
-- Agent tries to edit SOUL.md → raw EPERM error
-- Agent doesn't understand why → retries, tries `chmod`, wastes tokens
-- Non-file operations (cron, plugins) have no interception at the OS level
+### Current
 
-The plugin solves this while adding zero security responsibility.
+- Reports soulguard status (vault/ledger health) in agent context
+- Detects vault write failures and suggests staging workflow
 
-## What It Does
+### Planned
 
-### 1. File Write Interception
+- `before_tool_call` hook to intercept vault writes and redirect to staging
+- Native agent tools (`soulguard.propose`, `soulguard.status`, `soulguard.diff`)
+- Cron job gating for vaulted cron configs
+- Tool access control per configuration
 
-Hooks into OpenClaw's `before_tool_call` for `write` and `edit` operations:
+## Why a Plugin?
 
-```
-Agent: edit SOUL.md (add values section)
-→ Plugin intercepts
-→ "SOUL.md is soulguard-protected. Edit staging/SOUL.md instead,
-   then run `soulguard propose`."
-```
+Soulguard's core provides hard security via OS file permissions. The agent literally cannot write to vault files. But without the plugin, the agent sees raw `Permission denied` errors and may waste tokens retrying. The plugin:
 
-### 2. Cron Job Gating
+1. Tells the agent _why_ the write failed
+2. Guides it to edit `.soulguard/staging/` instead
+3. Provides soulguard operations as native tools
 
-Intercepts `cron` tool calls for vaulted cron configs:
-
-```
-Agent: cron add { schedule: "every 1h", ... }
-→ Plugin intercepts
-→ Creates soulguard proposal
-→ "Cron job proposed. Awaiting owner approval."
-```
-
-### 3. Native Agent Tools
-
-Exposes soulguard operations as agent tools:
-
-- **`soulguard.propose`** — create or update vault proposal
-- **`soulguard.withdraw`** — withdraw pending proposal
-- **`soulguard.diff`** — preview pending changes
-- **`soulguard.status`** — check workspace state and proposals
-
-### 4. Tool Access Control
-
-The plugin can restrict tool access per configuration — useful for hosted service tiers:
-
-```json
-{
-  "exec_policy": {
-    "allowed": ["ls", "cat", "head", "tail", "find", "grep"],
-    "denied": ["*"]
-  }
-}
-```
-
-## No OpenClaw Code Changes Required
-
-Uses OpenClaw's existing extension points:
-
-- `before_tool_call` hooks (`{ block: true, blockReason: "..." }`)
-- Plugin agent tools API
-- Standard discovery and installation
+The plugin adds zero security responsibility — if it has bugs, vault files are still protected by OS permissions.
