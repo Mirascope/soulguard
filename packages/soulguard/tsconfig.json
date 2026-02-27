@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "paths": {
+      "@soulguard/core": ["../core/src/index.ts"],
+      "@soulguard/openclaw": ["../openclaw/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}
