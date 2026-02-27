@@ -74,6 +74,18 @@ export class ApproveCommand {
           this.out.error(result.error.message);
           this.out.info("Please run `soulguard diff` again and re-review.");
           return 1;
+        case "self_protection":
+          this.out.error(`Self-protection: ${result.error.message}`);
+          return 1;
+        case "policy_violation":
+          this.out.error("Blocked by policy:");
+          for (const v of result.error.violations) {
+            this.out.error(`  ✗ ${v.policy}: ${v.message}`);
+          }
+          return 1;
+        case "policy_name_collision":
+          this.out.error(`Duplicate policy names: ${result.error.duplicates.join(", ")}`);
+          return 1;
         case "apply_failed":
           this.out.error(`Apply failed: ${result.error.message}`);
           return 1;

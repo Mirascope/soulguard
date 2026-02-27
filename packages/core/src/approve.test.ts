@@ -3,7 +3,8 @@ import { MockSystemOps } from "./system-ops-mock.js";
 import { diff } from "./diff.js";
 import { approve } from "./approve.js";
 import type { SoulguardConfig, FileOwnership } from "./types.js";
-import { err } from "./result.js";
+import type { Policy } from "./policy.js";
+import { ok, err } from "./result.js";
 
 const config: SoulguardConfig = { vault: ["SOUL.md"], ledger: [] };
 const multiConfig: SoulguardConfig = { vault: ["SOUL.md", "AGENTS.md"], ledger: [] };
@@ -139,6 +140,69 @@ describe("approve (implicit proposals)", () => {
     const diffResult = await diff({ ops, config });
     expect(diffResult.ok).toBe(true);
     if (diffResult.ok) expect(diffResult.value.hasChanges).toBe(false);
+  });
+
+  test("blocks on policy violation", async () => {
+    const ops = setup();
+    const hash = await getApprovalHash(ops, config);
+    const policies: Policy[] = [{ name: "block-all", check: () => err("blocked by policy") }];
+
+    const result = await approve({ ops, config, hash, vaultOwnership, policies });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe("policy_violation");
+    if (result.error.kind === "policy_violation") {
+      expect(result.error.violations).toHaveLength(1);
+      expect(result.error.violations[0]!.policy).toBe("block-all");
+    }
+
+    // Vault should be unchanged
+    const content = await ops.readFile("SOUL.md");
+    if (content.ok) expect(content.value).toBe("original soul");
+  });
+
+  test("passes with allowing policy", async () => {
+    const ops = setup();
+    const hash = await getApprovalHash(ops, config);
+    const policies: Policy[] = [{ name: "allow-all", check: () => ok(undefined) }];
+
+    const result = await approve({ ops, config, hash, vaultOwnership, policies });
+    expect(result.ok).toBe(true);
+  });
+
+  test("rejects duplicate policy names", async () => {
+    const ops = setup();
+    const hash = await getApprovalHash(ops, config);
+    const policies: Policy[] = [
+      { name: "dupe", check: () => ok(undefined) },
+      { name: "dupe", check: () => ok(undefined) },
+    ];
+
+    const result = await approve({ ops, config, hash, vaultOwnership, policies });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe("policy_name_collision");
+    if (result.error.kind === "policy_name_collision") {
+      expect(result.error.duplicates).toEqual(["dupe"]);
+    }
+  });
+
+  test("policy receives frozen pending content", async () => {
+    const ops = setup();
+    const hash = await getApprovalHash(ops, config);
+    let capturedFinal: string | undefined;
+    const policies: Policy[] = [
+      {
+        name: "capture",
+        check: (ctx) => {
+          capturedFinal = ctx.get("SOUL.md")?.final;
+          return ok(undefined);
+        },
+      },
+    ];
+
+    await approve({ ops, config, hash, vaultOwnership, policies });
+    expect(capturedFinal).toBe("modified soul");
   });
 
   test("cleans up pending directory after approve", async () => {
