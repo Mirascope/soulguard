@@ -13,6 +13,7 @@ import type { SystemOperations } from "./system-ops.js";
 import type { SoulguardConfig, SystemIdentity, FileOwnership, Result, IOError } from "./types.js";
 import { ok, err } from "./result.js";
 import { sync } from "./sync.js";
+import { DEFAULT_CONFIG } from "./constants.js";
 
 /** Result of `soulguard init` — idempotent, booleans report what was done */
 export type InitResult = {
@@ -48,7 +49,7 @@ export type AbsoluteExists = (path: string) => Promise<boolean>;
 export type InitOptions = {
   ops: SystemOperations;
   identity: SystemIdentity;
-  config: SoulguardConfig;
+  config?: SoulguardConfig;
   /** Agent's OS username (for sudoers and staging ownership) */
   agentUser: string;
   /** Writer for files outside the workspace (sudoers). Keeps SystemOperations clean. */
@@ -74,12 +75,13 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   const {
     ops,
     identity,
-    config,
+    config: configOption,
     agentUser,
     writeAbsolute,
     existsAbsolute,
     sudoersPath = DEFAULT_SUDOERS_PATH,
   } = options;
+  const config = configOption ?? DEFAULT_CONFIG;
 
   // ── 0. Check root ─────────────────────────────────────────────────────
   if (
