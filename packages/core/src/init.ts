@@ -15,6 +15,8 @@ import { ok, err } from "./result.js";
 import { sync } from "./sync.js";
 import { DEFAULT_CONFIG } from "./constants.js";
 import { resolvePatterns } from "./glob.js";
+import { isGitEnabled, gitCommit } from "./git.js";
+import type { GitCommitResult } from "./git.js";
 
 /** Result of `soulguard init` — idempotent, booleans report what was done */
 export type InitResult = {
@@ -32,6 +34,8 @@ export type InitResult = {
   gitInitialized: boolean;
   /** Whether .gitignore was updated with staging entry */
   gitignoreUpdated: boolean;
+  /** Git commit result for initial file snapshot (undefined if git not enabled) */
+  gitCommitResult?: GitCommitResult;
   /** Sync result from the initial sync after setup */
   syncResult: SyncResult;
 };
@@ -292,6 +296,29 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     }
   }
 
+  // ── 6b. Initial git commit (best-effort) ────────────────────────────
+  let gitCommitResult: GitCommitResult | undefined;
+  if (await isGitEnabled(ops, config)) {
+    // Resolve all tracked files (vault + ledger) and commit as initial snapshot
+    const [vaultResolved, ledgerResolved] = await Promise.all([
+      resolvePatterns(ops, config.vault),
+      resolvePatterns(ops, config.ledger),
+    ]);
+    const allFiles = [
+      ...(vaultResolved.ok ? vaultResolved.value : []),
+      ...(ledgerResolved.ok ? ledgerResolved.value : []),
+      ".gitignore",
+      "soulguard.json",
+    ];
+    // Deduplicate (soulguard.json may be in vault list)
+    const uniqueFiles = [...new Set(allFiles)].sort();
+    const result = await gitCommit(ops, uniqueFiles, "soulguard: initial commit");
+    if (result.ok) {
+      gitCommitResult = result.value;
+    }
+    // Git failures are best-effort — init already succeeded
+  }
+
   // ── 7. Write sudoers ─ ─────────────────────────────────────────────────
   let sudoersCreated = false;
   const sudoersAlreadyExists = await existsAbsolute(sudoersPath);
@@ -312,6 +339,7 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     stagingCreated,
     gitInitialized,
     gitignoreUpdated,
+    gitCommitResult,
     syncResult: syncResult.value,
   });
 }

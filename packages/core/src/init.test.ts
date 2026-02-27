@@ -205,6 +205,42 @@ describe("DEFAULT_CONFIG", () => {
     expect(execOps).toHaveLength(0);
   });
 
+  test("git=true commits all tracked files on init", async () => {
+    const ops = new MockSystemOps("/workspace");
+    ops.addFile("SOUL.md", "# My Soul", { owner: "agent", group: "staff", mode: "644" });
+    ops.addFile("MEMORY.md", "memories", { owner: "agent", group: "staff", mode: "644" });
+    ops.addFile(".git", ""); // existing repo
+    ops.failingExecs.add("git diff --cached --quiet"); // changes staged
+
+    const result = await init(
+      makeOptions(ops, { config: { vault: ["SOUL.md"], ledger: ["MEMORY.md"] } }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.gitCommitResult).toBeDefined();
+    expect(result.value.gitCommitResult!.committed).toBe(true);
+    // Should have staged vault + ledger + .gitignore + soulguard.json
+    const execOps = ops.ops.filter((o) => o.kind === "exec");
+    const gitAdds = execOps.filter(
+      (o) => o.kind === "exec" && o.command === "git" && o.args[0] === "add",
+    );
+    expect(gitAdds.length).toBeGreaterThanOrEqual(4);
+  });
+
+  test("git=false skips commit", async () => {
+    const ops = new MockSystemOps("/workspace");
+    ops.addFile("SOUL.md", "# My Soul", { owner: "agent", group: "staff", mode: "644" });
+
+    const result = await init(
+      makeOptions(ops, { config: { vault: ["SOUL.md"], ledger: [], git: false } }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.gitCommitResult).toBeUndefined();
+  });
+
   test(".gitignore already has staging entry — not duplicated", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile("SOUL.md", "# My Soul", { owner: "agent", group: "staff", mode: "644" });
