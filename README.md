@@ -19,7 +19,7 @@ AI agents read identity files (SOUL.md, AGENTS.md, config) on every session. If 
 **Two enforcement layers:**
 
 1. OS file permissions (hard floor — works without any framework integration)
-2. Framework plugin (UX layer — helpful errors, tool interception)
+2. Framework plugin (UX layer — intercepts tool calls, provides helpful errors, redirects writes to staging)
 
 See [DESIGN.md](DESIGN.md) for the full threat model, architecture, and design decisions.
 
@@ -122,13 +122,21 @@ All git commits use author `SoulGuardian <soulguardian@soulguard.ai>`. Git opera
 
 `soulguard.json` is always implicitly vaulted (self-protection).
 
+### Protection Templates
+
+The OpenClaw plugin (`@soulguard/openclaw`) ships three templates that categorize all known workspace paths:
+
+- **default** — core identity and config in vault, memory and skills in ledger
+- **paranoid** — everything possible in vault, only sessions unprotected
+- **relaxed** — only `soulguard.json` locked, everything else tracked in ledger
+
 ## Packages
 
 | Package                                   | Description                                              |
 | ----------------------------------------- | -------------------------------------------------------- |
 | [@soulguard/core](packages/core/)         | Vault, ledger, approval workflow, CLI, git integration   |
 | [@soulguard/openclaw](packages/openclaw/) | OpenClaw framework plugin (templates, tool interception) |
-| [@soulguard/web](packages/web/)           | Web-based approval UI (planned)                          |
+| [soulguard](packages/soulguard/)          | Meta-package — installs core + CLI                       |
 
 ## CLI Reference
 

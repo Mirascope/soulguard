@@ -110,10 +110,10 @@ During `init`, soulguard generates a scoped sudoers file:
 
 ```
 # /etc/sudoers.d/soulguard
-agent ALL=(root) NOPASSWD: /usr/local/bin/soulguard sync *, /usr/local/bin/soulguard status *, /usr/local/bin/soulguard reset *
+agent ALL=(root) NOPASSWD: /path/to/soulguard sync *, /path/to/soulguard stage *, /path/to/soulguard status *, /path/to/soulguard diff *
 ```
 
-- Agent **can** run `sudo soulguard sync`, `sudo soulguard status`, `sudo soulguard reset`
+- Agent **can** run `sudo soulguard sync`, `sudo soulguard status`, `sudo soulguard diff`
 - Agent **cannot** run `sudo soulguard approve`, `sudo soulguard init`, or `sudo chown`
 - The OS enforces the boundary
 
@@ -267,35 +267,9 @@ When a file is deleted from staging, the diff uses a `DELETED` sentinel combined
 | `soulguard status <workspace>` | Report vault + ledger file health    |
 | `soulguard diff <workspace>`   | Show pending changes + approval hash |
 
-## Roadmap
-
-### Current (v0.1) ✅
-
-- Vault enforcement via OS permissions (init, status, sync, diff, approve, reset)
-- Implicit proposals with hash-based approval
-- Vault file deletion through staging
-- Glob pattern support for vault and ledger
-- Git auto-commit on init, approve, and sync
-- Protection templates for OpenClaw
-- Self-protection (soulguard.json cannot be deleted or have invalid content approved)
-- Scoped sudoers generation
-- Idempotent init
-
-### Next (v0.2)
-
-- **OpenClaw plugin** — tool interception, helpful errors, staging redirect
-
-### Future
-
-- **Password/argon2 support** — optional defense-in-depth for approve
-- **Web approval UI** (`@soulguard/web`) — review diffs and approve from browser/phone
-- **Daemon mode** — persistent process with socket API, replaces sudo workflow
-- **Guardian LLM** — second model reviews proposals for identity drift
-- **Shields Up mode** — temporarily promote all ledger to vault during active attack
-
 ---
 
 _Designed by: Dandelion, Aster ⭐, Daisy 🌼_
 _Built by: [Mirascope](https://mirascope.com)_
 _Status: v0.1_
-_Date: 2026-02-17 (updated 2026-02-26)_
+_Date: 2026-02-17 (updated 2026-02-27)_
