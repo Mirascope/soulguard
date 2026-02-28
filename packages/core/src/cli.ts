@@ -6,6 +6,7 @@
 import { Command } from "commander";
 import { resolve } from "node:path";
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
 import { LiveConsoleOutput } from "./console-live.js";
 import { StatusCommand } from "./cli/status-command.js";
@@ -60,10 +61,20 @@ async function makeOptions(workspace: string): Promise<StatusOptions> {
   };
 }
 
+function getVersion(): string {
+  try {
+    return JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version;
+  } catch {
+    // Fallback for global installs where import.meta.url may not resolve correctly
+    const req = createRequire(import.meta.url);
+    return req("../package.json").version ?? "0.0.0";
+  }
+}
+
 const program = new Command()
   .name("soulguard")
   .description("Identity protection for AI agents")
-  .version(JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version);
+  .version(getVersion());
 
 program
   .command("status")

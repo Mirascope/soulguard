@@ -29,5 +29,8 @@
   "devDependencies": {
     "@types/bun": "latest",
     "typescript": "^5.7.0"
+  },
+  "bin": {
+    "soulguard": "bin/soulguard.js"
   }
 }
