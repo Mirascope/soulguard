@@ -29,16 +29,16 @@ See [DESIGN.md](DESIGN.md) for the full threat model, architecture, and design d
 # Install
 npm install -g soulguard
 
-# Initialize workspace (requires sudo)
-sudo soulguard init /path/to/workspace
+# Initialize (requires sudo) — point at the OpenClaw home directory
+sudo soulguard init ~/.openclaw
 
 # Check status
-soulguard status /path/to/workspace
+soulguard status ~/.openclaw
 
 # Agent edits staging copies in .soulguard/staging/
 # Then owner reviews and approves:
-soulguard diff /path/to/workspace
-sudo soulguard approve /path/to/workspace
+soulguard diff ~/.openclaw
+sudo soulguard approve ~/.openclaw
 ```
 
 ## How It Works
@@ -142,15 +142,17 @@ The OpenClaw plugin (`@soulguard/openclaw`) ships three templates that categoriz
 
 **Requires sudo:**
 
-- `sudo soulguard init <workspace>` — one-time setup
-- `sudo soulguard approve <workspace>` — apply staged changes
-- `sudo soulguard sync <workspace>` — fix ownership/permission drift + commit
-- `sudo soulguard reset <workspace>` — reset staging to match vault
+- `sudo soulguard init <dir>` — one-time setup
+- `sudo soulguard approve <dir>` — apply staged changes
+- `sudo soulguard sync <dir>` — fix ownership/permission drift + commit
+- `sudo soulguard reset <dir>` — reset staging to match vault
 
 **No sudo required:**
 
-- `soulguard status <workspace>` — vault and ledger health
-- `soulguard diff <workspace>` — show pending changes + approval hash
+- `soulguard status <dir>` — vault and ledger health
+- `soulguard diff <dir>` — show pending changes + approval hash
+
+For OpenClaw agents, `<dir>` is the OpenClaw home directory (e.g. `~/.openclaw/`), which contains both framework config (`openclaw.json`, `cron/`) and the agent workspace (`workspace/`).
 
 ## Links
 

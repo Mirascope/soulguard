@@ -8,29 +8,31 @@ For the core system, see [@soulguard/core](../core/).
 
 Templates define which paths go to vault, ledger, or are left unprotected. Every known path is explicitly categorized — no silent omissions.
 
-| Path            | Relaxed | Default | Paranoid |
-| --------------- | :-----: | :-----: | :------: |
-| **Identity**    |         |         |          |
-| SOUL.md         |   📒    |   🔒    |    🔒    |
-| AGENTS.md       |   📒    |   🔒    |    🔒    |
-| IDENTITY.md     |   📒    |   🔒    |    🔒    |
-| USER.md         |   📒    |   🔒    |    🔒    |
-| **Session**     |         |         |          |
-| TOOLS.md        |   📒    |   🔒    |    🔒    |
-| HEARTBEAT.md    |   📒    |   🔒    |    🔒    |
-| BOOTSTRAP.md    |   📒    |   🔒    |    🔒    |
-| **Memory**      |         |         |          |
-| MEMORY.md       |   📒    |   📒    |    🔒    |
-| memory/\*\*     |   📒    |   📒    |    🔒    |
-| **Skills**      |         |         |          |
-| skills/\*\*     |   📒    |   📒    |    🔒    |
-| **Config**      |         |         |          |
-| soulguard.json  |   🔒    |   🔒    |    🔒    |
-| openclaw.json   |   📒    |   🔒    |    🔒    |
-| cron/jobs.json  |   📒    |   🔒    |    🔒    |
-| extensions/\*\* |   📒    |   🔒    |    🔒    |
-| **Other**       |         |         |          |
-| sessions/\*\*   |    —    |    —    |    📒    |
+Paths are relative to the OpenClaw home directory (`~/.openclaw/`).
+
+| Path                        | Relaxed | Default | Paranoid |
+| --------------------------- | :-----: | :-----: | :------: |
+| **Config**                  |         |         |          |
+| soulguard.json              |   🔒    |   🔒    |    🔒    |
+| openclaw.json               |   📒    |   🔒    |    🔒    |
+| cron/jobs.json              |   📒    |   🔒    |    🔒    |
+| extensions/\*\*             |   📒    |   🔒    |    🔒    |
+| **Identity**                |         |         |          |
+| workspace/SOUL.md           |   📒    |   🔒    |    🔒    |
+| workspace/AGENTS.md         |   📒    |   🔒    |    🔒    |
+| workspace/IDENTITY.md       |   📒    |   🔒    |    🔒    |
+| workspace/USER.md           |   📒    |   🔒    |    🔒    |
+| **Session**                 |         |         |          |
+| workspace/TOOLS.md          |   📒    |   🔒    |    🔒    |
+| workspace/HEARTBEAT.md      |   📒    |   🔒    |    🔒    |
+| workspace/BOOTSTRAP.md      |   📒    |   🔒    |    🔒    |
+| **Memory**                  |         |         |          |
+| workspace/MEMORY.md         |   📒    |   📒    |    🔒    |
+| workspace/memory/\*\*/\*.md |   📒    |   📒    |    🔒    |
+| **Skills**                  |         |         |          |
+| workspace/skills/\*\*       |   📒    |   📒    |    🔒    |
+| **Other**                   |         |         |          |
+| workspace/sessions/\*\*     |    —    |    —    |    📒    |
 
 🔒 Vault (requires owner approval) · 📒 Ledger (tracked, agent writes freely) · — Unprotected
 
