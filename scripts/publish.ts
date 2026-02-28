@@ -90,13 +90,53 @@ function topoSort(packages: Map<string, PackageInfo>): PackageInfo[] {
   return sorted;
 }
 
+/** Read version from root package.json (single source of truth). */
+async function getRootVersion(): Promise<string> {
+  const root = await Bun.file(join(rootDir, "package.json")).json();
+  if (!root.version) {
+    throw new Error("Root package.json must have a 'version' field");
+  }
+  return root.version;
+}
+
+/** Sync version from root into a package's package.json and update inter-package deps. */
+async function syncVersion(dir: string, version: string, internalNames: Set<string>) {
+  const pkgPath = join(dir, "package.json");
+  const pkg = await Bun.file(pkgPath).json();
+  pkg.version = version;
+  // Update inter-package dependency versions to workspace:^
+  for (const depField of ["dependencies", "devDependencies", "peerDependencies"]) {
+    if (!pkg[depField]) continue;
+    for (const dep of Object.keys(pkg[depField])) {
+      if (internalNames.has(dep)) {
+        pkg[depField][dep] = "workspace:^";
+      }
+    }
+  }
+  await Bun.write(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
+}
+
 async function main() {
+  const version = await getRootVersion();
+  console.log(`📌 Version from root package.json: ${version}\n`);
+
   const entries = await readdir(packagesDir, { withFileTypes: true });
   const packages = new Map<string, PackageInfo>();
 
+  // First pass: collect package names
+  const pkgNames = new Set<string>();
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     const dir = join(packagesDir, entry.name);
+    const pkg = await readPackageJson(dir);
+    pkgNames.add(pkg.name);
+  }
+
+  // Second pass: sync versions and collect info
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const dir = join(packagesDir, entry.name);
+    await syncVersion(dir, version, pkgNames);
     const pkg = await readPackageJson(dir);
     packages.set(pkg.name, {
       name: pkg.name,

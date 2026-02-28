@@ -23,8 +23,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@soulguard/core": "workspace:^0.1.3",
-    "@soulguard/openclaw": "workspace:^0.1.3"
+    "@soulguard/core": "workspace:^",
+    "@soulguard/openclaw": "workspace:^"
   },
   "devDependencies": {
     "@types/bun": "latest",
