@@ -27,6 +27,19 @@ async function isPublished(name: string, version: string): Promise<boolean> {
   return exitCode === 0;
 }
 
+async function build(pkg: PackageInfo) {
+  console.log(`🔨 Building ${pkg.name}...`);
+  const proc = Bun.spawn(["bun", "run", "build"], {
+    cwd: pkg.dir,
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  const exitCode = await proc.exited;
+  if (exitCode !== 0) {
+    throw new Error(`Failed to build ${pkg.name}`);
+  }
+}
+
 async function publish(pkg: PackageInfo) {
   console.log(`📦 Publishing ${pkg.name}@${pkg.version}...`);
   const proc = Bun.spawn(["bun", "publish", "--access", "public"], {
@@ -112,6 +125,7 @@ async function main() {
       continue;
     }
 
+    await build(pkg);
     await publish(pkg);
   }
 
