@@ -164,4 +164,4 @@ MIT
 
 ---
 
-_Built with ❤️ for 🦞 by [Mirascope](https://mirascope.com)._
+_Built with ❤️ for 🦞 by [Chelae](https://chelae.com)._

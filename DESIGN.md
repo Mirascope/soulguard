@@ -270,6 +270,6 @@ When a file is deleted from staging, the diff uses a `DELETED` sentinel combined
 ---
 
 _Designed by: Dandelion, Aster ⭐, Daisy 🌼_
-_Built by: [Mirascope](https://mirascope.com)_
+_Built by: [Chelae](https://chelae.com)_
 _Status: v0.1_
 _Date: 2026-02-17 (updated 2026-02-27)_
