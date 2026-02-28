@@ -223,7 +223,7 @@ describe("generateSudoers", () => {
     const content = generateSudoers("agent", "/usr/local/bin/soulguard");
     expect(content).toContain("agent ALL=(root) NOPASSWD:");
     expect(content).toContain("soulguard sync *");
-    expect(content).toContain("soulguard stage *");
+    expect(content).toContain("soulguard reset *");
     expect(content).toContain("soulguard status *");
     expect(content).toContain("soulguard diff *");
     // Should NOT contain approve, init, or propose

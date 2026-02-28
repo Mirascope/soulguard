@@ -15,6 +15,7 @@ import { ok, err } from "./result.js";
 import { sync } from "./sync.js";
 import { DEFAULT_CONFIG } from "./constants.js";
 import { resolvePatterns } from "./glob.js";
+import { execSync } from "node:child_process";
 
 /** Result of `soulguard init` — idempotent, booleans report what was done */
 export type InitResult = {
@@ -70,12 +71,19 @@ export type InitOptions = {
 
 /** Generate scoped sudoers content */
 export function generateSudoers(agentUser: string, soulguardBin: string): string {
-  const cmds = ["sync", "stage", "status", "diff"].map((cmd) => `${soulguardBin} ${cmd} *`);
+  const cmds = ["sync", "status", "diff", "reset"].map((cmd) => `${soulguardBin} ${cmd} *`);
   return `# Soulguard — scoped sudo for agent user\n${agentUser} ALL=(root) NOPASSWD: ${cmds.join(", ")}\n`;
 }
 
 const DEFAULT_SUDOERS_PATH = "/etc/sudoers.d/soulguard";
-const SOULGUARD_BIN = "/usr/local/bin/soulguard";
+/** Resolve the soulguard binary path dynamically. */
+function resolveSoulguardBin(): string {
+  try {
+    return execSync("which soulguard", { encoding: "utf-8" }).trim();
+  } catch {
+    return "/usr/local/bin/soulguard";
+  }
+}
 
 export async function init(options: InitOptions): Promise<Result<InitResult, InitError>> {
   const {
@@ -296,7 +304,7 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   let sudoersCreated = false;
   const sudoersAlreadyExists = await existsAbsolute(sudoersPath);
   if (!sudoersAlreadyExists) {
-    const sudoersContent = generateSudoers(agentUser, SOULGUARD_BIN);
+    const sudoersContent = generateSudoers(agentUser, resolveSoulguardBin());
     const sudoersResult = await writeAbsolute(sudoersPath, sudoersContent);
     if (!sudoersResult.ok) {
       return err({ kind: "sudoers_write_failed", message: sudoersResult.error.message });
