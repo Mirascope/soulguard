@@ -1,6 +1,6 @@
 {
   "name": "soulguard",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Identity protection for AI agents",
   "homepage": "https://soulguard.ai",
   "license": "MIT",
@@ -23,8 +23,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@soulguard/core": "workspace:^0.1.2",
-    "@soulguard/openclaw": "workspace:^0.1.2"
+    "@soulguard/core": "workspace:^0.1.3",
+    "@soulguard/openclaw": "workspace:^0.1.3"
   },
   "devDependencies": {
     "@types/bun": "latest",
