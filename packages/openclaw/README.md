@@ -42,19 +42,11 @@ Templates define which paths go to vault, ledger, or are left unprotected. Every
 
 ## Plugin
 
-The OpenClaw plugin integrates soulguard status into the agent's context and provides helpful guidance when vault writes fail.
+The OpenClaw plugin integrates soulguard into the agent runtime:
 
-### Current
-
+- `before_tool_call` hook intercepts Write/Edit tool calls targeting vault files and redirects to staging
 - Reports soulguard status (vault/ledger health) in agent context
-- Detects vault write failures and suggests staging workflow
-
-### Planned
-
-- `before_tool_call` hook to intercept vault writes and redirect to staging
-- Native agent tools (`soulguard.propose`, `soulguard.status`, `soulguard.diff`)
-- Cron job gating for vaulted cron configs
-- Tool access control per configuration
+- Provides helpful error messages guiding the agent to the staging workflow
 
 ## Why a Plugin?
 
