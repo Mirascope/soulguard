@@ -30,10 +30,10 @@ Soulguard Diff — /workspace
   ✅ soulguard.json (no changes)
 
 1 file(s) changed
-Approval hash: dddd99b50cc6db47e3ab9cdcd8730fc93bb3eb4850bd5f2e01ad9c8a5b4a4dbb
+Apply hash: dddd99b50cc6db47e3ab9cdcd8730fc93bb3eb4850bd5f2e01ad9c8a5b4a4dbb
 APPROVE:
 
-Approved 1 file(s):
+Applied 1 file(s):
   ✅ skills/python.md
 
 Protect-tier files updated. Staging synced.

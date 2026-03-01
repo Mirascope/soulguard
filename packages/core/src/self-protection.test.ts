@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { MockSystemOps } from "./system-ops-mock.js";
 import { diff } from "./diff.js";
-import { approve } from "./approve.js";
+import { apply } from "./apply.js";
 import type { SoulguardConfig, FileOwnership } from "./types.js";
 
 const protectOwnership: FileOwnership = { user: "soulguardian", group: "soulguard", mode: "444" };
@@ -29,7 +29,7 @@ describe("self-protection", () => {
     });
 
     const hash = await getApprovalHash(ops, config);
-    const result = await approve({ ops, config, hash, protectOwnership });
+    const result = await apply({ ops, config, hash, protectOwnership });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("self_protection");
@@ -55,7 +55,7 @@ describe("self-protection", () => {
     });
 
     const hash = await getApprovalHash(ops, config);
-    const result = await approve({ ops, config, hash, protectOwnership });
+    const result = await apply({ ops, config, hash, protectOwnership });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("self_protection");
@@ -80,7 +80,7 @@ describe("self-protection", () => {
     );
 
     const hash = await getApprovalHash(ops, config);
-    const result = await approve({ ops, config, hash, protectOwnership });
+    const result = await apply({ ops, config, hash, protectOwnership });
     expect(result.ok).toBe(true);
   });
 
@@ -118,7 +118,7 @@ describe("self-protection", () => {
     );
 
     const hash = await getApprovalHash(ops, config);
-    const result = await approve({ ops, config, hash, protectOwnership });
+    const result = await apply({ ops, config, hash, protectOwnership });
     expect(result.ok).toBe(true);
   });
 
@@ -139,7 +139,7 @@ describe("self-protection", () => {
 
     const hash = await getApprovalHash(ops, config);
     // Explicitly pass empty policies — self-protection still runs
-    const result = await approve({ ops, config, hash, protectOwnership, policies: [] });
+    const result = await apply({ ops, config, hash, protectOwnership, policies: [] });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("self_protection");

@@ -14,9 +14,9 @@ Soulguard Diff — /workspace
   ✅ soulguard.json (no changes)
 
 1 file(s) changed
-Approval hash: 24d6aaec960a3d74c84690b786336bdcce7c35585e353be867f6f0606093618e
+Apply hash: 24d6aaec960a3d74c84690b786336bdcce7c35585e353be867f6f0606093618e
 
-Approved 1 file(s):
+Applied 1 file(s):
   ✅ BOOTSTRAP.md
 
 Protect-tier files updated. Staging synced.

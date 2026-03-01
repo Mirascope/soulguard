@@ -132,7 +132,7 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
               .map((d) => `--- ${d.path}\n${d.diff}`);
             let text = lines.join("\n\n") || "No modified files.";
             if (result.value.approvalHash) {
-              text += `\n\n────────────────────────────────────────\nApproval hash: ${result.value.approvalHash}\nTo approve: soulguard approve --hash ${result.value.approvalHash}`;
+              text += `\n\n────────────────────────────────────────\nApproval hash: ${result.value.approvalHash}\nTo apply: soulguard apply --hash ${result.value.approvalHash}`;
             }
             return { content: [{ type: "text" as const, text }] };
           },

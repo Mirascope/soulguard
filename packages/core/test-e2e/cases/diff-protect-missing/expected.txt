@@ -3,4 +3,4 @@ Soulguard Diff — /workspace
   ⚠️ SOUL.md (protect-tier file missing — new file)
 
 1 file(s) changed
-Approval hash: ddc1ac8615d0e23d031c518f50b17bacc02fd15e5e5cd1a6e2993978f50221a0
+Apply hash: ddc1ac8615d0e23d031c518f50b17bacc02fd15e5e5cd1a6e2993978f50221a0

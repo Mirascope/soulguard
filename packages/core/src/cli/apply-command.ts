@@ -1,5 +1,5 @@
 /**
- * ApproveCommand — approve and apply staging changes to protect-tier.
+ * ApplyCommand — approve and apply staging changes to protect-tier.
  *
  * Two modes:
  * - `--hash <hash>`: Non-interactive, verifies hash and applies.
@@ -7,20 +7,20 @@
  */
 
 import type { ConsoleOutput } from "../console.js";
-import type { ApproveOptions } from "../approve.js";
-import { approve } from "../approve.js";
+import type { ApplyOptions } from "../apply.js";
+import { apply } from "../apply.js";
 import { diff } from "../diff.js";
 
-export type ApproveCommandOptions = Omit<ApproveOptions, "hash"> & {
+export type ApplyCommandOptions = Omit<ApplyOptions, "hash"> & {
   /** Pre-computed hash for non-interactive mode */
   hash?: string;
   /** Prompt function for interactive mode (returns true if user confirms) */
   prompt?: () => Promise<boolean>;
 };
 
-export class ApproveCommand {
+export class ApplyCommand {
   constructor(
-    private opts: ApproveCommandOptions,
+    private opts: ApplyCommandOptions,
     private out: ConsoleOutput,
   ) {}
 
@@ -35,12 +35,12 @@ export class ApproveCommand {
         return 1;
       }
       if (!diffResult.value.hasChanges) {
-        this.out.info("No changes to approve — staging matches protect-tier.");
+        this.out.info("No changes to apply — staging matches protect-tier.");
         return 0;
       }
 
       // Show diff
-      this.out.heading(`Soulguard Approve — ${this.opts.ops.workspace}`);
+      this.out.heading(`Soulguard Apply — ${this.opts.ops.workspace}`);
       this.out.write("");
       for (const file of diffResult.value.files) {
         if (file.status === "modified" && file.diff) {
@@ -48,7 +48,7 @@ export class ApproveCommand {
         }
       }
       this.out.write("");
-      this.out.info(`Approval hash: ${diffResult.value.approvalHash}`);
+      this.out.info(`Apply hash: ${diffResult.value.approvalHash}`);
       this.out.write("");
 
       // Prompt
@@ -63,12 +63,12 @@ export class ApproveCommand {
       hash = diffResult.value.approvalHash!;
     }
 
-    const result = await approve({ ...this.opts, hash });
+    const result = await apply({ ...this.opts, hash });
 
     if (!result.ok) {
       switch (result.error.kind) {
         case "no_changes":
-          this.out.info("No changes to approve — staging matches protect-tier.");
+          this.out.info("No changes to apply — staging matches protect-tier.");
           return 0;
         case "hash_mismatch":
           this.out.error(result.error.message);
@@ -96,7 +96,7 @@ export class ApproveCommand {
     }
 
     this.out.write("");
-    this.out.success(`Approved ${result.value.appliedFiles.length} file(s):`);
+    this.out.success(`Applied ${result.value.appliedFiles.length} file(s):`);
     for (const file of result.value.appliedFiles) {
       this.out.success(`  ✅ ${file}`);
     }

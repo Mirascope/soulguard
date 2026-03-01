@@ -1,5 +1,5 @@
 # Glob protect-tier files: protect tier covers "skills/*.md" pattern.
-# Tests that glob patterns resolve to actual files in status, diff, and approve.
+# Tests that glob patterns resolve to actual files in status, diff, and apply.
 
 # Setup: vault with glob + a couple matching files
 cat > soulguard.json <<'EOF'
@@ -22,9 +22,9 @@ echo "DIFF:"
 NO_COLOR=1 soulguard diff . 2>&1
 
 # Approve the change
-HASH=$(NO_COLOR=1 soulguard diff . 2>&1 | grep 'Approval hash:' | awk '{print $NF}')
+HASH=$(NO_COLOR=1 soulguard diff . 2>&1 | grep 'Apply hash:' | awk '{print $NF}')
 echo "APPROVE:"
-soulguard approve . --hash "$HASH"
+soulguard apply . --hash "$HASH"
 
 echo "VAULT CONTENT:"
 cat skills/python.md

@@ -12,11 +12,11 @@ soulguard init . --agent-user agent
 su - agent -c "echo '# My Updated Soul' > $(pwd)/.soulguard/staging/SOUL.md"
 
 # Get approval hash from diff output
-HASH=$(NO_COLOR=1 soulguard diff . 2>&1 | grep 'Approval hash:' | awk '{print $NF}')
+HASH=$(NO_COLOR=1 soulguard diff . 2>&1 | grep 'Apply hash:' | awk '{print $NF}')
 echo "HASH: $HASH"
 
-# Owner approves with hash
-soulguard approve . --hash "$HASH"
+# Owner applies with hash
+soulguard apply . --hash "$HASH"
 
 # Verify protect-tier file has new content
 echo "PROTECTED:"

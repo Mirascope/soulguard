@@ -1,5 +1,5 @@
 # After owner runs init, agent can't run init again.
-# Init writes scoped sudoers that excludes init and approve.
+# Init writes scoped sudoers that excludes init and apply.
 
 echo '# My Soul' > SOUL.md
 cat > soulguard.json <<'EOF'
