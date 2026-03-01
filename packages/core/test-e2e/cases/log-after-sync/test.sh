@@ -8,7 +8,7 @@ mkdir -p memory
 echo '# Notes' > memory/notes.md
 
 # Owner runs init (creates git repo + initial sync)
-soulguard init . --agent-user agent
+SUDO_USER=agent soulguard init .
 
 # Modify a watch file and sync to trigger a second git commit
 echo '# Updated Notes' > memory/notes.md

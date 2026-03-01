@@ -129,9 +129,8 @@ describe("apply (implicit proposals)", () => {
   test("syncs staging after successful apply", async () => {
     const ops = setup();
     const hash = await getApprovalHash(ops, config);
-    const stagingOwnership = { user: "agent", group: "soulguard", mode: "644" };
 
-    const result = await apply({ ops, config, hash, protectOwnership, stagingOwnership });
+    const result = await apply({ ops, config, hash, protectOwnership });
     expect(result.ok).toBe(true);
 
     // Staging should now match protect tier (no diff)

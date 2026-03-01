@@ -4,7 +4,6 @@ import { MockSystemOps } from "./system-ops-mock.js";
 
 const WORKSPACE = "/test/workspace";
 const VAULT_OWNERSHIP = { user: "soulguardian", group: "soulguard", mode: "444" };
-const LEDGER_OWNERSHIP = { user: "aster", group: "staff", mode: "644" };
 
 function makeMock() {
   const ops = new MockSystemOps(WORKSPACE);
@@ -17,7 +16,6 @@ function opts(config: { version: 1; protect: string[]; watch: string[] }, ops: M
   return {
     config,
     expectedProtectOwnership: VAULT_OWNERSHIP,
-    expectedWatchOwnership: LEDGER_OWNERSHIP,
     ops,
   };
 }
@@ -85,21 +83,21 @@ describe("sync", () => {
     expect(ops.ops).toHaveLength(1); // only chmod
   });
 
-  test("releases watch-tier files owned by soulguardian", async () => {
+  test("watch-tier files are not modified by sync", async () => {
     const ops = makeMock();
     ops.addFile("notes.md", "# Notes", {
-      owner: VAULT_OWNERSHIP.user,
-      group: VAULT_OWNERSHIP.group,
-      mode: "444",
+      owner: "selene",
+      group: "staff",
+      mode: "644",
     });
 
     const result = await sync(opts({ version: 1, protect: [], watch: ["notes.md"] }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.before.issues).toHaveLength(1);
-    expect(result.value.after.issues).toHaveLength(0);
-    expect(ops.ops).toHaveLength(2); // chown + chmod
+    // Watch tier has no ownership expectations — no issues, no ops
+    expect(result.value.before.issues).toHaveLength(0);
+    expect(ops.ops).toHaveLength(0);
   });
 
   test("handles multiple files across tiers", async () => {
@@ -111,9 +109,9 @@ describe("sync", () => {
       mode: "444",
     });
     ops.addFile("notes.md", "# Notes", {
-      owner: VAULT_OWNERSHIP.user,
-      group: VAULT_OWNERSHIP.group,
-      mode: "444",
+      owner: "selene",
+      group: "staff",
+      mode: "644",
     });
 
     const result = await sync(
@@ -122,8 +120,8 @@ describe("sync", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    // Before: SOUL.md drifted (protect), notes.md drifted (watch)
-    expect(result.value.before.issues).toHaveLength(2);
+    // Before: SOUL.md drifted (protect only — watch has no ownership checks)
+    expect(result.value.before.issues).toHaveLength(1);
     // After: all clean
     expect(result.value.after.issues).toHaveLength(0);
     expect(result.value.errors).toHaveLength(0);
@@ -138,9 +136,9 @@ describe("sync", () => {
       mode: "444",
     });
     ops.addFile("notes.md", "# Notes", {
-      owner: LEDGER_OWNERSHIP.user,
-      group: LEDGER_OWNERSHIP.group,
-      mode: LEDGER_OWNERSHIP.mode,
+      owner: "selene",
+      group: "staff",
+      mode: "644",
     });
 
     // Make post-add diff check fail (= files staged)

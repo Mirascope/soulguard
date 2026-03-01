@@ -22,11 +22,6 @@ import type { StatusOptions } from "./status.js";
 import type { SoulguardConfig } from "./types.js";
 
 import { IDENTITY, PROTECT_OWNERSHIP } from "./constants.js";
-function watchOwnership(): { user: string; group: string; mode: string } {
-  const agentUser = process.env.SUDO_USER ?? "agent";
-  return { user: agentUser, group: IDENTITY.group, mode: "644" };
-}
-
 const DEFAULT_CONFIG: SoulguardConfig = {
   version: 1 as const,
   protect: [
@@ -58,7 +53,6 @@ async function makeOptions(workspace: string): Promise<StatusOptions> {
   return {
     config,
     expectedProtectOwnership: PROTECT_OWNERSHIP,
-    expectedWatchOwnership: watchOwnership(),
     ops,
   };
 }
@@ -114,15 +108,20 @@ program
   .command("init")
   .description("Initialize soulguard for a workspace")
   .argument("[workspace]", "workspace path", process.cwd())
-  .option("--agent-user <user>", "agent OS username (default: $SUDO_USER or 'agent')")
+
   .option("--template <name>", "protection template")
-  .action(async (workspace: string, opts: { agentUser?: string; template?: string }) => {
+  .action(async (workspace: string, opts: { template?: string }) => {
     const out = new LiveConsoleOutput();
     const absWorkspace = resolve(workspace);
     const nodeOps = new NodeSystemOps(absWorkspace);
 
-    // Infer agent user: explicit flag > $SUDO_USER > "agent"
-    const agentUser = opts.agentUser ?? process.env.SUDO_USER ?? "agent";
+    // $SUDO_USER is always set when running under sudo (which init requires)
+    const callerUser = process.env.SUDO_USER;
+    if (!callerUser) {
+      out.error("soulguard init requires sudo. Run with: sudo soulguard init");
+      process.exitCode = 1;
+      return;
+    }
 
     // Use existing config if present, otherwise default
     let config: SoulguardConfig = DEFAULT_CONFIG;
@@ -138,7 +137,7 @@ program
         ops: nodeOps,
         identity: IDENTITY,
         config,
-        agentUser,
+        callerUser,
         writeAbsolute: writeFileAbsolute,
         existsAbsolute,
       },
@@ -180,13 +179,12 @@ program
     const out = new LiveConsoleOutput();
     try {
       const statusOpts = await makeOptions(workspace);
-      const agentUser = process.env.SUDO_USER ?? "agent";
+
       const cmd = new ApplyCommand(
         {
           ops: statusOpts.ops,
           config: statusOpts.config,
           protectOwnership: PROTECT_OWNERSHIP,
-          stagingOwnership: { user: agentUser, group: IDENTITY.group, mode: "644" },
           hash: opts.hash,
           prompt: opts.hash
             ? undefined
@@ -219,12 +217,11 @@ program
     const out = new LiveConsoleOutput();
     try {
       const statusOpts = await makeOptions(workspace);
-      const agentUser = process.env.SUDO_USER ?? "agent";
+
       const cmd = new ResetCommand(
         {
           ops: statusOpts.ops,
           config: statusOpts.config,
-          stagingOwnership: { user: agentUser, group: IDENTITY.group, mode: "644" },
         },
         out,
       );

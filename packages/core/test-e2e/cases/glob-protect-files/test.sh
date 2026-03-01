@@ -10,7 +10,7 @@ echo '# Python' > skills/python.md
 echo '# TypeScript' > skills/typescript.md
 
 # Owner runs init
-soulguard init . --agent-user agent
+SUDO_USER=agent soulguard init .
 
 echo "STATUS:"
 NO_COLOR=1 soulguard status . 2>&1

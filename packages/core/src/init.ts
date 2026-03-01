@@ -57,8 +57,8 @@ export type InitOptions = {
   ops: SystemOperations;
   identity: SystemIdentity;
   config?: SoulguardConfig;
-  /** Agent's OS username (for sudoers and staging ownership) */
-  agentUser: string;
+  /** Calling user's OS username (for sudoers) */
+  callerUser: string;
   /** Writer for files outside the workspace (sudoers). Keeps SystemOperations clean. */
   writeAbsolute: AbsoluteWriter;
   /** Check if absolute path exists. Used for sudoers idempotency. */
@@ -70,9 +70,9 @@ export type InitOptions = {
 };
 
 /** Generate scoped sudoers content */
-export function generateSudoers(agentUser: string, soulguardBin: string): string {
+export function generateSudoers(callerUser: string, soulguardBin: string): string {
   const cmds = ["sync", "status", "diff", "reset"].map((cmd) => `${soulguardBin} ${cmd} *`);
-  return `# Soulguard — scoped sudo for agent user\n${agentUser} ALL=(root) NOPASSWD: ${cmds.join(", ")}\n`;
+  return `# Soulguard — scoped sudo for calling user\n${callerUser} ALL=(root) NOPASSWD: ${cmds.join(", ")}\n`;
 }
 
 const DEFAULT_SUDOERS_PATH = "/etc/sudoers.d/soulguard";
@@ -90,10 +90,10 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     ops,
     identity,
     config: configOption,
-    agentUser,
     writeAbsolute,
     existsAbsolute,
     sudoersPath = DEFAULT_SUDOERS_PATH,
+    callerUser,
   } = options;
   const config = configOption ?? DEFAULT_CONFIG;
 
@@ -144,9 +144,9 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   // ── 2b. Add agent user to soulguard group ─────────────────────────
   // Agent needs group membership to write staging siblings in group-writable dirs.
   if (process.platform === "darwin") {
-    await ops.exec("dseditgroup", ["-o", "edit", "-a", agentUser, "-t", "user", identity.group]);
+    await ops.exec("dseditgroup", ["-o", "edit", "-a", callerUser, "-t", "user", identity.group]);
   } else {
-    await ops.exec("usermod", ["-aG", identity.group, agentUser]);
+    await ops.exec("usermod", ["-aG", identity.group, callerUser]);
   }
 
   // ── 3. Write config ──────────────────────────────────────────────────
@@ -170,16 +170,10 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     group: identity.group,
     mode: "444",
   };
-  const watchOwnership: FileOwnership = {
-    user: agentUser,
-    group: identity.group,
-    mode: "644",
-  };
 
   const syncResult = await sync({
     config,
     expectedProtectOwnership: protectOwnership,
-    expectedWatchOwnership: watchOwnership,
     ops,
   });
   if (!syncResult.ok) {
@@ -206,9 +200,9 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
           message: `copy ${protectFile} failed: ${copyResult.error.kind}`,
         });
       }
-      // Make staging copy agent-writable
+      // Make staging copy writable by the calling user
       const chownFile = await ops.chown(siblingPath, {
-        user: agentUser,
+        user: callerUser,
         group: identity.group,
       });
       if (!chownFile.ok) {
@@ -320,7 +314,7 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   let sudoersCreated = false;
   const sudoersAlreadyExists = await existsAbsolute(sudoersPath);
   if (!sudoersAlreadyExists) {
-    const sudoersContent = generateSudoers(agentUser, resolveSoulguardBin());
+    const sudoersContent = generateSudoers(callerUser, resolveSoulguardBin());
     const sudoersResult = await writeAbsolute(sudoersPath, sudoersContent);
     if (!sudoersResult.ok) {
       return err({ kind: "sudoers_write_failed", message: sudoersResult.error.message });

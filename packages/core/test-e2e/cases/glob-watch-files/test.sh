@@ -10,7 +10,7 @@ echo '# Day 1' > memory/2026-01-01.md
 echo '# Day 2' > memory/2026-01-02.md
 
 # Owner runs init
-soulguard init . --agent-user agent
+SUDO_USER=agent soulguard init .
 
 echo "STATUS:"
 NO_COLOR=1 soulguard status . 2>&1

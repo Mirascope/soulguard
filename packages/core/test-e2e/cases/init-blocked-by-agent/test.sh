@@ -7,9 +7,9 @@ cat > soulguard.json <<'EOF'
 EOF
 
 # Owner runs init (as root)
-soulguard init . --agent-user agent
+SUDO_USER=agent soulguard init .
 
 echo "--- AGENT TRIES INIT ---"
 
 # Agent tries init — should be denied by scoped sudoers
-su - agent -c "sudo soulguard init $(pwd) --agent-user agent" 2>&1
+su - agent -c "sudo soulguard init $(pwd)" 2>&1

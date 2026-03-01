@@ -6,7 +6,7 @@ cat > soulguard.json <<'EOF'
 EOF
 
 # Owner runs init
-soulguard init . --agent-user agent
+SUDO_USER=agent soulguard init .
 
 # Agent modifies staging
 su - agent -c "echo '# My Updated Soul' > $(pwd)/.soulguard.SOUL.md"

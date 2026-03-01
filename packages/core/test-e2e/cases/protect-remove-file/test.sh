@@ -9,7 +9,7 @@ echo '# My Soul' > SOUL.md
 echo '# Bootstrap' > BOOTSTRAP.md
 
 # Owner runs init
-soulguard init . --agent-user agent
+SUDO_USER=agent soulguard init .
 
 # Agent deletes BOOTSTRAP.md from staging (done with it)
 su - agent -c "rm $(pwd)/.soulguard.BOOTSTRAP.md"

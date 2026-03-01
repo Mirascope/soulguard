@@ -1,7 +1,7 @@
 # Setup: create and protect a protect-tier file (as owner/root)
 echo '{"version": 1, "protect": ["SOUL.md"], "watch": []}' > soulguard.json
 echo '# My Soul' > SOUL.md
-soulguard init . --agent-user agent > /dev/null 2>&1
+SUDO_USER=agent soulguard init . > /dev/null 2>&1
 soulguard sync .
 
 # Attack 1: Agent tries to write to the protected file (should fail)

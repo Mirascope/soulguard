@@ -8,7 +8,7 @@ EOF
 echo '# My Soul' > SOUL.md
 
 # Owner runs init
-soulguard init . --agent-user agent
+SUDO_USER=agent soulguard init .
 
 # Agent writes invalid config to staging (missing "ledger" field)
 su - agent -c "echo '{\"vault\":[\"SOUL.md\"]}' > $(pwd)/.soulguard.soulguard.json"

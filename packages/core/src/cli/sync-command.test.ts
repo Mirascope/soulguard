@@ -5,7 +5,6 @@ import { SyncCommand } from "./sync-command.js";
 import type { SyncOptions } from "../sync.js";
 
 const VAULT_OWNERSHIP = { user: "soulguardian", group: "soulguard", mode: "444" };
-const LEDGER_OWNERSHIP = { user: "agent", group: "soulguard", mode: "644" };
 const VAULT_MOCK = { owner: "soulguardian", group: "soulguard", mode: "444" };
 const LEDGER_MOCK = { owner: "agent", group: "soulguard", mode: "644" };
 
@@ -20,7 +19,6 @@ function setup(configureMock: (ops: MockSystemOps) => void): {
   const opts: SyncOptions = {
     config: { version: 1, protect: ["SOUL.md"], watch: ["memory/today.md"] },
     expectedProtectOwnership: VAULT_OWNERSHIP,
-    expectedWatchOwnership: LEDGER_OWNERSHIP,
     ops,
   };
   return { cmd: new SyncCommand(opts, out), out, ops };

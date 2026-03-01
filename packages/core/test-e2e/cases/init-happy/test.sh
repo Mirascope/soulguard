@@ -8,7 +8,7 @@ cat > soulguard.json <<'EOF'
 EOF
 
 # Owner runs init
-soulguard init . --agent-user agent
+SUDO_USER=agent soulguard init .
 
 # Owner verifies status is clean
 soulguard status .

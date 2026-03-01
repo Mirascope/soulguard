@@ -36,8 +36,6 @@ export type StatusOptions = {
   config: SoulguardConfig;
   /** Expected ownership for protect-tier files (e.g. soulguardian:soulguard 444) */
   expectedProtectOwnership: FileOwnership;
-  /** Expected ownership for watch-tier files (e.g. agent:staff 644) */
-  expectedWatchOwnership: FileOwnership;
   ops: SystemOperations;
 };
 
@@ -45,7 +43,7 @@ export type StatusOptions = {
  * Check the protection status of all configured files.
  */
 export async function status(options: StatusOptions): Promise<Result<StatusResult, IOError>> {
-  const { config, expectedProtectOwnership, expectedWatchOwnership, ops } = options;
+  const { config, expectedProtectOwnership, ops } = options;
 
   // Resolve glob patterns to concrete file paths
   const [protectResult, watchResult] = await Promise.all([
@@ -61,12 +59,26 @@ export async function status(options: StatusOptions): Promise<Result<StatusResul
     Promise.all(
       protectPaths.map((path) => checkPath(path, "protect", expectedProtectOwnership, ops)),
     ),
-    Promise.all(watchPaths.map((path) => checkPath(path, "watch", expectedWatchOwnership, ops))),
+    Promise.all(watchPaths.map((path) => checkWatchPath(path, ops))),
   ]);
 
   const issues = [...protect, ...watch].filter((f) => f.status !== "ok");
 
   return ok({ protect, watch, issues });
+}
+
+/**
+ * Check a watch-tier file — just verify it exists (no ownership checks).
+ */
+async function checkWatchPath(filePath: string, ops: SystemOperations): Promise<FileStatus> {
+  const infoResult = await getFileInfo(filePath, ops);
+  if (!infoResult.ok) {
+    if (infoResult.error.kind === "not_found") {
+      return { tier: "watch", status: "missing", path: filePath };
+    }
+    return { tier: "watch", status: "error", path: filePath, error: infoResult.error };
+  }
+  return { tier: "watch", status: "ok", file: infoResult.value };
 }
 
 async function checkPath(
