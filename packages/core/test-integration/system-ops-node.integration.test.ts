@@ -88,9 +88,9 @@ describe("NodeSystemOps integration (root + test users)", () => {
     });
   });
 
-  // ── Full vault workflow ─────────────────────────────────────────────
+  // ── Full protect workflow ─────────────────────────────────────────────
 
-  describe("vault workflow", () => {
+  describe("protect workflow", () => {
     test("protect → verify → release cycle", async () => {
       await writeFile(join(workspace, "SOUL.md"), "# My Soul");
 

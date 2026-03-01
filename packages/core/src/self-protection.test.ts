@@ -4,7 +4,7 @@ import { diff } from "./diff.js";
 import { approve } from "./approve.js";
 import type { SoulguardConfig, FileOwnership } from "./types.js";
 
-const vaultOwnership: FileOwnership = { user: "soulguardian", group: "soulguard", mode: "444" };
+const protectOwnership: FileOwnership = { user: "soulguardian", group: "soulguard", mode: "444" };
 
 async function getApprovalHash(ops: MockSystemOps, config: SoulguardConfig): Promise<string> {
   const result = await diff({ ops, config });
@@ -14,9 +14,9 @@ async function getApprovalHash(ops: MockSystemOps, config: SoulguardConfig): Pro
 
 describe("self-protection", () => {
   test("blocks invalid JSON in soulguard.json", async () => {
-    const config: SoulguardConfig = { vault: ["soulguard.json"], ledger: [] };
+    const config: SoulguardConfig = { version: 1, protect: ["soulguard.json"], watch: [] };
     const ops = new MockSystemOps("/workspace");
-    ops.addFile("soulguard.json", '{"vault":["soulguard.json"],"ledger":[]}', {
+    ops.addFile("soulguard.json", '{"version":1,"protect":["soulguard.json"],"watch":[]}', {
       owner: "soulguardian",
       group: "soulguard",
       mode: "444",
@@ -29,7 +29,7 @@ describe("self-protection", () => {
     });
 
     const hash = await getApprovalHash(ops, config);
-    const result = await approve({ ops, config, hash, vaultOwnership });
+    const result = await approve({ ops, config, hash, protectOwnership });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("self_protection");
@@ -39,23 +39,23 @@ describe("self-protection", () => {
   });
 
   test("blocks invalid schema in soulguard.json", async () => {
-    const config: SoulguardConfig = { vault: ["soulguard.json"], ledger: [] };
+    const config: SoulguardConfig = { version: 1, protect: ["soulguard.json"], watch: [] };
     const ops = new MockSystemOps("/workspace");
-    ops.addFile("soulguard.json", '{"vault":["soulguard.json"],"ledger":[]}', {
+    ops.addFile("soulguard.json", '{"version":1,"protect":["soulguard.json"],"watch":[]}', {
       owner: "soulguardian",
       group: "soulguard",
       mode: "444",
     });
     ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
-    // Missing ledger field
-    ops.addFile(".soulguard/staging/soulguard.json", '{"vault":["soulguard.json"]}', {
+    // Missing watch field
+    ops.addFile(".soulguard/staging/soulguard.json", '{"version":1,"protect":["soulguard.json"]}', {
       owner: "agent",
       group: "soulguard",
       mode: "644",
     });
 
     const hash = await getApprovalHash(ops, config);
-    const result = await approve({ ops, config, hash, vaultOwnership });
+    const result = await approve({ ops, config, hash, protectOwnership });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("self_protection");
@@ -65,9 +65,9 @@ describe("self-protection", () => {
   });
 
   test("allows valid soulguard.json changes", async () => {
-    const config: SoulguardConfig = { vault: ["soulguard.json"], ledger: [] };
+    const config: SoulguardConfig = { version: 1, protect: ["soulguard.json"], watch: [] };
     const ops = new MockSystemOps("/workspace");
-    ops.addFile("soulguard.json", '{"vault":["soulguard.json"],"ledger":[]}', {
+    ops.addFile("soulguard.json", '{"version":1,"protect":["soulguard.json"],"watch":[]}', {
       owner: "soulguardian",
       group: "soulguard",
       mode: "444",
@@ -75,28 +75,36 @@ describe("self-protection", () => {
     ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
     ops.addFile(
       ".soulguard/staging/soulguard.json",
-      '{"vault":["soulguard.json","SOUL.md"],"ledger":["memory/**"]}',
+      '{"version":1,"protect":["soulguard.json","SOUL.md"],"watch":["memory/**"]}',
       { owner: "agent", group: "soulguard", mode: "644" },
     );
 
     const hash = await getApprovalHash(ops, config);
-    const result = await approve({ ops, config, hash, vaultOwnership });
+    const result = await approve({ ops, config, hash, protectOwnership });
     expect(result.ok).toBe(true);
   });
 
   test("does not run when soulguard.json is not being changed", async () => {
-    const config: SoulguardConfig = { vault: ["SOUL.md", "soulguard.json"], ledger: [] };
+    const config: SoulguardConfig = {
+      version: 1,
+      protect: ["SOUL.md", "soulguard.json"],
+      watch: [],
+    };
     const ops = new MockSystemOps("/workspace");
     ops.addFile("SOUL.md", "original", {
       owner: "soulguardian",
       group: "soulguard",
       mode: "444",
     });
-    ops.addFile("soulguard.json", '{"vault":["SOUL.md","soulguard.json"],"ledger":[]}', {
-      owner: "soulguardian",
-      group: "soulguard",
-      mode: "444",
-    });
+    ops.addFile(
+      "soulguard.json",
+      '{"version":1,"protect":["SOUL.md","soulguard.json"],"watch":[]}',
+      {
+        owner: "soulguardian",
+        group: "soulguard",
+        mode: "444",
+      },
+    );
     ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
     ops.addFile(".soulguard/staging/SOUL.md", "modified", {
       owner: "agent",
@@ -105,19 +113,19 @@ describe("self-protection", () => {
     });
     ops.addFile(
       ".soulguard/staging/soulguard.json",
-      '{"vault":["SOUL.md","soulguard.json"],"ledger":[]}',
+      '{"version":1,"protect":["SOUL.md","soulguard.json"],"watch":[]}',
       { owner: "agent", group: "soulguard", mode: "644" },
     );
 
     const hash = await getApprovalHash(ops, config);
-    const result = await approve({ ops, config, hash, vaultOwnership });
+    const result = await approve({ ops, config, hash, protectOwnership });
     expect(result.ok).toBe(true);
   });
 
   test("self-protection cannot be bypassed with empty policies", async () => {
-    const config: SoulguardConfig = { vault: ["soulguard.json"], ledger: [] };
+    const config: SoulguardConfig = { version: 1, protect: ["soulguard.json"], watch: [] };
     const ops = new MockSystemOps("/workspace");
-    ops.addFile("soulguard.json", '{"vault":["soulguard.json"],"ledger":[]}', {
+    ops.addFile("soulguard.json", '{"version":1,"protect":["soulguard.json"],"watch":[]}', {
       owner: "soulguardian",
       group: "soulguard",
       mode: "444",
@@ -131,7 +139,7 @@ describe("self-protection", () => {
 
     const hash = await getApprovalHash(ops, config);
     // Explicitly pass empty policies — self-protection still runs
-    const result = await approve({ ops, config, hash, vaultOwnership, policies: [] });
+    const result = await approve({ ops, config, hash, protectOwnership, policies: [] });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("self_protection");

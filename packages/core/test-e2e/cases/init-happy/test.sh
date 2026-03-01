@@ -4,7 +4,7 @@
 # Create a minimal config and soul file
 echo '# My Soul' > SOUL.md
 cat > soulguard.json <<'EOF'
-{"vault":["SOUL.md","soulguard.json"],"ledger":[]}
+{"version": 1, "protect":["SOUL.md","soulguard.json"],"watch":[]}
 EOF
 
 # Owner runs init
@@ -16,5 +16,5 @@ soulguard status .
 # Verify staging copy exists
 ls .soulguard/staging/SOUL.md && echo "STAGING: OK" || echo "STAGING: MISSING"
 
-# Agent can't write to vault file
+# Agent can't write to protect-tier file
 su - agent -c "(echo hacked > $(pwd)/SOUL.md) 2>&1"

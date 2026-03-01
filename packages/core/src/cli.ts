@@ -20,14 +20,15 @@ import { parseConfig } from "./schema.js";
 import type { StatusOptions } from "./status.js";
 import type { SoulguardConfig } from "./types.js";
 
-import { IDENTITY, VAULT_OWNERSHIP } from "./constants.js";
-function ledgerOwnership(): { user: string; group: string; mode: string } {
+import { IDENTITY, PROTECT_OWNERSHIP } from "./constants.js";
+function watchOwnership(): { user: string; group: string; mode: string } {
   const agentUser = process.env.SUDO_USER ?? "agent";
   return { user: agentUser, group: IDENTITY.group, mode: "644" };
 }
 
 const DEFAULT_CONFIG: SoulguardConfig = {
-  vault: [
+  version: 1 as const,
+  protect: [
     "SOUL.md",
     "AGENTS.md",
     "IDENTITY.md",
@@ -37,7 +38,7 @@ const DEFAULT_CONFIG: SoulguardConfig = {
     "BOOTSTRAP.md",
     "soulguard.json",
   ],
-  ledger: ["memory/**", "skills/**"],
+  watch: ["memory/**", "skills/**"],
 };
 
 async function makeOptions(workspace: string): Promise<StatusOptions> {
@@ -55,8 +56,8 @@ async function makeOptions(workspace: string): Promise<StatusOptions> {
 
   return {
     config,
-    expectedVaultOwnership: VAULT_OWNERSHIP,
-    expectedLedgerOwnership: ledgerOwnership(),
+    expectedProtectOwnership: PROTECT_OWNERSHIP,
+    expectedWatchOwnership: watchOwnership(),
     ops,
   };
 }
@@ -147,7 +148,7 @@ program
 
 program
   .command("diff")
-  .description("Compare vault files against staging copies")
+  .description("Compare protect-tier files against staging copies")
   .argument("[workspace]", "workspace path", process.cwd())
   .argument("[files...]", "specific files to diff")
   .action(async (workspace: string, files: string[]) => {
@@ -171,7 +172,7 @@ program
 
 program
   .command("approve")
-  .description("Approve and apply staging changes to vault")
+  .description("Apply staging changes to protect-tier files")
   .argument("[workspace]", "workspace path", process.cwd())
   .option("--hash <hash>", "approval hash for non-interactive mode")
   .action(async (workspace: string, opts: { hash?: string }) => {
@@ -183,7 +184,7 @@ program
         {
           ops: statusOpts.ops,
           config: statusOpts.config,
-          vaultOwnership: VAULT_OWNERSHIP,
+          protectOwnership: PROTECT_OWNERSHIP,
           stagingOwnership: { user: agentUser, group: IDENTITY.group, mode: "644" },
           hash: opts.hash,
           prompt: opts.hash
@@ -211,7 +212,7 @@ program
 
 program
   .command("reset")
-  .description("Reset staging to match vault (discard changes)")
+  .description("Reset staging to match protect-tier files (discard changes)")
   .argument("[workspace]", "workspace path", process.cwd())
   .action(async (workspace: string) => {
     const out = new LiveConsoleOutput();

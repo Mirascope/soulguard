@@ -1,7 +1,7 @@
 /**
  * soulguard init — one-time workspace setup.
  *
- * Creates system user/group, writes config, syncs vault files,
+ * Creates system user/group, writes config, syncs protect-tier files,
  * creates staging copies, generates scoped sudoers.
  *
  * Idempotent: skips already-completed steps, reports what was done.
@@ -156,13 +156,13 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     configCreated = true;
   }
 
-  // ── 4. Sync vault files ──────────────────────────────────────────────
-  const vaultOwnership: FileOwnership = {
+  // ── 4. Sync protect-tier files ──────────────────────────────────────────────
+  const protectOwnership: FileOwnership = {
     user: identity.user,
     group: identity.group,
     mode: "444",
   };
-  const ledgerOwnership: FileOwnership = {
+  const watchOwnership: FileOwnership = {
     user: agentUser,
     group: identity.group,
     mode: "644",
@@ -170,8 +170,8 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
 
   const syncResult = await sync({
     config,
-    expectedVaultOwnership: vaultOwnership,
-    expectedLedgerOwnership: ledgerOwnership,
+    expectedProtectOwnership: protectOwnership,
+    expectedWatchOwnership: watchOwnership,
     ops,
   });
   if (!syncResult.ok) {
@@ -219,38 +219,38 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
       message: `chmod staging failed: ${chmodStaging.error.kind}`,
     });
   }
-  // Copy vault files to staging (resolve globs first)
-  const vaultGlob = await resolvePatterns(ops, config.vault);
-  if (!vaultGlob.ok) {
-    return err({ kind: "staging_failed", message: `glob failed: ${vaultGlob.error.message}` });
+  // Copy protect-tier files to staging (resolve globs first)
+  const protectGlob = await resolvePatterns(ops, config.protect);
+  if (!protectGlob.ok) {
+    return err({ kind: "staging_failed", message: `glob failed: ${protectGlob.error.message}` });
   }
-  const vaultFiles = vaultGlob.value;
-  for (const vaultFile of vaultFiles) {
-    const fileExists = await ops.exists(vaultFile);
+  const protectFiles = protectGlob.value;
+  for (const protectFile of protectFiles) {
+    const fileExists = await ops.exists(protectFile);
     if (fileExists.ok && fileExists.value) {
-      const copyResult = await ops.copyFile(vaultFile, `.soulguard/staging/${vaultFile}`);
+      const copyResult = await ops.copyFile(protectFile, `.soulguard/staging/${protectFile}`);
       if (!copyResult.ok) {
         return err({
           kind: "staging_failed",
-          message: `copy ${vaultFile} failed: ${copyResult.error.kind}`,
+          message: `copy ${protectFile} failed: ${copyResult.error.kind}`,
         });
       }
       // Make staging copy agent-writable
-      const chownFile = await ops.chown(`.soulguard/staging/${vaultFile}`, {
+      const chownFile = await ops.chown(`.soulguard/staging/${protectFile}`, {
         user: agentUser,
         group: identity.group,
       });
       if (!chownFile.ok) {
         return err({
           kind: "staging_failed",
-          message: `chown staging/${vaultFile} failed: ${chownFile.error.kind}`,
+          message: `chown staging/${protectFile} failed: ${chownFile.error.kind}`,
         });
       }
-      const chmodFile = await ops.chmod(`.soulguard/staging/${vaultFile}`, "644");
+      const chmodFile = await ops.chmod(`.soulguard/staging/${protectFile}`, "644");
       if (!chmodFile.ok) {
         return err({
           kind: "staging_failed",
-          message: `chmod staging/${vaultFile} failed: ${chmodFile.error.kind}`,
+          message: `chmod staging/${protectFile} failed: ${chmodFile.error.kind}`,
         });
       }
     }

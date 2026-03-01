@@ -1,5 +1,5 @@
 /**
- * soulguard diff — compare vault files against their staging copies.
+ * soulguard diff — compare protect-tier files against their staging copies.
  */
 
 import { createHash } from "node:crypto";
@@ -14,7 +14,7 @@ import { resolvePatterns } from "./glob.js";
 
 export type FileDiff = {
   path: string;
-  status: "modified" | "unchanged" | "vault_missing" | "staging_missing" | "deleted";
+  status: "modified" | "unchanged" | "protect_missing" | "staging_missing" | "deleted";
   /** Unified diff string (only for modified) */
   diff?: string;
   protectedHash?: string;
@@ -40,7 +40,7 @@ export type DiffError =
 export type DiffOptions = {
   ops: SystemOperations;
   config: SoulguardConfig;
-  /** Specific files to diff (default: all vault files) */
+  /** Specific files to diff (default: all protect-tier files) */
   files?: string[];
 };
 
@@ -49,7 +49,7 @@ export type DiffOptions = {
 const STAGING_DIR = ".soulguard/staging";
 
 /**
- * Compare vault files against their staging copies.
+ * Compare protect-tier files against their staging copies.
  */
 export async function diff(options: DiffOptions): Promise<Result<DiffResult, DiffError>> {
   const { ops, config, files: filterFiles } = options;
@@ -64,28 +64,28 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
   }
 
   // Resolve glob patterns to concrete file paths
-  const resolved = await resolvePatterns(ops, config.vault);
+  const resolved = await resolvePatterns(ops, config.protect);
   if (!resolved.ok) {
     return err({ kind: "read_failed", path: "glob", message: resolved.error.message });
   }
-  let vaultFiles = resolved.value;
+  let protectFiles = resolved.value;
   if (filterFiles && filterFiles.length > 0) {
     const filterSet = new Set(filterFiles);
-    vaultFiles = vaultFiles.filter((p) => filterSet.has(p));
+    protectFiles = protectFiles.filter((p) => filterSet.has(p));
   }
 
   const fileDiffs: FileDiff[] = [];
 
-  for (const path of vaultFiles) {
+  for (const path of protectFiles) {
     const stagingPath = `${STAGING_DIR}/${path}`;
 
-    const [vaultExists, stagingFileExists] = await Promise.all([
+    const [protectExists, stagingFileExists] = await Promise.all([
       ops.exists(path),
       ops.exists(stagingPath),
     ]);
 
-    if (!vaultExists.ok) {
-      return err({ kind: "read_failed", path, message: vaultExists.error.message });
+    if (!protectExists.ok) {
+      return err({ kind: "read_failed", path, message: protectExists.error.message });
     }
     if (!stagingFileExists.ok) {
       return err({
@@ -96,61 +96,61 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
     }
 
     // Missing cases
-    if (vaultExists.value && !stagingFileExists.value) {
-      // Vault file exists but staging copy deleted → agent wants to delete this file
-      const vaultHash = await ops.hashFile(path);
+    if (protectExists.value && !stagingFileExists.value) {
+      // Protect-tier file exists but staging copy deleted → agent wants to delete this file
+      const protectHash = await ops.hashFile(path);
       fileDiffs.push({
         path,
         status: "deleted",
-        protectedHash: vaultHash.ok ? vaultHash.value : undefined,
+        protectedHash: protectHash.ok ? protectHash.value : undefined,
       });
       continue;
     }
-    if (!vaultExists.value && stagingFileExists.value) {
+    if (!protectExists.value && stagingFileExists.value) {
       // New file — hash staging so it's covered by the approval hash
       const newHash = await ops.hashFile(stagingPath);
       fileDiffs.push({
         path,
-        status: "vault_missing",
+        status: "protect_missing",
         stagedHash: newHash.ok ? newHash.value : undefined,
       });
       continue;
     }
-    if (!vaultExists.value && !stagingFileExists.value) {
+    if (!protectExists.value && !stagingFileExists.value) {
       fileDiffs.push({ path, status: "staging_missing" });
       continue;
     }
 
     // Both exist — compare hashes
-    const [vaultHash, stagingHash] = await Promise.all([
+    const [protectHash, stagingHash] = await Promise.all([
       ops.hashFile(path),
       ops.hashFile(stagingPath),
     ]);
 
-    if (!vaultHash.ok) {
+    if (!protectHash.ok) {
       return err({ kind: "read_failed", path, message: "hash failed" });
     }
     if (!stagingHash.ok) {
       return err({ kind: "read_failed", path: stagingPath, message: "hash failed" });
     }
 
-    if (vaultHash.value === stagingHash.value) {
+    if (protectHash.value === stagingHash.value) {
       fileDiffs.push({
         path,
         status: "unchanged",
-        protectedHash: vaultHash.value,
+        protectedHash: protectHash.value,
         stagedHash: stagingHash.value,
       });
       continue;
     }
 
     // Modified — generate unified diff
-    const [vaultContent, stagingContent] = await Promise.all([
+    const [protectContent, stagingContent] = await Promise.all([
       ops.readFile(path),
       ops.readFile(stagingPath),
     ]);
 
-    if (!vaultContent.ok) {
+    if (!protectContent.ok) {
       return err({ kind: "read_failed", path, message: "read failed" });
     }
     if (!stagingContent.ok) {
@@ -160,7 +160,7 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
     const unifiedDiff = createTwoFilesPatch(
       `a/${path}`,
       `b/${path}`,
-      vaultContent.value,
+      protectContent.value,
       stagingContent.value,
     );
 
@@ -168,7 +168,7 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
       path,
       status: "modified",
       diff: unifiedDiff,
-      protectedHash: vaultHash.value,
+      protectedHash: protectHash.value,
       stagedHash: stagingHash.value,
     });
   }
@@ -190,11 +190,11 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
  * This is the integrity token for hash-based approve.
  */
 export function computeApprovalHash(files: FileDiff[]): string {
-  // Include modified, new (vault_missing), and deleted files in the hash
+  // Include modified, new (protect_missing), and deleted files in the hash
   const actionable = files
     .filter(
       (f) =>
-        ((f.status === "modified" || f.status === "vault_missing") && f.stagedHash) ||
+        ((f.status === "modified" || f.status === "protect_missing") && f.stagedHash) ||
         f.status === "deleted",
     )
     .sort((a, b) => a.path.localeCompare(b.path));
@@ -202,7 +202,7 @@ export function computeApprovalHash(files: FileDiff[]): string {
   const hash = createHash("sha256");
   for (const f of actionable) {
     if (f.status === "deleted") {
-      // Use a sentinel for deletions — hash includes the vault hash to prevent replay
+      // Use a sentinel for deletions — hash includes the protect hash to prevent replay
       hash.update(`${f.path}\0DELETED\0${f.protectedHash ?? ""}\0`);
     } else {
       hash.update(`${f.path}\0${f.stagedHash}\0`);

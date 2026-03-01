@@ -3,7 +3,7 @@
 
 # Setup: config with glob ledger pattern
 cat > soulguard.json <<'EOF'
-{"vault":["soulguard.json"],"ledger":["memory/*.md"]}
+{"version": 1, "protect":["soulguard.json"],"watch":["memory/*.md"]}
 EOF
 mkdir -p memory
 echo '# Day 1' > memory/2026-01-01.md

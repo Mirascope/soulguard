@@ -2,7 +2,7 @@
 
 echo '# My Soul' > SOUL.md
 cat > soulguard.json <<'EOF'
-{"vault":["SOUL.md","soulguard.json"],"ledger":[]}
+{"version": 1, "protect":["SOUL.md","soulguard.json"],"watch":[]}
 EOF
 
 # Owner runs init
@@ -18,6 +18,6 @@ echo "HASH: $HASH"
 # Owner approves with hash
 soulguard approve . --hash "$HASH"
 
-# Verify vault has new content
-echo "VAULT:"
+# Verify protect-tier file has new content
+echo "PROTECTED:"
 cat SOUL.md

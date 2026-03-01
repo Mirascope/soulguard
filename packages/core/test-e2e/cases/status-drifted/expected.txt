@@ -1,6 +1,6 @@
 Soulguard Status — /workspace
 
-Vault
+Protect
   ⚠️  SOUL.md
       owner is root, expected soulguardian
       group is root, expected soulguard

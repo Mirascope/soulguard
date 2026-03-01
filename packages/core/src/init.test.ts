@@ -26,7 +26,7 @@ function makeOptions(ops: MockSystemOps, overrides?: Partial<InitOptions>): Init
   return {
     ops,
     identity: { user: "soulguardian", group: "soulguard" },
-    config: { vault: ["SOUL.md"], ledger: [] },
+    config: { version: 1, protect: ["SOUL.md"], watch: [] },
     agentUser: "agent",
     writeAbsolute: writer,
     existsAbsolute: exists,
@@ -71,7 +71,7 @@ describe("init", () => {
 
   test("skips existing config", async () => {
     const ops = new MockSystemOps("/workspace");
-    ops.addFile("soulguard.json", '{"vault":["SOUL.md"],"ledger":[]}');
+    ops.addFile("soulguard.json", '{"protect":["SOUL.md"],"watch":[]}');
     ops.addFile("SOUL.md", "# My Soul", { owner: "agent", group: "staff", mode: "644" });
 
     const result = await init(makeOptions(ops));
@@ -106,7 +106,7 @@ describe("init", () => {
     expect(second.value.stagingCreated).toBe(true);
   });
 
-  test("syncs vault files after setup", async () => {
+  test("syncs protect-tier files after setup", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile("SOUL.md", "# My Soul", { owner: "agent", group: "staff", mode: "644" });
 
@@ -114,7 +114,7 @@ describe("init", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    // Sync should have fixed the vault file ownership
+    // Sync should have fixed the protect-tier file ownership
     const afterIssues = result.value.syncResult.after.issues;
     expect(afterIssues.length).toBe(0);
   });
@@ -122,7 +122,7 @@ describe("init", () => {
   test("uses DEFAULT_CONFIG when no config provided", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile("openclaw.json", "{}", { owner: "agent", group: "staff", mode: "644" });
-    ops.addFile("soulguard.json", '{"vault":[],"ledger":[]}', {
+    ops.addFile("soulguard.json", '{"protect":[],"watch":[]}', {
       owner: "agent",
       group: "staff",
       mode: "644",
@@ -144,19 +144,19 @@ describe("init", () => {
     if (!result.ok) return;
 
     // Config file already existed so configCreated is false, but sync should
-    // have processed the default vault file (soulguard.json)
+    // have processed the default protect-tier file (soulguard.json)
     expect(result.value.stagingCreated).toBe(true);
 
-    // Verify staging copy was created for the default vault file
+    // Verify staging copy was created for the default protect-tier file
     const stagingSoulguard = await ops.exists(".soulguard/staging/soulguard.json");
     expect(stagingSoulguard.ok && stagingSoulguard.value).toBe(true);
   });
 });
 
 describe("DEFAULT_CONFIG", () => {
-  test("has expected default vault files", () => {
-    expect(DEFAULT_CONFIG.vault).toEqual(["soulguard.json"]);
-    expect(DEFAULT_CONFIG.ledger).toEqual([]);
+  test("has expected default protect-tier files", () => {
+    expect(DEFAULT_CONFIG.protect).toEqual(["soulguard.json"]);
+    expect(DEFAULT_CONFIG.watch).toEqual([]);
   });
 
   test("git=true (default), no existing repo — git init called, .gitignore updated", async () => {
@@ -194,7 +194,7 @@ describe("DEFAULT_CONFIG", () => {
     ops.addFile("SOUL.md", "# My Soul", { owner: "agent", group: "staff", mode: "644" });
 
     const result = await init(
-      makeOptions(ops, { config: { vault: ["SOUL.md"], ledger: [], git: false } }),
+      makeOptions(ops, { config: { version: 1, protect: ["SOUL.md"], watch: [], git: false } }),
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;

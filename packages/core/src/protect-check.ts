@@ -1,13 +1,13 @@
 /**
- * Check if a file path matches a vault entry.
+ * Check if a file path matches a protect-tier entry.
  * Supports exact matches and glob patterns (*, **).
  */
 
 import { isGlob, matchGlob } from "./glob.js";
 
-export function isVaultedFile(vaultFiles: string[], filePath: string): boolean {
+export function isProtectedFile(protectFiles: string[], filePath: string): boolean {
   const norm = normalizePath(filePath);
-  return vaultFiles.some((pattern) => {
+  return protectFiles.some((pattern) => {
     const normPattern = normalizePath(pattern);
     if (isGlob(normPattern)) {
       return matchGlob(normPattern, norm);

@@ -1,15 +1,16 @@
 /**
- * Soulguard OpenClaw plugin — protects vault files from direct writes.
+ * Soulguard OpenClaw plugin — protects protect files from direct writes.
  */
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { status, diff, parseConfig, NodeSystemOps, type SoulguardConfig } from "@soulguard/core";
 
-/** OpenClaw-specific default config — also vaults openclaw.json */
+/** OpenClaw-specific default config — also protects openclaw.json */
 const OPENCLAW_DEFAULT_CONFIG: SoulguardConfig = {
-  vault: ["openclaw.json", "soulguard.json"],
-  ledger: [],
+  version: 1 as const,
+  protect: ["openclaw.json", "soulguard.json"],
+  watch: [],
 };
 import { guardToolCall } from "./guard.js";
 import type {
@@ -43,19 +44,19 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
 
       // Load config — fall back to OpenClaw defaults if missing
       let config: SoulguardConfig;
-      let vaultFiles: string[];
+      let protectFiles: string[];
       try {
         const raw = JSON.parse(readFileSync(configPath, "utf-8"));
         config = parseConfig(raw);
-        vaultFiles = config.vault;
+        protectFiles = config.protect;
       } catch {
         // No config file — use OpenClaw defaults (includes openclaw.json)
         config = OPENCLAW_DEFAULT_CONFIG;
-        vaultFiles = config.vault;
+        protectFiles = config.protect;
         api.logger?.warn("soulguard: no soulguard.json found — using OpenClaw defaults");
       }
 
-      if (vaultFiles.length === 0) return;
+      if (protectFiles.length === 0) return;
 
       // Helper to create ops for the workspace
       const createOps = () => new NodeSystemOps(workspaceDir);
@@ -64,22 +65,22 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
       api.registerTool(
         {
           name: "soulguard_status",
-          description: "Check soulguard protection status of vault and ledger files",
+          description: "Check soulguard protection status of protect and watch files",
           parameters: { type: "object", properties: {}, required: [] },
           async execute(_id, _params) {
             const ops = createOps();
             const result = await status({
               config,
-              expectedVaultOwnership: { user: "soulguardian", group: "soulguard", mode: "444" },
-              // TODO: ledger ownership should come from config, not hardcoded (agent user varies per init)
-              expectedLedgerOwnership: { user: "agent", group: "staff", mode: "644" },
+              expectedProtectOwnership: { user: "soulguardian", group: "soulguard", mode: "444" },
+              // TODO: watch ownership should come from config, not hardcoded (agent user varies per init)
+              expectedWatchOwnership: { user: "agent", group: "staff", mode: "644" },
               ops,
             });
             if (!result.ok) {
               return { content: [{ type: "text" as const, text: "Status check failed" }] };
             }
             const lines: string[] = ["Soulguard Status:", ""];
-            for (const f of [...result.value.vault, ...result.value.ledger]) {
+            for (const f of [...result.value.protect, ...result.value.watch]) {
               if (f.status === "ok") lines.push(`  ✅ ${f.file.path}`);
               else if (f.status === "drifted")
                 lines.push(`  ⚠️  ${f.file.path} — ${f.issues.map((i) => i.kind).join(", ")}`);
@@ -98,14 +99,14 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
       api.registerTool(
         {
           name: "soulguard_diff",
-          description: "Show differences between vault files and their staging copies",
+          description: "Show differences between protect files and their staging copies",
           parameters: {
             type: "object",
             properties: {
               files: {
                 type: "array",
                 items: { type: "string" },
-                description: "Specific files to diff (default: all vault files)",
+                description: "Specific files to diff (default: all protect files)",
               },
             },
             required: [],
@@ -122,7 +123,7 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
             if (!result.value.hasChanges) {
               return {
                 content: [
-                  { type: "text" as const, text: "No differences — staging matches vault." },
+                  { type: "text" as const, text: "No differences — staging matches protect." },
                 ],
               };
             }
@@ -150,7 +151,7 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
         }
         const e = event as BeforeToolCallEvent;
         const result = guardToolCall(e.toolName, e.params, {
-          vaultFiles,
+          protectFiles,
         });
         if (result.blocked) {
           return { block: true, blockReason: result.reason } satisfies BeforeToolCallResult;

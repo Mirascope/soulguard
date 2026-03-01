@@ -7,15 +7,16 @@ import type { FileOwnership, SoulguardConfig } from "./types.js";
 /** System user/group identity for soulguard */
 export const IDENTITY = { user: "soulguardian", group: "soulguard" } as const;
 
-/** Default vault file ownership */
-export const VAULT_OWNERSHIP: FileOwnership = {
+/** Default protect-tier file ownership */
+export const PROTECT_OWNERSHIP: FileOwnership = {
   user: IDENTITY.user,
   group: IDENTITY.group,
   mode: "444",
 } as const;
 
-/** Sensible default config — vaults soulguard's own config */
+/** Sensible default config — protects soulguard's own config */
 export const DEFAULT_CONFIG: SoulguardConfig = {
-  vault: ["soulguard.json"],
-  ledger: [],
+  version: 1 as const,
+  protect: ["soulguard.json"],
+  watch: [],
 } as const;

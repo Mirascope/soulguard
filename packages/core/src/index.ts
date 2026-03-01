@@ -81,14 +81,14 @@ export type { ResetOptions, ResetResult, ResetError } from "./reset.js";
 export {
   isGitEnabled,
   gitCommit,
-  vaultCommitMessage,
-  ledgerCommitMessage,
-  commitLedgerFiles,
+  protectCommitMessage,
+  watchCommitMessage,
+  commitWatchFiles,
 } from "./git.js";
 export type { GitCommitResult, GitError } from "./git.js";
 
-// Vault check + glob
-export { isVaultedFile, normalizePath } from "./vault-check.js";
+// Protect check + glob
+export { isProtectedFile, normalizePath } from "./protect-check.js";
 export { isGlob, matchGlob, createGlobMatcher, resolvePatterns } from "./glob.js";
 
 // CLI commands

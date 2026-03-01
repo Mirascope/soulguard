@@ -10,8 +10,8 @@ function makeMock() {
   return new MockSystemOps(WORKSPACE);
 }
 
-function makeConfig(vault: string[] = ["SOUL.md"]): SoulguardConfig {
-  return { vault, ledger: [] };
+function makeConfig(protect: string[] = ["SOUL.md"]): SoulguardConfig {
+  return { version: 1, protect, watch: [] };
 }
 
 describe("DiffCommand", () => {

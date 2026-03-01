@@ -2,7 +2,7 @@
 
 echo '# My Soul' > SOUL.md
 cat > soulguard.json <<'EOF'
-{"vault":["SOUL.md","soulguard.json"],"ledger":[]}
+{"version": 1, "protect":["SOUL.md","soulguard.json"],"watch":[]}
 EOF
 
 # Owner runs init
@@ -14,8 +14,8 @@ su - agent -c "echo '# Hacked Soul' > $(pwd)/.soulguard/staging/SOUL.md"
 # Owner resets staging
 soulguard reset .
 
-# Verify vault unchanged
-echo "VAULT:"
+# Verify protect-tier unchanged
+echo "PROTECTED:"
 cat SOUL.md
 
 # Verify staging reset

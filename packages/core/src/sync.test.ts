@@ -13,21 +13,21 @@ function makeMock() {
   return ops;
 }
 
-function opts(config: { vault: string[]; ledger: string[] }, ops: MockSystemOps) {
+function opts(config: { version: 1; protect: string[]; watch: string[] }, ops: MockSystemOps) {
   return {
     config,
-    expectedVaultOwnership: VAULT_OWNERSHIP,
-    expectedLedgerOwnership: LEDGER_OWNERSHIP,
+    expectedProtectOwnership: VAULT_OWNERSHIP,
+    expectedWatchOwnership: LEDGER_OWNERSHIP,
     ops,
   };
 }
 
 describe("sync", () => {
-  test("fixes unprotected vault files", async () => {
+  test("fixes unprotected protect-tier files", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", { owner: "agent", group: "staff", mode: "644" });
 
-    const result = await sync(opts({ vault: ["SOUL.md"], ledger: [] }, ops));
+    const result = await sync(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -47,7 +47,7 @@ describe("sync", () => {
       mode: "444",
     });
 
-    const result = await sync(opts({ vault: ["SOUL.md"], ledger: [] }, ops));
+    const result = await sync(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -60,7 +60,7 @@ describe("sync", () => {
   test("missing files remain in issues (can't fix)", async () => {
     const ops = makeMock();
 
-    const result = await sync(opts({ vault: ["SOUL.md"], ledger: [] }, ops));
+    const result = await sync(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -77,7 +77,7 @@ describe("sync", () => {
       mode: "644",
     });
 
-    const result = await sync(opts({ vault: ["SOUL.md"], ledger: [] }, ops));
+    const result = await sync(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -85,7 +85,7 @@ describe("sync", () => {
     expect(ops.ops).toHaveLength(1); // only chmod
   });
 
-  test("releases ledger files owned by soulguardian", async () => {
+  test("releases watch-tier files owned by soulguardian", async () => {
     const ops = makeMock();
     ops.addFile("notes.md", "# Notes", {
       owner: VAULT_OWNERSHIP.user,
@@ -93,7 +93,7 @@ describe("sync", () => {
       mode: "444",
     });
 
-    const result = await sync(opts({ vault: [], ledger: ["notes.md"] }, ops));
+    const result = await sync(opts({ version: 1, protect: [], watch: ["notes.md"] }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -116,18 +116,20 @@ describe("sync", () => {
       mode: "444",
     });
 
-    const result = await sync(opts({ vault: ["SOUL.md", "AGENTS.md"], ledger: ["notes.md"] }, ops));
+    const result = await sync(
+      opts({ version: 1, protect: ["SOUL.md", "AGENTS.md"], watch: ["notes.md"] }, ops),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    // Before: SOUL.md drifted (vault), notes.md drifted (ledger)
+    // Before: SOUL.md drifted (protect), notes.md drifted (watch)
     expect(result.value.before.issues).toHaveLength(2);
     // After: all clean
     expect(result.value.after.issues).toHaveLength(0);
     expect(result.value.errors).toHaveLength(0);
   });
 
-  test("commits vault and ledger files to git when enabled", async () => {
+  test("commits protect and watch-tier files to git when enabled", async () => {
     const ops = makeMock();
     ops.addFile(".git", "");
     ops.addFile("SOUL.md", "# Soul", {
@@ -145,7 +147,7 @@ describe("sync", () => {
     ops.execFailOnCall.set("git diff --cached --quiet", new Set([1]));
 
     const result = await sync(
-      opts({ vault: ["SOUL.md"], ledger: ["notes.md"], git: true } as never, ops),
+      opts({ version: 1, protect: ["SOUL.md"], watch: ["notes.md"], git: true } as never, ops),
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -164,7 +166,9 @@ describe("sync", () => {
       mode: "444",
     });
 
-    const result = await sync(opts({ vault: ["SOUL.md"], ledger: [], git: false } as never, ops));
+    const result = await sync(
+      opts({ version: 1, protect: ["SOUL.md"], watch: [], git: false } as never, ops),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.git).toBeUndefined();

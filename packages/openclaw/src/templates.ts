@@ -1,7 +1,7 @@
 /**
  * OpenClaw configuration templates for Soulguard.
  *
- * Every known path is explicitly placed in vault, ledger, or unprotected.
+ * Every known path is explicitly placed in protect, watch, or unprotected.
  * Paths are relative to the OpenClaw home directory (~/.openclaw/).
  * Tests validate that all paths are accounted for in every template.
  */
@@ -51,16 +51,17 @@ export type TemplateName = "default" | "paranoid" | "relaxed";
 export type Template = {
   name: TemplateName;
   description: string;
-  vault: readonly string[];
-  ledger: readonly string[];
+  protect: readonly string[];
+  watch: readonly string[];
   unprotected: readonly string[];
 };
 
 /** Extract just the SoulguardConfig from a template */
 export function templateToConfig(template: Template): SoulguardConfig {
   return {
-    vault: [...template.vault],
-    ledger: [...template.ledger],
+    version: 1,
+    protect: [...template.protect],
+    watch: [...template.watch],
   };
 }
 
@@ -68,8 +69,8 @@ export function templateToConfig(template: Template): SoulguardConfig {
 
 export const defaultTemplate: Template = {
   name: "default",
-  description: "Core identity and config in vault, memory and skills tracked in ledger",
-  vault: [
+  description: "Core identity and config in protect, memory and skills tracked in watch",
+  protect: [
     ...SOULGUARD_CONFIG,
     ...CORE_IDENTITY,
     ...CORE_SESSION,
@@ -77,14 +78,14 @@ export const defaultTemplate: Template = {
     ...CRON,
     ...EXTENSIONS,
   ],
-  ledger: [...CORE_MEMORY, ...MEMORY_DIR, ...SKILLS],
+  watch: [...CORE_MEMORY, ...MEMORY_DIR, ...SKILLS],
   unprotected: [...SESSIONS],
 };
 
 export const paranoidTemplate: Template = {
   name: "paranoid",
-  description: "Everything possible in vault, only skills in ledger",
-  vault: [
+  description: "Everything possible in protect tier, sessions in watch",
+  protect: [
     ...SOULGUARD_CONFIG,
     ...CORE_IDENTITY,
     ...CORE_SESSION,
@@ -95,15 +96,16 @@ export const paranoidTemplate: Template = {
     ...CRON,
     ...EXTENSIONS,
   ],
-  ledger: [...SESSIONS],
+  watch: [...SESSIONS],
   unprotected: [],
 };
 
 export const relaxedTemplate: Template = {
   name: "relaxed",
-  description: "Only soulguard config locked, everything else tracked — good for initial setup",
-  vault: [...SOULGUARD_CONFIG],
-  ledger: [
+  description:
+    "Only soulguard config in protect, everything else in watch — good for initial setup",
+  protect: [...SOULGUARD_CONFIG],
+  watch: [
     ...CORE_IDENTITY,
     ...CORE_SESSION,
     ...CORE_MEMORY,

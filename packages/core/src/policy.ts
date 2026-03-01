@@ -1,7 +1,7 @@
 /**
  * Policy hooks for soulguard approve.
  *
- * Policies are named check functions that run before vault changes are applied.
+ * Policies are named check functions that run before protect-tier changes are applied.
  * Each receives an ApprovalContext (map of file path → { final, diff, previous })
  * and returns ok() to allow or err() to block.
  *
@@ -20,9 +20,9 @@ export type ApprovalContext = Map<
   {
     /** Content that would be applied (staging content) */
     final: string;
-    /** Unified diff string (vault → staging) */
+    /** Unified diff string (protect → staging) */
     diff: string;
-    /** Current vault content (empty string for new files) */
+    /** Current protect content (empty string for new files) */
     previous: string;
   }
 >;

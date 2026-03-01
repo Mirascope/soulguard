@@ -1,5 +1,5 @@
-# Setup: create config, vault file, init + create staging with modification
-echo '{"vault": ["SOUL.md"], "ledger": []}' > soulguard.json
+# Setup: create config, protect-tier file, init + create staging with modification
+echo '{"version": 1, "protect": ["SOUL.md"], "watch": []}' > soulguard.json
 echo '# My Soul' > SOUL.md
 soulguard init . --agent-user agent > /dev/null 2>&1
 

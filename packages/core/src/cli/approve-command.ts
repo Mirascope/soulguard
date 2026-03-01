@@ -1,5 +1,5 @@
 /**
- * ApproveCommand — approve and apply staging changes to vault.
+ * ApproveCommand — approve and apply staging changes to protect-tier.
  *
  * Two modes:
  * - `--hash <hash>`: Non-interactive, verifies hash and applies.
@@ -35,7 +35,7 @@ export class ApproveCommand {
         return 1;
       }
       if (!diffResult.value.hasChanges) {
-        this.out.info("No changes to approve — staging matches vault.");
+        this.out.info("No changes to approve — staging matches protect-tier.");
         return 0;
       }
 
@@ -68,7 +68,7 @@ export class ApproveCommand {
     if (!result.ok) {
       switch (result.error.kind) {
         case "no_changes":
-          this.out.info("No changes to approve — staging matches vault.");
+          this.out.info("No changes to approve — staging matches protect-tier.");
           return 0;
         case "hash_mismatch":
           this.out.error(result.error.message);
@@ -101,7 +101,7 @@ export class ApproveCommand {
       this.out.success(`  ✅ ${file}`);
     }
     this.out.write("");
-    this.out.info("Vault updated. Staging synced.");
+    this.out.info("Protect-tier files updated. Staging synced.");
     return 0;
   }
 }

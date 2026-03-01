@@ -1,15 +1,15 @@
 # @soulguard/core
 
-Vault enforcement, ledger tracking, approval workflow, git integration, and CLI for soulguard.
+Protect enforcement, watch tracking, apply workflow, git integration, and CLI for soulguard.
 
 ## What Core Does
 
-- Enforces vault file permissions (444, soulguardian-owned)
-- Tracks ledger file ownership/permissions
+- Enforces protect-tier file permissions (444, soulguardian-owned)
+- Tracks watch-tier file ownership/permissions
 - Manages implicit proposals (staging → diff → approve)
-- Handles vault file deletion through staging
-- Resolves glob patterns in vault/ledger config
-- Auto-commits vault and ledger changes to git
+- Handles protect-tier file deletion through staging
+- Resolves glob patterns in protect/watch config
+- Auto-commits protect and watch changes to git
 - Self-protection (soulguard.json cannot be deleted or corrupted)
 
 ## Library API
@@ -37,17 +37,17 @@ import {
 
 **`init(options)`** — One-time workspace setup. Creates system user/group, sets file permissions, generates sudoers, initializes staging, commits to git.
 
-**`status(options)`** — Returns vault and ledger file health (ok, drifted, missing, error).
+**`status(options)`** — Returns protect and watch file health (ok, drifted, missing, error).
 
-**`sync(options)`** — Fixes ownership/permission drift on vault and ledger files.
+**`sync(options)`** — Fixes ownership/permission drift on protect and watch files.
 
-**`diff(options)`** — Compares staging against vault. Returns per-file diffs and an approval hash.
+**`diff(options)`** — Compares staging against protect tier. Returns per-file diffs and an apply hash.
 
-**`approve(options)`** — Applies staged changes to vault files. Validates approval hash, handles deletions, auto-commits to git.
+**`apply(options)`** — Applies staged changes to protect-tier files. Validates apply hash, handles deletions, auto-commits to git.
 
-**`reset(options)`** — Resets staging copies to match current vault state.
+**`reset(options)`** — Resets staging copies to match current protect-tier state.
 
-**`commitLedgerFiles(ops, config)`** — Standalone git commit for ledger files. Exported for daemon/cove to call on their own schedule (not part of `sync`).
+**`commitWatchFiles(ops, config)`** — Standalone git commit for watch files. Exported for daemon/cove to call on their own schedule (not part of `sync`).
 
 ### Types
 

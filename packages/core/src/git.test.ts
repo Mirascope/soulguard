@@ -3,33 +3,33 @@ import { MockSystemOps } from "./system-ops-mock.js";
 import {
   isGitEnabled,
   gitCommit,
-  vaultCommitMessage,
-  ledgerCommitMessage,
-  commitLedgerFiles,
+  protectCommitMessage,
+  watchCommitMessage,
+  commitWatchFiles,
 } from "./git.js";
 
 describe("isGitEnabled", () => {
   test("returns true when git not false and .git exists", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile(".git", "");
-    expect(await isGitEnabled(ops, { vault: [], ledger: [] })).toBe(true);
+    expect(await isGitEnabled(ops, { version: 1, protect: [], watch: [] })).toBe(true);
   });
 
   test("returns true when git explicitly true", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile(".git", "");
-    expect(await isGitEnabled(ops, { vault: [], ledger: [], git: true })).toBe(true);
+    expect(await isGitEnabled(ops, { version: 1, protect: [], watch: [], git: true })).toBe(true);
   });
 
   test("returns false when git is false", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile(".git", "");
-    expect(await isGitEnabled(ops, { vault: [], ledger: [], git: false })).toBe(false);
+    expect(await isGitEnabled(ops, { version: 1, protect: [], watch: [], git: false })).toBe(false);
   });
 
   test("returns false when no .git directory", async () => {
     const ops = new MockSystemOps("/workspace");
-    expect(await isGitEnabled(ops, { vault: [], ledger: [] })).toBe(false);
+    expect(await isGitEnabled(ops, { version: 1, protect: [], watch: [] })).toBe(false);
   });
 });
 
@@ -107,31 +107,32 @@ describe("gitCommit", () => {
 });
 
 describe("commit messages", () => {
-  test("vaultCommitMessage with files only", () => {
-    expect(vaultCommitMessage(["SOUL.md"])).toBe("soulguard: vault update — SOUL.md");
+  test("protectCommitMessage with files only", () => {
+    expect(protectCommitMessage(["SOUL.md"])).toBe("soulguard: protect update — SOUL.md");
   });
 
-  test("vaultCommitMessage with approval message", () => {
-    expect(vaultCommitMessage(["SOUL.md", "AGENTS.md"], "identity refresh")).toBe(
-      "soulguard: vault update — SOUL.md, AGENTS.md\n\nidentity refresh",
+  test("protectCommitMessage with approval message", () => {
+    expect(protectCommitMessage(["SOUL.md", "AGENTS.md"], "identity refresh")).toBe(
+      "soulguard: protect update — SOUL.md, AGENTS.md\n\nidentity refresh",
     );
   });
 
-  test("ledgerCommitMessage", () => {
-    expect(ledgerCommitMessage()).toBe("soulguard: ledger sync");
+  test("watchCommitMessage", () => {
+    expect(watchCommitMessage()).toBe("soulguard: watch sync");
   });
 });
 
-describe("commitLedgerFiles", () => {
-  test("commits ledger files when git enabled and changes exist", async () => {
+describe("commitWatchFiles", () => {
+  test("commits watch-tier files when git enabled and changes exist", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile(".git", "");
     // Pre-check succeeds (no pre-existing staged), post-add fails (= our files staged)
     ops.execFailOnCall.set("git diff --cached --quiet", new Set([1]));
 
-    const result = await commitLedgerFiles(ops, {
-      vault: [],
-      ledger: ["MEMORY.md", "memory/*.md"],
+    const result = await commitWatchFiles(ops, {
+      version: 1,
+      protect: [],
+      watch: ["MEMORY.md", "memory/*.md"],
       git: true,
     });
 
@@ -139,7 +140,7 @@ describe("commitLedgerFiles", () => {
     if (!result.ok) return;
     expect(result.value.committed).toBe(true);
     if (result.value.committed) {
-      expect(result.value.message).toBe("soulguard: ledger sync");
+      expect(result.value.message).toBe("soulguard: watch sync");
       // Globs are filtered out — only MEMORY.md staged
       expect(result.value.files).toEqual(["MEMORY.md"]);
     }
@@ -147,17 +148,22 @@ describe("commitLedgerFiles", () => {
 
   test("returns git_disabled when git not enabled", async () => {
     const ops = new MockSystemOps("/workspace");
-    const result = await commitLedgerFiles(ops, { vault: [], ledger: ["MEMORY.md"], git: false });
+    const result = await commitWatchFiles(ops, {
+      version: 1,
+      protect: [],
+      watch: ["MEMORY.md"],
+      git: false,
+    });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value).toEqual({ committed: false, reason: "git_disabled" });
   });
 
-  test("returns no_files when no ledger files", async () => {
+  test("returns no_files when no watch-tier files", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile(".git", "");
-    const result = await commitLedgerFiles(ops, { vault: [], ledger: [], git: true });
+    const result = await commitWatchFiles(ops, { version: 1, protect: [], watch: [], git: true });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -167,9 +173,10 @@ describe("commitLedgerFiles", () => {
   test("returns no_files when only glob patterns", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile(".git", "");
-    const result = await commitLedgerFiles(ops, {
-      vault: [],
-      ledger: ["memory/*.md"],
+    const result = await commitWatchFiles(ops, {
+      version: 1,
+      protect: [],
+      watch: ["memory/*.md"],
       git: true,
     });
 

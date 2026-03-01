@@ -17,28 +17,28 @@ export class StatusCommand {
     const result = await status(this.opts);
     if (!result.ok) return 1;
 
-    const { vault, ledger, issues } = result.value;
+    const { protect, watch, issues } = result.value;
 
     this.out.heading(`Soulguard Status — ${this.opts.ops.workspace}`);
     this.out.write("");
 
-    if (vault.length > 0) {
-      this.out.heading("Vault");
-      for (const f of vault) {
+    if (protect.length > 0) {
+      this.out.heading("Protect");
+      for (const f of protect) {
         this.printFile(f);
       }
       this.out.write("");
     }
 
-    if (ledger.length > 0) {
-      this.out.heading("Ledger");
-      for (const f of ledger) {
+    if (watch.length > 0) {
+      this.out.heading("Watch");
+      for (const f of watch) {
         this.printFile(f);
       }
       this.out.write("");
     }
 
-    const counts = this.summarize([...vault, ...ledger]);
+    const counts = this.summarize([...protect, ...watch]);
     this.out.info(`${counts.ok} files ok, ${counts.drifted} drifted, ${counts.missing} missing`);
 
     return issues.length > 0 ? 1 : 0;

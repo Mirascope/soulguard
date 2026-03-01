@@ -3,7 +3,7 @@ Soulguard Sync — /workspace
 Nothing to fix — all files ok.
 Soulguard Status — /workspace
 
-Vault
+Protect
   ✅ SOUL.md
 
 1 files ok, 0 drifted, 0 missing

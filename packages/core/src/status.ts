@@ -26,18 +26,18 @@ export type FileStatus =
   | { tier: Tier; status: "error"; path: string; error: FileSystemError };
 
 export type StatusResult = {
-  vault: FileStatus[];
-  ledger: FileStatus[];
+  protect: FileStatus[];
+  watch: FileStatus[];
   /** All non-ok statuses from both tiers, for convenience */
   issues: FileStatus[];
 };
 
 export type StatusOptions = {
   config: SoulguardConfig;
-  /** Expected ownership for vault files (e.g. soulguardian:soulguard 444) */
-  expectedVaultOwnership: FileOwnership;
-  /** Expected ownership for ledger files (e.g. agent:staff 644) */
-  expectedLedgerOwnership: FileOwnership;
+  /** Expected ownership for protect-tier files (e.g. soulguardian:soulguard 444) */
+  expectedProtectOwnership: FileOwnership;
+  /** Expected ownership for watch-tier files (e.g. agent:staff 644) */
+  expectedWatchOwnership: FileOwnership;
   ops: SystemOperations;
 };
 
@@ -45,26 +45,28 @@ export type StatusOptions = {
  * Check the protection status of all configured files.
  */
 export async function status(options: StatusOptions): Promise<Result<StatusResult, IOError>> {
-  const { config, expectedVaultOwnership, expectedLedgerOwnership, ops } = options;
+  const { config, expectedProtectOwnership, expectedWatchOwnership, ops } = options;
 
   // Resolve glob patterns to concrete file paths
-  const [vaultResult, ledgerResult] = await Promise.all([
-    resolvePatterns(ops, config.vault),
-    resolvePatterns(ops, config.ledger),
+  const [protectResult, watchResult] = await Promise.all([
+    resolvePatterns(ops, config.protect),
+    resolvePatterns(ops, config.watch),
   ]);
-  if (!vaultResult.ok) return vaultResult;
-  if (!ledgerResult.ok) return ledgerResult;
-  const vaultPaths = vaultResult.value;
-  const ledgerPaths = ledgerResult.value;
+  if (!protectResult.ok) return protectResult;
+  if (!watchResult.ok) return watchResult;
+  const protectPaths = protectResult.value;
+  const watchPaths = watchResult.value;
 
-  const [vault, ledger] = await Promise.all([
-    Promise.all(vaultPaths.map((path) => checkPath(path, "vault", expectedVaultOwnership, ops))),
-    Promise.all(ledgerPaths.map((path) => checkPath(path, "ledger", expectedLedgerOwnership, ops))),
+  const [protect, watch] = await Promise.all([
+    Promise.all(
+      protectPaths.map((path) => checkPath(path, "protect", expectedProtectOwnership, ops)),
+    ),
+    Promise.all(watchPaths.map((path) => checkPath(path, "watch", expectedWatchOwnership, ops))),
   ]);
 
-  const issues = [...vault, ...ledger].filter((f) => f.status !== "ok");
+  const issues = [...protect, ...watch].filter((f) => f.status !== "ok");
 
-  return ok({ vault, ledger, issues });
+  return ok({ protect, watch, issues });
 }
 
 async function checkPath(
