@@ -45,8 +45,9 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
   for (const issue of before.issues) {
     if (issue.status !== "drifted") continue;
 
-    const expectedOwnership =
-      issue.tier === "protect" ? options.expectedProtectOwnership : options.expectedWatchOwnership;
+    // Only protect-tier files have ownership expectations
+    if (issue.tier !== "protect") continue;
+    const expectedOwnership = options.expectedProtectOwnership;
 
     const path = issue.file.path;
     const needsChown = issue.issues.some(

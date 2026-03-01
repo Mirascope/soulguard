@@ -35,8 +35,6 @@ export type ApplyOptions = {
   hash: string;
   /** Expected protect ownership to restore after writing */
   protectOwnership: FileOwnership;
-  /** Ownership for staging copies after sync (agent-writable) */
-  stagingOwnership?: FileOwnership;
   /** Named policy hooks — all evaluated before applying changes.
    *  Duplicate policy names are rejected with policy_name_collision error. */
   policies?: Policy[];
@@ -261,10 +259,7 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
   for (const file of changedFiles.filter((f) => f.status !== "deleted")) {
     const stagePath = stagingPath(file.path);
     await ops.copyFile(file.path, stagePath);
-    if (options.stagingOwnership) {
-      await ops.chown(stagePath, options.stagingOwnership);
-      await ops.chmod(stagePath, options.stagingOwnership.mode);
-    }
+    // Staging siblings inherit default ownership — no special chown needed
   }
   // Deleted files: staging copy is already gone (that's how we detected the deletion)
 

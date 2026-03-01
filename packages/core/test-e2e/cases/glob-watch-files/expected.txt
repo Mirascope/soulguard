@@ -3,7 +3,7 @@ Soulguard Init — /workspace
   Created user: soulguardian
   Wrote /etc/sudoers.d/soulguard
   Created staging siblings
-  Synced 3 protect-tier file(s)
+  Synced 1 protect-tier file(s)
 
 Done.
 STATUS:
@@ -24,21 +24,14 @@ Protect
   ✅ soulguard.json
 
 Watch
-  ⚠️  memory/2026-01-01.md
-      owner is root, expected agent
-      group is root, expected soulguard
+  ✅ memory/2026-01-01.md
   ✅ memory/2026-01-02.md
 
-2 files ok, 1 drifted, 0 missing
+3 files ok, 0 drifted, 0 missing
 SYNC:
 Soulguard Sync — /workspace
 
-Fixed:
-  🔧 memory/2026-01-01.md
-      owner is root, expected agent
-      group is root, expected soulguard
-
-All files now ok.
+Nothing to fix — all files ok.
 STATUS AFTER SYNC:
 Soulguard Status — /workspace
 

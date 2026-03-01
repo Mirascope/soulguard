@@ -54,9 +54,8 @@ describe("reset (implicit proposals)", () => {
 
   test("applies staging ownership after reset", async () => {
     const ops = setup();
-    const stagingOwnership = { user: "agent", group: "soulguard", mode: "644" };
 
-    const result = await reset({ ops, config, stagingOwnership });
+    const result = await reset({ ops, config });
     expect(result.ok).toBe(true);
 
     // Check staging content matches vault

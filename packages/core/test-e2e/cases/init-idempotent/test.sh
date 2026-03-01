@@ -6,9 +6,9 @@ cat > soulguard.json <<'EOF'
 EOF
 
 # First init (as owner/root)
-soulguard init . --agent-user agent
+SUDO_USER=agent soulguard init .
 
 echo "--- SECOND RUN ---"
 
 # Second init — should be idempotent
-soulguard init . --agent-user agent
+SUDO_USER=agent soulguard init .

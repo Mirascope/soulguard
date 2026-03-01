@@ -5,7 +5,6 @@ import { StatusCommand } from "./status-command.js";
 import type { StatusOptions } from "../status.js";
 
 const VAULT_OWNERSHIP = { user: "soulguardian", group: "soulguard", mode: "444" };
-const LEDGER_OWNERSHIP = { user: "agent", group: "soulguard", mode: "644" };
 const VAULT_MOCK = { owner: "soulguardian", group: "soulguard", mode: "444" };
 const LEDGER_MOCK = { owner: "agent", group: "soulguard", mode: "644" };
 
@@ -19,7 +18,6 @@ function setup(configureMock: (ops: MockSystemOps) => void): {
   const opts: StatusOptions = {
     config: { version: 1, protect: ["SOUL.md"], watch: ["memory/today.md"] },
     expectedProtectOwnership: VAULT_OWNERSHIP,
-    expectedWatchOwnership: LEDGER_OWNERSHIP,
     ops,
   };
   return { cmd: new StatusCommand(opts, out), out };
@@ -68,16 +66,11 @@ describe("StatusCommand", () => {
   it("resolves glob patterns and shows matched files", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile("SOUL.md", "soul content", VAULT_MOCK);
-    ops.addFile("memory/day1.md", "notes", {
-      owner: LEDGER_OWNERSHIP.user,
-      group: LEDGER_OWNERSHIP.group,
-      mode: LEDGER_OWNERSHIP.mode,
-    });
+    ops.addFile("memory/day1.md", "notes", { owner: "selene", group: "staff", mode: "644" });
     const out = new MockConsoleOutput();
     const opts: StatusOptions = {
       config: { version: 1, protect: ["SOUL.md"], watch: ["memory/*.md"] },
       expectedProtectOwnership: VAULT_OWNERSHIP,
-      expectedWatchOwnership: LEDGER_OWNERSHIP,
       ops,
     };
     const cmd = new StatusCommand(opts, out);

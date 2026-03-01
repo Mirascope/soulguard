@@ -7,7 +7,6 @@ import type { DriftIssue } from "./types.js";
 
 const WORKSPACE = "/test/workspace";
 const VAULT_OWNERSHIP = { user: "soulguardian", group: "soulguard", mode: "444" };
-const LEDGER_OWNERSHIP = { user: "aster", group: "staff", mode: "644" };
 
 function makeMock() {
   const ops = new MockSystemOps(WORKSPACE);
@@ -20,7 +19,6 @@ function opts(config: { version: 1; protect: string[]; watch: string[] }, ops: M
   return {
     config,
     expectedProtectOwnership: VAULT_OWNERSHIP,
-    expectedWatchOwnership: LEDGER_OWNERSHIP,
     ops,
   };
 }
@@ -126,9 +124,9 @@ describe("status", () => {
       mode: VAULT_OWNERSHIP.mode,
     });
     ops.addFile("skills/python.md", "skill", {
-      owner: LEDGER_OWNERSHIP.user,
-      group: LEDGER_OWNERSHIP.group,
-      mode: LEDGER_OWNERSHIP.mode,
+      owner: "selene",
+      group: "staff",
+      mode: "644",
     });
 
     const result = await status(
@@ -198,8 +196,8 @@ describe("status", () => {
   test("watch ok files include FileInfo", async () => {
     const ops = makeMock();
     ops.addFile("notes.md", "# Notes", {
-      owner: LEDGER_OWNERSHIP.user,
-      group: LEDGER_OWNERSHIP.group,
+      owner: "selene",
+      group: "staff",
       mode: "644",
     });
 
@@ -211,10 +209,10 @@ describe("status", () => {
     const file = result.value.watch[0]! as FileStatus & { status: "ok" };
     expect(file.status).toBe("ok");
     expect(file.file.hash).toMatch(/^[a-f0-9]{64}$/);
-    expect(file.file.ownership.user).toBe(LEDGER_OWNERSHIP.user);
+    expect(file.file.ownership.user).toBe("selene");
   });
 
-  test("watch-tier file owned by guardian reports drift", async () => {
+  test("watch-tier file reports ok regardless of ownership", async () => {
     const ops = makeMock();
     ops.addFile("notes.md", "# Notes", {
       owner: VAULT_OWNERSHIP.user,
@@ -227,13 +225,8 @@ describe("status", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const file = result.value.watch[0]! as FileStatus & { status: "drifted" };
-    expect(file.status).toBe("drifted");
-    expect(file.issues).toContainEqual({
-      kind: "wrong_owner",
-      expected: LEDGER_OWNERSHIP.user,
-      actual: VAULT_OWNERSHIP.user,
-    });
+    const file = result.value.watch[0]!;
+    expect(file.status).toBe("ok");
   });
 
   test("formatIssue produces readable strings", () => {

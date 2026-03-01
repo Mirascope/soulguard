@@ -27,7 +27,7 @@ function makeOptions(ops: MockSystemOps, overrides?: Partial<InitOptions>): Init
     ops,
     identity: { user: "soulguardian", group: "soulguard" },
     config: { version: 1, protect: ["SOUL.md"], watch: [] },
-    agentUser: "agent",
+    callerUser: "agent",
     writeAbsolute: writer,
     existsAbsolute: exists,
     sudoersPath: "/tmp/test-sudoers",
@@ -132,7 +132,7 @@ describe("init", () => {
     const result = await init({
       ops,
       identity: { user: "soulguardian", group: "soulguard" },
-      agentUser: "agent",
+      callerUser: "agent",
       writeAbsolute: writer,
       existsAbsolute: exists,
       sudoersPath: "/tmp/test-sudoers",
