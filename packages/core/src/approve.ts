@@ -1,12 +1,12 @@
 /**
- * soulguard approve — apply staging changes to vault files.
+ * soulguard approve — apply staging changes to protect-tier files.
  *
  * Implicit proposal model: staging IS the proposal. At approval time:
  * 1. Compute diff to find modified files
  * 2. Copy modified staging files to protected .soulguard/pending/
  * 3. Hash the frozen pending copies and verify against reviewer's hash
- * 4. Backup current vault files
- * 5. Apply from pending copies, re-protect vault files
+ * 4. Backup current protect-tier files
+ * 5. Apply from pending copies, re-protect protect-tier files
  * 6. Sync staging, cleanup
  *
  * The protected copy step eliminates timing attacks — once files are in
@@ -20,7 +20,7 @@ import { diff, computeApprovalHash } from "./diff.js";
 import type { FileDiff } from "./diff.js";
 import { ok, err } from "./result.js";
 import type { GitCommitResult } from "./git.js";
-import { isGitEnabled, gitCommit, vaultCommitMessage } from "./git.js";
+import { isGitEnabled, gitCommit, protectCommitMessage } from "./git.js";
 import type { Policy, ApprovalContext } from "./policy.js";
 import { validatePolicies, evaluatePolicies } from "./policy.js";
 import { validateSelfProtection } from "./self-protection.js";
@@ -32,8 +32,8 @@ export type ApproveOptions = {
   config: SoulguardConfig;
   /** SHA-256 approval hash — must match computed hash of frozen pending copies */
   hash: string;
-  /** Expected vault ownership to restore after writing */
-  vaultOwnership: FileOwnership;
+  /** Expected protect ownership to restore after writing */
+  protectOwnership: FileOwnership;
   /** Ownership for staging copies after sync (agent-writable) */
   stagingOwnership?: FileOwnership;
   /** Named policy hooks — all evaluated before applying changes.
@@ -59,12 +59,12 @@ export type ApproveResult = {
 };
 
 /**
- * Approve and apply staging changes to vault.
+ * Approve and apply staging changes to protect.
  */
 export async function approve(
   options: ApproveOptions,
 ): Promise<Result<ApproveResult, ApprovalError>> {
-  const { ops, config, hash, vaultOwnership, policies } = options;
+  const { ops, config, hash, protectOwnership, policies } = options;
 
   // ── Phase 0: Validate policy names (fail fast on collisions) ────────
   if (policies && policies.length > 0) {
@@ -86,7 +86,7 @@ export async function approve(
 
   // Files that need to be applied (modified, new, or deleted)
   const changedFiles = diffResult.value.files.filter(
-    (f) => f.status === "modified" || f.status === "vault_missing" || f.status === "deleted",
+    (f) => f.status === "modified" || f.status === "protect_missing" || f.status === "deleted",
   );
 
   // ── Phase 2: Copy staging to protected working dir ─────────────────
@@ -106,7 +106,7 @@ export async function approve(
 
   // Protect the pending dir so agent can't tamper during approval
   // TODO: chown recursively (needs ops interface change — tracked upstack)
-  const chownPending = await ops.chown(".soulguard/pending", vaultOwnership);
+  const chownPending = await ops.chown(".soulguard/pending", protectOwnership);
   if (!chownPending.ok) {
     await cleanupPending(ops, changedFiles);
     return err({ kind: "apply_failed", message: "Cannot protect pending directory" });
@@ -161,18 +161,18 @@ export async function approve(
     const ctx: ApprovalContext = new Map();
     for (const file of changedFiles) {
       if (file.status === "deleted") {
-        const vaultContent = await ops.readFile(file.path);
+        const protectContent = await ops.readFile(file.path);
         ctx.set(file.path, {
           final: "",
           diff: `File deleted: ${file.path}`,
-          previous: vaultContent.ok ? vaultContent.value : "",
+          previous: protectContent.ok ? protectContent.value : "",
         });
       } else {
         let previous = "";
         if (file.status === "modified") {
-          const vaultContent = await ops.readFile(file.path);
-          if (vaultContent.ok) {
-            previous = vaultContent.value;
+          const protectContent = await ops.readFile(file.path);
+          if (protectContent.ok) {
+            previous = protectContent.value;
           }
         }
         ctx.set(file.path, {
@@ -190,12 +190,12 @@ export async function approve(
     }
   }
 
-  // ── Phase 4: Backup all affected vault files ───────────────────────
+  // ── Phase 4: Backup all affected protect-tier files ───────────────────────
   const backedUpFiles: string[] = [];
   await ops.mkdir(".soulguard/backup");
   for (const file of changedFiles) {
-    // Only backup files that exist in vault (skip new files)
-    if (file.status === "vault_missing") continue;
+    // Only backup files that exist in protect (skip new files)
+    if (file.status === "protect_missing") continue;
     const backupResult = await ops.copyFile(file.path, `.soulguard/backup/${file.path}`);
     if (!backupResult.ok) {
       await cleanupBackup(ops, backedUpFiles);
@@ -210,10 +210,10 @@ export async function approve(
 
   for (const file of changedFiles) {
     if (file.status === "deleted") {
-      // Delete vault file
+      // Delete protect-tier file
       const deleteResult = await ops.deleteFile(file.path);
       if (!deleteResult.ok) {
-        await rollback(ops, changedFiles, appliedFiles, backedUpFiles, vaultOwnership);
+        await rollback(ops, changedFiles, appliedFiles, backedUpFiles, protectOwnership);
         return err({
           kind: "apply_failed",
           message: `Cannot delete ${file.path}: ${deleteResult.error.kind}`,
@@ -223,13 +223,13 @@ export async function approve(
       // Write content from pending
       const content = await ops.readFile(`.soulguard/pending/${file.path}`);
       if (!content.ok) {
-        await rollback(ops, changedFiles, appliedFiles, backedUpFiles, vaultOwnership);
+        await rollback(ops, changedFiles, appliedFiles, backedUpFiles, protectOwnership);
         return err({ kind: "apply_failed", message: `Cannot read pending/${file.path}` });
       }
 
       const writeResult = await ops.writeFile(file.path, content.value);
       if (!writeResult.ok) {
-        await rollback(ops, changedFiles, appliedFiles, backedUpFiles, vaultOwnership);
+        await rollback(ops, changedFiles, appliedFiles, backedUpFiles, protectOwnership);
         return err({
           kind: "apply_failed",
           message: `Cannot write ${file.path}: ${writeResult.error.kind}`,
@@ -237,18 +237,18 @@ export async function approve(
       }
 
       // Re-protect
-      const chownResult = await ops.chown(file.path, vaultOwnership);
+      const chownResult = await ops.chown(file.path, protectOwnership);
       if (!chownResult.ok) {
-        await rollback(ops, changedFiles, appliedFiles, backedUpFiles, vaultOwnership);
+        await rollback(ops, changedFiles, appliedFiles, backedUpFiles, protectOwnership);
         return err({
           kind: "apply_failed",
           message: `Cannot chown ${file.path}: ${chownResult.error.kind}`,
         });
       }
 
-      const chmodResult = await ops.chmod(file.path, vaultOwnership.mode);
+      const chmodResult = await ops.chmod(file.path, protectOwnership.mode);
       if (!chmodResult.ok) {
-        await rollback(ops, changedFiles, appliedFiles, backedUpFiles, vaultOwnership);
+        await rollback(ops, changedFiles, appliedFiles, backedUpFiles, protectOwnership);
         return err({
           kind: "apply_failed",
           message: `Cannot chmod ${file.path}: ${chmodResult.error.kind}`,
@@ -276,12 +276,12 @@ export async function approve(
   // ── Git auto-commit (best-effort) ──────────────────────────────────
   let gitResult: GitCommitResult | undefined;
   if (await isGitEnabled(ops, config)) {
-    const message = vaultCommitMessage(appliedFiles);
+    const message = protectCommitMessage(appliedFiles);
     const result = await gitCommit(ops, appliedFiles, message);
     if (result.ok) {
       gitResult = result.value;
     }
-    // Git failures are swallowed — vault update already succeeded
+    // Git failures are swallowed — protect update already succeeded
   }
 
   return ok({ appliedFiles, gitResult });
@@ -298,7 +298,7 @@ async function computePendingHash(
   const withHashes: FileDiff[] = [];
   for (const f of changedFiles) {
     if (f.status === "deleted") {
-      // Deleted files pass through — they use protectedHash from the vault file
+      // Deleted files pass through — they use protectedHash from the protect-tier file
       withHashes.push(f);
     } else {
       const fileHash = await ops.hashFile(`.soulguard/pending/${f.path}`);
@@ -330,21 +330,21 @@ async function cleanupBackup(ops: SystemOperations, backedUpFiles: string[]): Pr
 }
 
 /**
- * Rollback: restore vault files from backups after a partial apply failure.
+ * Rollback: restore protect-tier files from backups after a partial apply failure.
  */
 async function rollback(
   ops: SystemOperations,
   changedFiles: FileDiff[],
   appliedFiles: string[],
   backedUpFiles: string[],
-  vaultOwnership: FileOwnership,
+  protectOwnership: FileOwnership,
 ): Promise<void> {
   for (const filePath of appliedFiles) {
     const backupContent = await ops.readFile(`.soulguard/backup/${filePath}`);
     if (backupContent.ok) {
       await ops.writeFile(filePath, backupContent.value);
-      await ops.chown(filePath, vaultOwnership);
-      await ops.chmod(filePath, vaultOwnership.mode);
+      await ops.chown(filePath, protectOwnership);
+      await ops.chmod(filePath, protectOwnership.mode);
     }
   }
   await cleanupBackup(ops, backedUpFiles);

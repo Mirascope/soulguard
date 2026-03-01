@@ -9,8 +9,9 @@ import { z } from "zod";
 import type { SoulguardConfig } from "./types.js";
 
 export const soulguardConfigSchema: z.ZodType<SoulguardConfig> = z.object({
-  vault: z.array(z.string()),
-  ledger: z.array(z.string()),
+  version: z.literal(1),
+  protect: z.array(z.string()),
+  watch: z.array(z.string()),
   git: z.boolean().optional(),
 });
 

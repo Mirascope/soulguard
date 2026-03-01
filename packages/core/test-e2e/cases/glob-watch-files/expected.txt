@@ -3,16 +3,16 @@ Soulguard Init — /workspace
   Created user: soulguardian
   Wrote /etc/sudoers.d/soulguard
   Created .soulguard/staging/
-  Synced 3 vault file(s)
+  Synced 3 protect-tier file(s)
 
 Done.
 STATUS:
 Soulguard Status — /workspace
 
-Vault
+Protect
   ✅ soulguard.json
 
-Ledger
+Watch
   ✅ memory/2026-01-01.md
   ✅ memory/2026-01-02.md
 
@@ -20,10 +20,10 @@ Ledger
 STATUS AFTER DRIFT:
 Soulguard Status — /workspace
 
-Vault
+Protect
   ✅ soulguard.json
 
-Ledger
+Watch
   ⚠️  memory/2026-01-01.md
       owner is root, expected agent
       group is root, expected soulguard
@@ -42,10 +42,10 @@ All files now ok.
 STATUS AFTER SYNC:
 Soulguard Status — /workspace
 
-Vault
+Protect
   ✅ soulguard.json
 
-Ledger
+Watch
   ✅ memory/2026-01-01.md
   ✅ memory/2026-01-02.md
 

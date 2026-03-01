@@ -1,7 +1,7 @@
 /**
  * Git integration helpers for soulguard.
  *
- * Provides auto-commit functionality for vault and ledger changes.
+ * Provides auto-commit functionality for protect and watch-tier changes.
  * All operations are best-effort — git failures never block core operations.
  */
 
@@ -83,11 +83,11 @@ export async function gitCommit(
 }
 
 /**
- * Build a human-readable commit message for vault changes.
+ * Build a human-readable commit message for protect-tier changes.
  */
-export function vaultCommitMessage(files: string[], approvalMessage?: string): string {
+export function protectCommitMessage(files: string[], approvalMessage?: string): string {
   const fileList = files.join(", ");
-  const base = `soulguard: vault update — ${fileList}`;
+  const base = `soulguard: protect update — ${fileList}`;
   if (approvalMessage) {
     return `${base}\n\n${approvalMessage}`;
   }
@@ -95,22 +95,22 @@ export function vaultCommitMessage(files: string[], approvalMessage?: string): s
 }
 
 /**
- * Build a human-readable commit message for ledger changes.
- * Uses a generic message since we stage all ledger files and let
+ * Build a human-readable commit message for watch-tier changes.
+ * Uses a generic message since we stage all watch-tier files and let
  * git determine which actually changed.
  */
-export function ledgerCommitMessage(): string {
-  return "soulguard: ledger sync";
+export function watchCommitMessage(): string {
+  return "soulguard: watch sync";
 }
 
 /**
- * Commit all ledger files to git (best-effort).
+ * Commit all watch-tier files to git (best-effort).
  *
- * Stages all resolved ledger files and commits if anything changed.
- * Note: `sync` now also commits all tracked files (vault + ledger).
- * This function is still useful for targeted ledger-only commits.
+ * Stages all resolved watch-tier files and commits if anything changed.
+ * Note: `sync` now also commits all tracked files (protect + watch).
+ * This function is still useful for targeted watch-only commits.
  */
-export async function commitLedgerFiles(
+export async function commitWatchFiles(
   ops: SystemOperations,
   config: SoulguardConfig,
 ): Promise<Result<GitCommitResult, GitError>> {
@@ -118,14 +118,14 @@ export async function commitLedgerFiles(
     return ok({ committed: false, reason: "git_disabled" });
   }
 
-  const resolved = await resolvePatterns(ops, config.ledger);
+  const resolved = await resolvePatterns(ops, config.watch);
   if (!resolved.ok) {
     return err({ kind: "git_error", message: `glob failed: ${resolved.error.message}` });
   }
-  const ledgerFiles = resolved.value;
-  if (ledgerFiles.length === 0) {
+  const watchFiles = resolved.value;
+  if (watchFiles.length === 0) {
     return ok({ committed: false, reason: "no_files" });
   }
 
-  return gitCommit(ops, ledgerFiles, ledgerCommitMessage());
+  return gitCommit(ops, watchFiles, watchCommitMessage());
 }

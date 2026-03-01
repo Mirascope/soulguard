@@ -2,30 +2,30 @@ import { describe, expect, it } from "bun:test";
 import { guardToolCall, type GuardOptions } from "./guard.js";
 
 const defaultOpts: GuardOptions = {
-  vaultFiles: ["SOUL.md", "IDENTITY.md"],
+  protectFiles: ["SOUL.md", "IDENTITY.md"],
 };
 
 describe("guardToolCall", () => {
-  it("blocks Write to a vault file", () => {
+  it("blocks Write to a protect-tier file", () => {
     const result = guardToolCall("Write", { file_path: "SOUL.md" }, defaultOpts);
     expect(result.blocked).toBe(true);
-    expect(result.reason).toContain("vault-protected");
+    expect(result.reason).toContain("protect-tier protected");
     expect(result.reason).toContain(".soulguard/staging/SOUL.md");
     expect(result.reason).toContain("reviewed and approved by the owner");
   });
 
-  it("blocks Edit to a vault file", () => {
+  it("blocks Edit to a protect-tier file", () => {
     const result = guardToolCall("Edit", { path: "IDENTITY.md" }, defaultOpts);
     expect(result.blocked).toBe(true);
-    expect(result.reason).toContain("vault-protected");
+    expect(result.reason).toContain("protect-tier protected");
   });
 
-  it("allows Write to a non-vault file", () => {
+  it("allows Write to a non-protect-tier file", () => {
     const result = guardToolCall("Write", { file_path: "README.md" }, defaultOpts);
     expect(result.blocked).toBe(false);
   });
 
-  it("allows Write to staging copy of a vault file", () => {
+  it("allows Write to staging copy of a protect-tier file", () => {
     const result = guardToolCall("Write", { file_path: ".soulguard/staging/SOUL.md" }, defaultOpts);
     expect(result.blocked).toBe(false);
   });
@@ -54,5 +54,5 @@ describe("guardToolCall", () => {
   });
 
   // TODO: glob pattern tests — re-enable when delegated to @soulguard/core isVaulted() API
-  // For 0.1, "*.md" in vaultFiles is treated as a literal string, not a glob.
+  // For 0.1, "*.md" in protectFiles is treated as a literal string, not a glob.
 });

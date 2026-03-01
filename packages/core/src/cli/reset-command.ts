@@ -1,5 +1,5 @@
 /**
- * ResetCommand — reset staging to match vault (discard changes).
+ * ResetCommand — reset staging to match protect-tier (discard changes).
  */
 
 import type { ConsoleOutput } from "../console.js";
@@ -21,7 +21,7 @@ export class ResetCommand {
     }
 
     if (result.value.resetFiles.length === 0) {
-      this.out.info("No changes to reset — staging already matches vault.");
+      this.out.info("No changes to reset — staging already matches protect-tier.");
       return 0;
     }
 

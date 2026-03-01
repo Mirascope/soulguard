@@ -6,17 +6,19 @@
 
 /** User-level configuration (soulguard.json) */
 export type SoulguardConfig = {
-  /** Files protected as vault items (require owner approval to modify) */
-  vault: string[];
-  /** File patterns tracked as ledger items (agent writes freely, changes recorded) */
-  ledger: string[];
+  /** Schema version for forward compatibility */
+  version: 1;
+  /** Files in the protect tier (require owner approval to modify) */
+  protect: string[];
+  /** File patterns in the watch tier (agent writes freely, changes recorded) */
+  watch: string[];
   /** Whether to initialize and track git (default: true) */
   git?: boolean;
 };
 
 // ── Tiers ──────────────────────────────────────────────────────────────
 
-export type Tier = "vault" | "ledger";
+export type Tier = "protect" | "watch";
 
 // ── File primitives ────────────────────────────────────────────────────
 
@@ -80,9 +82,9 @@ export function formatIssue(issue: DriftIssue): string {
 
 /** Expected soulguard system user/group names per platform */
 export type SystemIdentity = {
-  /** System user that owns vault files (e.g. "soulguardian") */
+  /** System user that owns protected files (e.g. "soulguardian") */
   user: string;
-  /** System group for vault files (e.g. "soulguard") */
+  /** System group for protected files (e.g. "soulguard") */
   group: string;
 };
 

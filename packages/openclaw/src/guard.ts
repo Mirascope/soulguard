@@ -1,16 +1,16 @@
 /**
- * before_tool_call guard — blocks writes to vault-protected files and
+ * before_tool_call guard — blocks writes to protect-tier protected files and
  * returns a helpful message pointing the agent to the staging workflow.
  */
 
 import { basename } from "node:path";
-import { isVaultedFile, normalizePath } from "@soulguard/core";
+import { isProtectedFile, normalizePath } from "@soulguard/core";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
 export type GuardOptions = {
-  /** Vault file paths/patterns from soulguard.json */
-  vaultFiles: string[];
+  /** Protect-tier file paths/patterns from soulguard.json */
+  protectFiles: string[];
 };
 
 export type GuardResult = {
@@ -61,13 +61,13 @@ export function guardToolCall(
   if (norm.startsWith(STAGING_PREFIX)) return { blocked: false };
 
   // Check against vault using core SDK
-  if (!isVaultedFile(options.vaultFiles, targetPath)) return { blocked: false };
+  if (!isProtectedFile(options.protectFiles, targetPath)) return { blocked: false };
 
   const fileName = basename(targetPath);
   return {
     blocked: true,
     reason:
-      `${fileName} is vault-protected by soulguard. ` +
+      `${fileName} is protect-tier protected by soulguard. ` +
       `To modify it, edit .soulguard/staging/${norm} instead. ` +
       `Your changes will be reviewed and approved by the owner.`,
   };

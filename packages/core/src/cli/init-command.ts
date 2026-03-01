@@ -64,7 +64,7 @@ export class InitCommand {
     // Report sync results
     const fixed = r.syncResult.before.issues.length - r.syncResult.after.issues.length;
     if (fixed > 0) {
-      this.out.success(`  Synced ${fixed} vault file(s)`);
+      this.out.success(`  Synced ${fixed} protect-tier file(s)`);
     }
 
     const remaining = r.syncResult.after.issues.length;

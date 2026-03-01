@@ -3,7 +3,7 @@
 # brick itself by writing an invalid config.
 
 cat > soulguard.json <<'EOF'
-{"vault":["SOUL.md","soulguard.json"],"ledger":[]}
+{"version": 1, "protect":["SOUL.md","soulguard.json"],"watch":[]}
 EOF
 echo '# My Soul' > SOUL.md
 

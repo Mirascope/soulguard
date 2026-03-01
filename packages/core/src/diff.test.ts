@@ -9,8 +9,8 @@ function makeMock() {
   return new MockSystemOps(WORKSPACE);
 }
 
-function makeConfig(vault: string[] = ["SOUL.md"]): SoulguardConfig {
-  return { vault, ledger: [] };
+function makeConfig(protect: string[] = ["SOUL.md"]): SoulguardConfig {
+  return { version: 1, protect, watch: [] };
 }
 
 describe("diff", () => {
@@ -45,7 +45,7 @@ describe("diff", () => {
     expect(result.value.files[0]!.diff).toContain("+modified");
   });
 
-  test("vault exists but staging deleted → deleted status", async () => {
+  test("protect-tier file exists but staging deleted → deleted status", async () => {
     const ops = makeMock();
     ops.addFile(".soulguard/staging", "");
     ops.addFile("SOUL.md", "# Soul");
@@ -60,7 +60,7 @@ describe("diff", () => {
     expect(result.value.approvalHash).toBeDefined();
   });
 
-  test("neither vault nor staging exists → staging_missing status", async () => {
+  test("neither protect-tier file nor staging exists → staging_missing status", async () => {
     const ops = makeMock();
     ops.addFile(".soulguard/staging", "");
 
@@ -71,7 +71,7 @@ describe("diff", () => {
     expect(result.value.files[0]!.status).toBe("staging_missing");
   });
 
-  test("vault file missing → vault_missing status", async () => {
+  test("protect-tier file missing → protect_missing status", async () => {
     const ops = makeMock();
     ops.addFile(".soulguard/staging", "");
     ops.addFile(".soulguard/staging/SOUL.md", "# New Soul");
@@ -81,7 +81,7 @@ describe("diff", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.hasChanges).toBe(true);
-    expect(result.value.files[0]!.status).toBe("vault_missing");
+    expect(result.value.files[0]!.status).toBe("protect_missing");
   });
 
   test("no staging dir → no_staging error", async () => {

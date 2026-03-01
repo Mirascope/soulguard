@@ -1,9 +1,9 @@
-# Vault file deletion: agent deletes a file from staging, owner approves.
-# Tests the full lifecycle when a vault-protected file is deleted through staging.
+# Protect-tier file deletion: agent deletes a file from staging, owner approves.
+# Tests the full lifecycle when a protect-tier protected file is deleted through staging.
 
-# Setup: two vault files
+# Setup: two protect-tier files
 cat > soulguard.json <<'EOF'
-{"vault":["SOUL.md","BOOTSTRAP.md","soulguard.json"],"ledger":[]}
+{"version": 1, "protect":["SOUL.md","BOOTSTRAP.md","soulguard.json"],"watch":[]}
 EOF
 echo '# My Soul' > SOUL.md
 echo '# Bootstrap' > BOOTSTRAP.md

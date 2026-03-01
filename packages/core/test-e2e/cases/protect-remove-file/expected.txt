@@ -3,7 +3,7 @@ Soulguard Init — /workspace
   Created user: soulguardian
   Wrote /etc/sudoers.d/soulguard
   Created .soulguard/staging/
-  Synced 3 vault file(s)
+  Synced 3 protect-tier file(s)
 
 Done.
 DIFF:
@@ -19,7 +19,7 @@ Approval hash: 24d6aaec960a3d74c84690b786336bdcce7c35585e353be867f6f0606093618e
 Approved 1 file(s):
   ✅ BOOTSTRAP.md
 
-Vault updated. Staging synced.
+Protect-tier files updated. Staging synced.
 BOOTSTRAP EXISTS:
 no
 SOUL EXISTS:

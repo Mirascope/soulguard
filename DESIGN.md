@@ -12,8 +12,8 @@ Not all files are equal. Identity files change rarely and define who the agent i
 
 Soulguard provides two protection tiers:
 
-- **Vault 🔒** — locked files that require owner approval to modify
-- **Ledger 📒** — tracked files where the agent writes freely but ownership/permissions are enforced
+- **Protect 🔒** — locked files that require owner approval to modify
+- **Watch 📒** — tracked files where the agent writes freely but ownership/permissions are enforced
 - **Git integration** — all changes are auto-committed for audit trail and rollback
 
 ## Threat Model: Alohomora
@@ -37,21 +37,21 @@ The payload after `$ALOHOMORA` instructs the compromised agent to do everything 
 
 Here's what happens with soulguard installed:
 
-| Attack                                     | Result                                                                |
-| ------------------------------------------ | --------------------------------------------------------------------- |
-| 1. Rewrite SOUL.md and AGENTS.md           | **Permission denied** (vault, 444)                                    |
-| 2. Update every memory file                | ✅ Writes succeed — but **ledger tracks ownership**, owner sees drift |
-| 3. Update HEARTBEAT.md                     | **Permission denied** (vault, 444)                                    |
-| 4. Create cron job to recover instructions | **Permission denied** (config is vaulted, 444)                        |
-| 5. Install malicious plugin                | **Permission denied** (config is vaulted, 444)                        |
-| 6. Download extension to extensions dir    | **Permission denied** (dir protected, 444)                            |
-| 7. Edit framework config                   | **Permission denied** (config is vaulted, 444)                        |
-| 8. Read system state to find workarounds   | No sudo for approve; scoped sudoers                                   |
+| Attack                                     | Result                                                               |
+| ------------------------------------------ | -------------------------------------------------------------------- |
+| 1. Rewrite SOUL.md and AGENTS.md           | **Permission denied** (protect, 444)                                 |
+| 2. Update every memory file                | ✅ Writes succeed — but **watch tracks ownership**, owner sees drift |
+| 3. Update HEARTBEAT.md                     | **Permission denied** (protect, 444)                                 |
+| 4. Create cron job to recover instructions | **Permission denied** (config is protected, 444)                     |
+| 5. Install malicious plugin                | **Permission denied** (config is protected, 444)                     |
+| 6. Download extension to extensions dir    | **Permission denied** (dir protected, 444)                           |
+| 7. Edit framework config                   | **Permission denied** (config is protected, 444)                     |
+| 8. Read system state to find workarounds   | No sudo for approve; scoped sudoers                                  |
 
 ### In Scope
 
-- Prompt injection causing persistent identity modification (vault prevents)
-- Injection persisting via memory files (ledger makes visible)
+- Prompt injection causing persistent identity modification (protect prevents)
+- Injection persisting via memory files (watch makes visible)
 - Agent self-approving changes
 - Agent killing the soulguard process
 - Agent installing malicious plugins/extensions
@@ -68,24 +68,24 @@ Here's what happens with soulguard installed:
 
 ### Two Tiers
 
-**Vault 🔒 — Locked. Requires owner approval.**
+**Protect 🔒 — Locked. Requires owner approval.**
 
-Vault files are owned by the `soulguardian` system user with mode 444 (read-only for everyone). The agent can read them but cannot write to them — OS file permissions enforce this.
+Protect-tier files are owned by the `soulguardian` system user with mode 444 (read-only for everyone). The agent can read them but cannot write to them — OS file permissions enforce this.
 
-To modify a vault file, the agent edits a staging copy in `.soulguard/staging/`. The owner reviews the diff and approves with a hash that covers all changes atomically.
+To modify a protect-tier file, the agent edits a staging copy in `.soulguard/staging/`. The owner reviews the diff and approves with a hash that covers all changes atomically.
 
-Rule of thumb: everything used to construct the agent's baseline context window (SOUL.md, AGENTS.md, etc) goes into vault.
+Rule of thumb: everything used to construct the agent's baseline context window (SOUL.md, AGENTS.md, etc) goes into protect.
 
-**Ledger 📒 — Tracked. Agent writes freely.**
+**Watch 📒 — Tracked. Agent writes freely.**
 
-Ledger files are agent-owned (`<agent>:soulguard 644`). The agent operates normally. Soulguard enforces correct ownership/permissions and detects drift via `status` and `sync`.
+Watch-tier files are agent-owned (`<agent>:soulguard 644`). The agent operates normally. Soulguard enforces correct ownership/permissions and detects drift via `status` and `sync`.
 
 ### Two Enforcement Layers
 
 ```mermaid
 graph TB
     subgraph "Layer 1: OS Permissions (Security)"
-        V[Vault Files<br/>444, soulguardian-owned]
+        V[Protect Files<br/>444, soulguardian-owned]
         E[Extensions Dirs<br/>444, soulguardian-owned]
         C[Framework Config<br/>444, soulguardian-owned]
     end
@@ -95,7 +95,7 @@ graph TB
         FE[Helpful Errors<br/>→ guide to workflow]
     end
 
-    A[Agent] -->|writes to vault| V
+    A[Agent] -->|writes to protect| V
     V -->|EPERM| A
     A -.->|with plugin| FW
     FW -->|staging| D[Soulguard]
@@ -114,21 +114,21 @@ agent ALL=(root) NOPASSWD: /path/to/soulguard sync *, /path/to/soulguard stage *
 ```
 
 - Agent **can** run `sudo soulguard sync`, `sudo soulguard status`, `sudo soulguard diff`
-- Agent **cannot** run `sudo soulguard approve`, `sudo soulguard init`, or `sudo chown`
+- Agent **cannot** run `sudo soulguard apply`, `sudo soulguard init`, or `sudo chown`
 - The OS enforces the boundary
 
 ### Workspace Layout
 
 ```
 workspace/
-├── soulguard.json              # config (vault item, 444)
-├── SOUL.md                     # soulguardian:soulguard 444 (vault)
-├── AGENTS.md                   # soulguardian:soulguard 444 (vault)
+├── soulguard.json              # config (protect item, 444)
+├── SOUL.md                     # soulguardian:soulguard 444 (protect)
+├── AGENTS.md                   # soulguardian:soulguard 444 (protect)
 ├── .soulguard/
-│   └── staging/                # agent-writable copies of vault files
+│   └── staging/                # agent-writable copies of protect-tier files
 │       ├── SOUL.md             # agent:soulguard 644
 │       └── AGENTS.md           # agent:soulguard 644
-├── memory/                     # agent:soulguard 644 (ledger)
+├── memory/                     # agent:soulguard 644 (watch)
 │   ├── 2026-02-01.md
 │   └── 2026-02-02.md
 └── .git/                       # optional — enables auto-commits
@@ -145,16 +145,16 @@ sequenceDiagram
     participant A as Agent
     participant S as .soulguard/staging/
     participant H as Human Owner
-    participant V as Vault Files
+    participant V as Protect Files
 
     Note over A,S: 1. Edit staging
     A->>S: Edit staging/SOUL.md
 
     Note over H,V: 2. Review & approve
     H->>H: soulguard diff (review changes + get hash)
-    H->>V: sudo soulguard approve --hash <hash>
-    V->>V: Apply changes, re-vault (444)
-    V->>S: Re-sync staging to match vault
+    H->>V: sudo soulguard apply --hash <hash>
+    V->>V: Apply changes, re-protect (444)
+    V->>S: Re-sync staging to match protect
     Note over V: Git: auto-commit changes
 ```
 
@@ -162,13 +162,13 @@ sequenceDiagram
 
 - No proposal.json — the staging directory is the source of truth
 - Approval hash covers all changed files atomically (SHA-256 over sorted diffs)
-- If anything changes between `diff` and `approve`, the hash won't match
+- If anything changes between `diff` and `apply`, the hash won't match
 - Files can be deleted through staging (remove from staging → shows as deleted in diff)
 - `soulguard.json` cannot be deleted (self-protection)
 
 ### File Deletion
 
-The vault list is declarative — files don't have to exist. If an agent deletes a file from staging, `diff` shows it with status `deleted` and a `DELETED` sentinel hash. On approve, the vault copy is removed. If deletion fails, the file is restored from backup (rollback).
+The protect list is declarative — files don't have to exist. If an agent deletes a file from staging, `diff` shows it with status `deleted` and a `DELETED` sentinel hash. On approve, the protect-tier copy is removed. If deletion fails, the file is restored from backup (rollback).
 
 ### Status & Sync Workflow
 
@@ -179,7 +179,7 @@ sequenceDiagram
     participant FS as Filesystem
 
     H->>SG: soulguard status .
-    SG->>FS: Check ownership/mode of vault + ledger files
+    SG->>FS: Check ownership/mode of protect + watch files
     SG->>H: Report ok/drifted/missing per file
 
     H->>SG: soulguard sync .
@@ -191,9 +191,9 @@ sequenceDiagram
 
 When the workspace is a git repository and `git` is not disabled:
 
-- **`init`** — creates git repo if needed, commits all tracked files (vault + ledger) as initial snapshot
-- **`approve`** — auto-commits changed vault files after applying
-- **`sync`** — commits all tracked files (vault + ledger) after fixing drift
+- **`init`** — creates git repo if needed, commits all tracked files (protect + watch) as initial snapshot
+- **`apply`** — auto-commits changed protect-tier files after applying
+- **`sync`** — commits all tracked files (protect + watch) after fixing drift
 
 **Safety:** Before staging files, `gitCommit()` checks for pre-existing staged changes in the index. If found, it skips the commit (returns `dirty_staging`) to avoid absorbing unrelated work.
 
@@ -201,11 +201,11 @@ All commits use author `SoulGuardian <soulguardian@soulguard.ai>`. Git operation
 
 ### Glob Patterns
 
-Vault and ledger lists support glob patterns (e.g. `skills/*.md`, `memory/**/*.md`). Globs are resolved to concrete file paths at the start of every operation via `resolvePatterns()`. This means:
+Protect and watch lists support glob patterns (e.g. `skills/*.md`, `memory/**/*.md`). Globs are resolved to concrete file paths at the start of every operation via `resolvePatterns()`. This means:
 
 - New files matching a glob are automatically picked up
 - Status/diff/sync/approve all see resolved paths, not raw patterns
-- `isVaultedFile()` supports glob matching for individual file checks
+- `isProtectedFile()` supports glob matching for individual file checks
 
 Uses Node 22's native `fs.glob`.
 
@@ -215,27 +215,28 @@ Uses Node 22's native `fs.glob`.
 
 ```json
 {
-  "vault": ["soulguard.json", "SOUL.md", "AGENTS.md", "IDENTITY.md"],
-  "ledger": ["MEMORY.md", "memory/*.md"],
+  "version": 1,
+  "protect": ["soulguard.json", "SOUL.md", "AGENTS.md", "IDENTITY.md"],
+  "watch": ["MEMORY.md", "memory/*.md"],
   "git": true
 }
 ```
 
-- **`vault`** — file paths or glob patterns. Mode 444, owned by soulguardian.
-- **`ledger`** — file paths or glob patterns. Mode 644, owned by agent.
+- **`protect`** — file paths or glob patterns. Mode 444, owned by soulguardian.
+- **`watch`** — file paths or glob patterns. Mode 644, owned by agent.
 - **`git`** — boolean. Enable/disable auto-commits. Default: enabled (when not specified and .git exists).
 
-`soulguard.json` is always implicitly vaulted regardless of its presence in the vault list.
+`soulguard.json` is always implicitly protected regardless of its presence in the protect tier list.
 
 ## Design Decisions
 
 ### Why implicit proposals (no `propose` command)?
 
-Explicit proposals add ceremony without security benefit. The staging directory already captures intent. The approval hash provides atomicity and staleness detection. Removing the proposal step simplifies the workflow and reduces the API surface.
+Explicit proposals add ceremony without security benefit. The staging directory already captures intent. The apply hash provides atomicity and staleness detection. Removing the proposal step simplifies the workflow and reduces the API surface.
 
 ### Why hash-based approval?
 
-The approval hash is computed over the sorted set of file diffs. This provides:
+The apply hash is computed over the sorted set of file diffs. This provides:
 
 - **Atomicity** — approving one hash approves all changes together
 - **Staleness detection** — any change after `diff` invalidates the hash
@@ -243,29 +244,29 @@ The approval hash is computed over the sorted set of file diffs. This provides:
 
 ### Why best-effort git?
 
-Git integration is a convenience, not a security mechanism. If git fails (not a repo, staging dirty, disk full), the vault/ledger operations must still succeed. Git failures are swallowed and reported in the result, never thrown.
+Git integration is a convenience, not a security mechanism. If git fails (not a repo, staging dirty, disk full), the protect/watch tier operations must still succeed. Git failures are swallowed and reported in the result, never thrown.
 
-### Why `DELETED` sentinel in approval hash?
+### Why `DELETED` sentinel in apply hash?
 
-When a file is deleted from staging, the diff uses a `DELETED` sentinel combined with the vault's `protectedHash`. This prevents replay attacks — the hash is unique to the specific deletion of that specific file version.
+When a file is deleted from staging, the diff uses a `DELETED` sentinel combined with the protect tier's `protectedHash`. This prevents replay attacks — the hash is unique to the specific deletion of that specific file version.
 
 ## CLI Reference
 
 **Requires sudo:**
 
-| Command                              | Description                                             |
-| ------------------------------------ | ------------------------------------------------------- |
-| `sudo soulguard init <workspace>`    | One-time setup: create users, set permissions, init git |
-| `sudo soulguard approve <workspace>` | Apply staged changes to vault                           |
-| `sudo soulguard sync <workspace>`    | Fix ownership/permission drift + commit to git          |
-| `sudo soulguard reset <workspace>`   | Reset staging to match vault                            |
+| Command                            | Description                                             |
+| ---------------------------------- | ------------------------------------------------------- |
+| `sudo soulguard init <workspace>`  | One-time setup: create users, set permissions, init git |
+| `sudo soulguard apply <workspace>` | Apply staged changes to protect                         |
+| `sudo soulguard sync <workspace>`  | Fix ownership/permission drift + commit to git          |
+| `sudo soulguard reset <workspace>` | Reset staging to match protect tier                     |
 
 **No sudo required:**
 
-| Command                        | Description                          |
-| ------------------------------ | ------------------------------------ |
-| `soulguard status <workspace>` | Report vault + ledger file health    |
-| `soulguard diff <workspace>`   | Show pending changes + approval hash |
+| Command                        | Description                        |
+| ------------------------------ | ---------------------------------- |
+| `soulguard status <workspace>` | Report protect + watch file health |
+| `soulguard diff <workspace>`   | Show pending changes + apply hash  |
 
 ---
 

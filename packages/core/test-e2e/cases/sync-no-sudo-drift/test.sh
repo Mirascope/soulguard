@@ -1,5 +1,5 @@
 # Agent can't fix drift without sudo (no init = no scoped sudoers)
-echo '{"vault": ["SOUL.md"], "ledger": []}' > soulguard.json
+echo '{"version": 1, "protect": ["SOUL.md"], "watch": []}' > soulguard.json
 echo '# My Soul' > SOUL.md
 
 # Make workspace readable by agent (no init, no sudoers)

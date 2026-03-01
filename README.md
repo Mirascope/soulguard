@@ -2,7 +2,7 @@
 
 _Identity protection for AI agents._
 
-Soulguard protects AI agent identity files from prompt injection attacks using OS-level file permissions as the hard security floor. It provides two protection tiers — **vault** (locked, requires owner approval) and **ledger** (tracked, agent writes freely) — with optional framework plugins for better UX.
+Soulguard protects AI agent identity files from prompt injection attacks using OS-level file permissions as the hard security floor. It provides two protection tiers — **protect** (locked, requires owner approval) and **watch** (tracked, agent writes freely) — with optional framework plugins for better UX.
 
 ## The Problem
 
@@ -12,9 +12,9 @@ AI agents read identity files (SOUL.md, AGENTS.md, config) on every session. If 
 
 **Two tiers:**
 
-- **Vault 🔒** — Vaulted files are owned by a system user with mode 444 (read-only). The agent cannot modify them — OS permissions enforce this. To change a vault file, the agent edits a staging copy; the owner reviews the diff and approves.
+- **Protect 🔒** — Protected files are owned by a system user with mode 444 (read-only). The agent cannot modify them — OS permissions enforce this. To change a protect-tier file, the agent edits a staging copy; the owner reviews the diff and approves.
 
-- **Ledger 📒** — Files the agent may modify freely, but ownership and permissions are tracked. Drift (wrong ownership/mode) is detected and auto-fixed by `sync`.
+- **Watch 📒** — Files the agent may modify freely, but ownership and permissions are tracked. Drift (wrong ownership/mode) is detected and auto-fixed by `sync`.
 
 **Two enforcement layers:**
 
@@ -38,7 +38,7 @@ soulguard status ~/.openclaw
 # Agent edits staging copies in .soulguard/staging/
 # Then owner reviews and approves:
 soulguard diff ~/.openclaw
-sudo soulguard approve ~/.openclaw
+sudo soulguard apply ~/.openclaw
 ```
 
 ## How It Works
@@ -49,40 +49,41 @@ sudo soulguard approve ~/.openclaw
 
 1. Creates `soulguard` group (if not already created) and `soulguardian` system user (if not already present)
 2. Writes scoped sudoers rules (`/etc/sudoers.d/soulguard`)
-3. Creates `.soulguard/staging/` with agent-writable copies of vault files
-4. Sets vault file ownership to `soulguardian:soulguard 444`
-5. Sets ledger file ownership to `<agent>:soulguard 644`
-6. Initializes a git repo if one doesn't exist, and commits initial state (both vault and ledger files)
+3. Creates `.soulguard/staging/` with agent-writable copies of protect-tier files
+4. Sets protect-tier file ownership to `soulguardian:soulguard 444`
+5. Sets watch-tier file ownership to `<agent>:soulguard 644`
+6. Initializes a git repo if one doesn't exist, and commits initial state (both protect and watch files)
 
 Init is idempotent — running it again skips completed steps.
 
 ### Approval Workflow
 
-The agent edits files in `.soulguard/staging/` directly. When the owner runs `diff`, soulguard compares staging against vault and shows a unified diff of all changes. The owner then runs `approve` to review and apply:
+The agent edits files in `.soulguard/staging/` directly. When the owner runs `diff`, soulguard compares staging against protect-tier and shows a unified diff of all changes. The owner then runs `apply` to review and apply:
 
 ```
 Agent edits .soulguard/staging/SOUL.md
   ↓
 Owner: soulguard diff .        → shows what changed
-Owner: sudo soulguard approve .  → reviews and applies changes
+Owner: sudo soulguard apply .  → reviews and applies changes
 ```
 
 Approve computes a hash over all diffs and applies changes atomically. If anything changes between diff and approve, the hashes won't match and approve will reject.
 
 ### File Deletion
 
-Vault files can be deleted through the staging workflow. If an agent removes a file from `.soulguard/staging/`, `diff` shows it as deleted and includes it in the approval hash. On approve, the vault copy is removed.
+Protect-tier files can be deleted through the staging workflow. If an agent removes a file from `.soulguard/staging/`, `diff` shows it as deleted and includes it in the apply hash. On approve, the protect-tier copy is removed.
 
 `soulguard.json` itself cannot be deleted (self-protection).
 
 ### Glob Patterns
 
-Vault and ledger lists in `soulguard.json` support glob patterns:
+Protect and watch lists in `soulguard.json` support glob patterns:
 
 ```json
 {
-  "vault": ["soulguard.json", "*.md"],
-  "ledger": ["memory/*.md", "skills/**/*.md"]
+  "version": 1,
+  "protect": ["soulguard.json", "*.md"],
+  "watch": ["memory/*.md", "skills/**/*.md"]
 }
 ```
 
@@ -92,17 +93,17 @@ Globs are resolved to concrete file paths at runtime. All commands (status, diff
 
 When the workspace has a git repo and `git` is not disabled in config:
 
-- **`init`** creates a git repo if needed, then commits all tracked files (vault + ledger) as an initial snapshot
-- **`approve`** auto-commits vault changes after applying them
-- **`sync`** commits all tracked files (vault + ledger) after fixing drift
+- **`init`** creates a git repo if needed, then commits all tracked files (protect + watch) as an initial snapshot
+- **`apply`** auto-commits protect-tier changes after applying them
+- **`sync`** commits all tracked files (protect + watch) after fixing drift
 
 All git commits use author `SoulGuardian <soulguardian@soulguard.ai>`. Git operations are best-effort — failures never block core operations. If the staging area has pre-existing staged changes, soulguard skips the commit to avoid absorbing unrelated work.
 
 ### Status & Sync
 
-- `soulguard status` — reports vault and ledger file health (ownership, permissions, missing files)
-- `soulguard sync` — fixes ownership/permission drift on vault and ledger files, then commits all tracked files to git
-- `soulguard reset` — resets staging to match current vault state
+- `soulguard status` — reports protect and watch file health (ownership, permissions, missing files)
+- `soulguard sync` — fixes ownership/permission drift on protect and watch files, then commits all tracked files to git
+- `soulguard reset` — resets staging to match current protect-tier state
 
 ## Configuration
 
@@ -110,31 +111,32 @@ All git commits use author `SoulGuardian <soulguardian@soulguard.ai>`. Git opera
 
 ```json
 {
-  "vault": ["soulguard.json", "SOUL.md", "AGENTS.md", "IDENTITY.md"],
-  "ledger": ["MEMORY.md", "memory/*.md"],
+  "version": 1,
+  "protect": ["soulguard.json", "SOUL.md", "AGENTS.md", "IDENTITY.md"],
+  "watch": ["MEMORY.md", "memory/*.md"],
   "git": true
 }
 ```
 
-- **`vault`** — files/globs that require owner approval to modify (mode 444)
-- **`ledger`** — files/globs with tracked ownership (mode 644, agent-writable)
+- **`protect`** — files/globs that require owner approval to modify (mode 444)
+- **`watch`** — files/globs with tracked ownership (mode 644, agent-writable)
 - **`git`** — enable/disable auto-commits (default: true if not specified)
 
-`soulguard.json` is always implicitly vaulted (self-protection).
+`soulguard.json` is always implicitly protected (self-protection).
 
 ### Protection Templates
 
 The OpenClaw plugin (`@soulguard/openclaw`) ships three templates that categorize all known workspace paths:
 
-- **default** — core identity and config in vault, memory and skills in ledger
-- **paranoid** — everything possible in vault, only sessions unprotected
-- **relaxed** — only `soulguard.json` locked, everything else tracked in ledger
+- **default** — core identity and config in protect, memory and skills in watch
+- **paranoid** — everything possible in protect, only sessions unprotected
+- **relaxed** — only `soulguard.json` locked, everything else in watch in watch
 
 ## Packages
 
 | Package                                   | Description                                              |
 | ----------------------------------------- | -------------------------------------------------------- |
-| [@soulguard/core](packages/core/)         | Vault, ledger, approval workflow, CLI, git integration   |
+| [@soulguard/core](packages/core/)         | Protect, watch, apply workflow, CLI, git integration     |
 | [@soulguard/openclaw](packages/openclaw/) | OpenClaw framework plugin (templates, tool interception) |
 | [soulguard](packages/soulguard/)          | Meta-package — installs core + CLI                       |
 
@@ -143,14 +145,14 @@ The OpenClaw plugin (`@soulguard/openclaw`) ships three templates that categoriz
 **Requires sudo:**
 
 - `sudo soulguard init <dir>` — one-time setup
-- `sudo soulguard approve <dir>` — apply staged changes
+- `sudo soulguard apply <dir>` — apply staged changes
 - `sudo soulguard sync <dir>` — fix ownership/permission drift + commit
-- `sudo soulguard reset <dir>` — reset staging to match vault
+- `sudo soulguard reset <dir>` — reset staging to match protect tier
 
 **No sudo required:**
 
-- `soulguard status <dir>` — vault and ledger health
-- `soulguard diff <dir>` — show pending changes + approval hash
+- `soulguard status <dir>` — protect and watch health
+- `soulguard diff <dir>` — show pending changes + apply hash
 
 For OpenClaw agents, `<dir>` is the OpenClaw home directory (e.g. `~/.openclaw/`), which contains both framework config (`openclaw.json`, `cron/`) and the agent workspace (`workspace/`).
 

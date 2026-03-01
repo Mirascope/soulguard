@@ -3,7 +3,7 @@
  *
  * Provides:
  * - Configuration templates (default, paranoid, relaxed)
- * - before_tool_call hooks to intercept writes to vault files
+ * - before_tool_call hooks to intercept writes to protect-tier files
  * - Cron and extension directory gating
  */
 

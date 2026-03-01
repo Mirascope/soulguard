@@ -1,9 +1,9 @@
-# Glob vault files: vault protects "skills/*.md" pattern.
+# Glob protect-tier files: protect tier covers "skills/*.md" pattern.
 # Tests that glob patterns resolve to actual files in status, diff, and approve.
 
 # Setup: vault with glob + a couple matching files
 cat > soulguard.json <<'EOF'
-{"vault":["soulguard.json","skills/*.md"],"ledger":[]}
+{"version": 1, "protect":["soulguard.json","skills/*.md"],"watch":[]}
 EOF
 mkdir -p skills
 echo '# Python' > skills/python.md

@@ -54,9 +54,9 @@ export class DiffCommand {
           changeCount++;
           this.out.warn(`  ⚠️ ${file.path} (no staging copy)`);
           break;
-        case "vault_missing":
+        case "protect_missing":
           changeCount++;
-          this.out.warn(`  ⚠️ ${file.path} (vault file missing — new file)`);
+          this.out.warn(`  ⚠️ ${file.path} (protect-tier file missing — new file)`);
           break;
         case "deleted":
           changeCount++;

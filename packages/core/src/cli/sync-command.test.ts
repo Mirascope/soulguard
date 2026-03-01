@@ -18,9 +18,9 @@ function setup(configureMock: (ops: MockSystemOps) => void): {
   configureMock(ops);
   const out = new MockConsoleOutput();
   const opts: SyncOptions = {
-    config: { vault: ["SOUL.md"], ledger: ["memory/today.md"] },
-    expectedVaultOwnership: VAULT_OWNERSHIP,
-    expectedLedgerOwnership: LEDGER_OWNERSHIP,
+    config: { version: 1, protect: ["SOUL.md"], watch: ["memory/today.md"] },
+    expectedProtectOwnership: VAULT_OWNERSHIP,
+    expectedWatchOwnership: LEDGER_OWNERSHIP,
     ops,
   };
   return { cmd: new SyncCommand(opts, out), out, ops };

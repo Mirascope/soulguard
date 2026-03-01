@@ -16,17 +16,17 @@ function makeMock() {
   return ops;
 }
 
-function opts(config: { vault: string[]; ledger: string[] }, ops: MockSystemOps) {
+function opts(config: { version: 1; protect: string[]; watch: string[] }, ops: MockSystemOps) {
   return {
     config,
-    expectedVaultOwnership: VAULT_OWNERSHIP,
-    expectedLedgerOwnership: LEDGER_OWNERSHIP,
+    expectedProtectOwnership: VAULT_OWNERSHIP,
+    expectedWatchOwnership: LEDGER_OWNERSHIP,
     ops,
   };
 }
 
 describe("status", () => {
-  test("reports ok when vault file is correct", async () => {
+  test("reports ok when protect-tier file is correct", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", {
       owner: VAULT_OWNERSHIP.user,
@@ -34,17 +34,17 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(opts({ vault: ["SOUL.md"], ledger: [] }, ops));
+    const result = await status(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.vault).toHaveLength(1);
-    expect(result.value.vault[0]!.status).toBe("ok");
+    expect(result.value.protect).toHaveLength(1);
+    expect(result.value.protect[0]!.status).toBe("ok");
     expect(result.value.issues).toHaveLength(0);
   });
 
-  test("reports drifted with semantic issues when vault file has wrong owner", async () => {
+  test("reports drifted with semantic issues when protect-tier file has wrong owner", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", {
       owner: "agent",
@@ -52,12 +52,12 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(opts({ vault: ["SOUL.md"], ledger: [] }, ops));
+    const result = await status(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const file = result.value.vault[0]! as FileStatus & { status: "drifted" };
+    const file = result.value.protect[0]! as FileStatus & { status: "drifted" };
     expect(file.status).toBe("drifted");
     expect(file.issues).toContainEqual({
       kind: "wrong_owner",
@@ -67,7 +67,7 @@ describe("status", () => {
     expect(result.value.issues).toHaveLength(1);
   });
 
-  test("reports drifted when vault file has wrong mode", async () => {
+  test("reports drifted when protect-tier file has wrong mode", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", {
       owner: VAULT_OWNERSHIP.user,
@@ -75,12 +75,12 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(opts({ vault: ["SOUL.md"], ledger: [] }, ops));
+    const result = await status(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const file = result.value.vault[0]! as FileStatus & { status: "drifted" };
+    const file = result.value.protect[0]! as FileStatus & { status: "drifted" };
     expect(file.status).toBe("drifted");
     expect(file.issues).toContainEqual({
       kind: "wrong_mode",
@@ -89,15 +89,15 @@ describe("status", () => {
     });
   });
 
-  test("reports missing vault files", async () => {
+  test("reports missing protect-tier files", async () => {
     const ops = makeMock();
 
-    const result = await status(opts({ vault: ["SOUL.md"], ledger: [] }, ops));
+    const result = await status(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.vault[0]!.status).toBe("missing");
+    expect(result.value.protect[0]!.status).toBe("missing");
     expect(result.value.issues).toHaveLength(1);
   });
 
@@ -109,12 +109,12 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(opts({ vault: ["SOUL.md"], ledger: [] }, ops));
+    const result = await status(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const file = result.value.vault[0]! as FileStatus & { status: "ok" };
+    const file = result.value.protect[0]! as FileStatus & { status: "ok" };
     expect(file.file.hash).toMatch(/^[a-f0-9]{64}$/);
   });
 
@@ -131,28 +131,32 @@ describe("status", () => {
       mode: LEDGER_OWNERSHIP.mode,
     });
 
-    const result = await status(opts({ vault: ["memory/**"], ledger: ["skills/**"] }, ops));
+    const result = await status(
+      opts({ version: 1, protect: ["memory/**"], watch: ["skills/**"] }, ops),
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.vault).toHaveLength(1);
-    expect(result.value.vault[0]!.status).toBe("ok");
-    expect(result.value.ledger).toHaveLength(1);
-    expect(result.value.ledger[0]!.status).toBe("ok");
+    expect(result.value.protect).toHaveLength(1);
+    expect(result.value.protect[0]!.status).toBe("ok");
+    expect(result.value.watch).toHaveLength(1);
+    expect(result.value.watch[0]!.status).toBe("ok");
     expect(result.value.issues).toHaveLength(0);
   });
 
   test("glob with no matches returns empty", async () => {
     const ops = makeMock();
 
-    const result = await status(opts({ vault: ["memory/**"], ledger: ["skills/**"] }, ops));
+    const result = await status(
+      opts({ version: 1, protect: ["memory/**"], watch: ["skills/**"] }, ops),
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.vault).toHaveLength(0);
-    expect(result.value.ledger).toHaveLength(0);
+    expect(result.value.protect).toHaveLength(0);
+    expect(result.value.watch).toHaveLength(0);
   });
 
   test("reports multiple semantic issues on same file", async () => {
@@ -163,12 +167,12 @@ describe("status", () => {
       mode: "777",
     });
 
-    const result = await status(opts({ vault: ["SOUL.md"], ledger: [] }, ops));
+    const result = await status(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const file = result.value.vault[0]! as FileStatus & { status: "drifted" };
+    const file = result.value.protect[0]! as FileStatus & { status: "drifted" };
     expect(file.issues).toHaveLength(3);
     expect(file.issues.map((i) => i.kind)).toEqual(["wrong_owner", "wrong_group", "wrong_mode"]);
   });
@@ -181,7 +185,9 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(opts({ vault: ["SOUL.md"], ledger: ["notes.md"] }, ops));
+    const result = await status(
+      opts({ version: 1, protect: ["SOUL.md"], watch: ["notes.md"] }, ops),
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -189,7 +195,7 @@ describe("status", () => {
     expect(result.value.issues).toHaveLength(2);
   });
 
-  test("ledger ok files include FileInfo", async () => {
+  test("watch ok files include FileInfo", async () => {
     const ops = makeMock();
     ops.addFile("notes.md", "# Notes", {
       owner: LEDGER_OWNERSHIP.user,
@@ -197,18 +203,18 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(opts({ vault: [], ledger: ["notes.md"] }, ops));
+    const result = await status(opts({ version: 1, protect: [], watch: ["notes.md"] }, ops));
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const file = result.value.ledger[0]! as FileStatus & { status: "ok" };
+    const file = result.value.watch[0]! as FileStatus & { status: "ok" };
     expect(file.status).toBe("ok");
     expect(file.file.hash).toMatch(/^[a-f0-9]{64}$/);
     expect(file.file.ownership.user).toBe(LEDGER_OWNERSHIP.user);
   });
 
-  test("ledger file owned by guardian reports drift", async () => {
+  test("watch-tier file owned by guardian reports drift", async () => {
     const ops = makeMock();
     ops.addFile("notes.md", "# Notes", {
       owner: VAULT_OWNERSHIP.user,
@@ -216,12 +222,12 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(opts({ vault: [], ledger: ["notes.md"] }, ops));
+    const result = await status(opts({ version: 1, protect: [], watch: ["notes.md"] }, ops));
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const file = result.value.ledger[0]! as FileStatus & { status: "drifted" };
+    const file = result.value.watch[0]! as FileStatus & { status: "drifted" };
     expect(file.status).toBe("drifted");
     expect(file.issues).toContainEqual({
       kind: "wrong_owner",

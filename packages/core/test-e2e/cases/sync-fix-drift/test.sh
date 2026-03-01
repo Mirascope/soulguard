@@ -1,5 +1,5 @@
-# Setup: create config and vault file, init for user/group
-echo '{"vault": ["SOUL.md"], "ledger": []}' > soulguard.json
+# Setup: create config and protect-tier file, init for user/group
+echo '{"version": 1, "protect": ["SOUL.md"], "watch": []}' > soulguard.json
 echo '# My Soul' > SOUL.md
 soulguard init . --agent-user agent > /dev/null 2>&1
 

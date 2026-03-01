@@ -1,7 +1,7 @@
 /**
- * soulguard reset — reset staging copies to match vault originals.
+ * soulguard reset — reset staging copies to match protect-tier originals.
  *
- * With implicit proposals, reset simply resets staging to match vault.
+ * With implicit proposals, reset simply resets staging to match protect-tier.
  * Staging IS the proposal — resetting it discards all pending changes.
  */
 
@@ -25,7 +25,7 @@ export type ResetResult = {
 export type ResetError = { kind: "reset_failed"; message: string };
 
 /**
- * Reset staging changes to match vault.
+ * Reset staging changes to match protect-tier.
  */
 export async function reset(options: ResetOptions): Promise<Result<ResetResult, ResetError>> {
   const { ops, config, stagingOwnership } = options;
@@ -40,7 +40,7 @@ export async function reset(options: ResetOptions): Promise<Result<ResetResult, 
     return ok({ resetFiles: [] });
   }
 
-  // Reset staging copies to match vault originals
+  // Reset staging copies to match protect-tier originals
   // Handles modified (overwrite) and deleted (recreate staging copy)
   const resetFiles: string[] = [];
   const resettableFiles = diffResult.value.files.filter(

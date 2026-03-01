@@ -46,7 +46,7 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
     if (issue.status !== "drifted") continue;
 
     const expectedOwnership =
-      issue.tier === "vault" ? options.expectedVaultOwnership : options.expectedLedgerOwnership;
+      issue.tier === "protect" ? options.expectedProtectOwnership : options.expectedWatchOwnership;
 
     const path = issue.file.path;
     const needsChown = issue.issues.some(
@@ -77,16 +77,16 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
   if (!afterResult.ok) return afterResult;
   const after = afterResult.value;
 
-  // Best-effort git commit of all tracked files (vault + ledger)
+  // Best-effort git commit of all tracked files (protect + watch)
   let git: GitCommitResult | undefined;
   if (await isGitEnabled(ops, options.config)) {
-    const [vaultResolved, ledgerResolved] = await Promise.all([
-      resolvePatterns(ops, options.config.vault),
-      resolvePatterns(ops, options.config.ledger),
+    const [protectResolved, watchResolved] = await Promise.all([
+      resolvePatterns(ops, options.config.protect),
+      resolvePatterns(ops, options.config.watch),
     ]);
     const allFiles = [
-      ...(vaultResolved.ok ? vaultResolved.value : []),
-      ...(ledgerResolved.ok ? ledgerResolved.value : []),
+      ...(protectResolved.ok ? protectResolved.value : []),
+      ...(watchResolved.ok ? watchResolved.value : []),
     ];
     if (allFiles.length > 0) {
       const gitResult = await gitCommit(ops, allFiles, "soulguard: sync");

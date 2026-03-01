@@ -3,13 +3,13 @@ Soulguard Init — /workspace
   Created user: soulguardian
   Wrote /etc/sudoers.d/soulguard
   Created .soulguard/staging/
-  Synced 3 vault file(s)
+  Synced 3 protect-tier file(s)
 
 Done.
 STATUS:
 Soulguard Status — /workspace
 
-Vault
+Protect
   ✅ skills/python.md
   ✅ skills/typescript.md
   ✅ soulguard.json
@@ -36,6 +36,6 @@ APPROVE:
 Approved 1 file(s):
   ✅ skills/python.md
 
-Vault updated. Staging synced.
+Protect-tier files updated. Staging synced.
 VAULT CONTENT:
 # Python v2
