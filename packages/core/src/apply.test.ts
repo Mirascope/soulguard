@@ -220,8 +220,11 @@ describe("apply (implicit proposals)", () => {
 
   test("auto-commits protect-tier changes when git enabled", async () => {
     const ops = setup();
-    ops.addFile(".git", ""); // git repo exists
-    ops.execFailOnCall.set("git diff --cached --quiet", new Set([1]));
+    ops.addFile(".soulguard/.git", ""); // git repo exists
+    ops.execFailOnCall.set(
+      "git --git-dir .soulguard/.git --work-tree . diff --cached --quiet",
+      new Set([1]),
+    );
 
     const gitConfig: SoulguardConfig = { ...config, git: true };
     const hash = await getApprovalHash(ops, gitConfig);
@@ -238,7 +241,7 @@ describe("apply (implicit proposals)", () => {
 
   test("skips git commit when git disabled", async () => {
     const ops = setup();
-    ops.addFile(".git", "");
+    ops.addFile(".soulguard/.git", "");
 
     const gitConfig: SoulguardConfig = { ...config, git: false };
     const hash = await getApprovalHash(ops, gitConfig);
@@ -365,7 +368,7 @@ describe("apply (implicit proposals)", () => {
 
   test("deleted file with git commits deletion", async () => {
     const ops = new MockSystemOps("/workspace");
-    ops.addFile(".git", "");
+    ops.addFile(".soulguard/.git", "");
     ops.addFile("SOUL.md", "original soul", {
       owner: "soulguardian",
       group: "soulguard",
@@ -373,7 +376,10 @@ describe("apply (implicit proposals)", () => {
     });
     ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
     // No staging/SOUL.md — agent deleted it
-    ops.execFailOnCall.set("git diff --cached --quiet", new Set([1]));
+    ops.execFailOnCall.set(
+      "git --git-dir .soulguard/.git --work-tree . diff --cached --quiet",
+      new Set([1]),
+    );
 
     const gitConfig: SoulguardConfig = { ...config, git: true };
     const hash = await getApprovalHash(ops, gitConfig);

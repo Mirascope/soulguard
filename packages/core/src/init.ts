@@ -31,8 +31,6 @@ export type InitResult = {
   stagingCreated: boolean;
   /** Whether git was initialized (false if already existed or git disabled) */
   gitInitialized: boolean;
-  /** Whether .gitignore was updated with staging entry */
-  gitignoreUpdated: boolean;
   /** Sync result from the initial sync after setup */
   syncResult: SyncResult;
 };
@@ -258,45 +256,63 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
 
   // ── 6. Git integration ────────────────────────────────────────────────
   let gitInitialized = false;
-  let gitignoreUpdated = false;
   if (config.git !== false) {
-    // Check if .git exists
-    const gitExists = await ops.exists(".git");
-    if (gitExists.ok && !gitExists.value) {
-      const gitResult = await ops.exec("git", ["init"]);
+    // Initialize git repo inside .soulguard/ (isolated from workspace git)
+    const gitDirExists = await ops.exists(".soulguard/.git");
+    if (gitDirExists.ok && !gitDirExists.value) {
+      const gitResult = await ops.exec("git", ["init", "--bare", ".soulguard/.git"]);
       if (!gitResult.ok) {
         return err({ kind: "git_failed", message: gitResult.error.message });
       }
       gitInitialized = true;
     }
 
-    // Ensure .gitignore contains .soulguard/ (staging, pending, backup are all internal)
-    const soulguardEntry = ".soulguard/";
-    const gitignoreExists = await ops.exists(".gitignore");
-    if (gitignoreExists.ok && gitignoreExists.value) {
-      const content = await ops.readFile(".gitignore");
-      if (content.ok) {
-        const lines = content.value.split("\n");
-        if (!lines.some((line) => line.trim() === soulguardEntry)) {
-          const newContent = content.value.endsWith("\n")
-            ? content.value + soulguardEntry + "\n"
-            : content.value + "\n" + soulguardEntry + "\n";
-          const writeResult = await ops.writeFile(".gitignore", newContent);
-          if (!writeResult.ok) {
-            return err({
-              kind: "git_failed",
-              message: `write .gitignore: ${writeResult.error.kind}`,
-            });
-          }
-          gitignoreUpdated = true;
+    // Initial commit of all tracked files
+    if (gitInitialized) {
+      const allFiles = [...config.protect, ...config.watch];
+      // Resolve globs to actual files
+      const resolved = await resolvePatterns(ops, allFiles);
+      if (resolved.ok && resolved.value.length > 0) {
+        // Need to configure git user for commits in bare repo
+        await ops.exec("git", [
+          "--git-dir",
+          ".soulguard/.git",
+          "--work-tree",
+          ".",
+          "config",
+          "user.email",
+          "soulguardian@soulguard.ai",
+        ]);
+        await ops.exec("git", [
+          "--git-dir",
+          ".soulguard/.git",
+          "--work-tree",
+          ".",
+          "config",
+          "user.name",
+          "SoulGuardian",
+        ]);
+        for (const file of resolved.value) {
+          await ops.exec("git", [
+            "--git-dir",
+            ".soulguard/.git",
+            "--work-tree",
+            ".",
+            "add",
+            "--",
+            file,
+          ]);
         }
+        await ops.exec("git", [
+          "--git-dir",
+          ".soulguard/.git",
+          "--work-tree",
+          ".",
+          "commit",
+          "-m",
+          "soulguard: initial commit",
+        ]);
       }
-    } else {
-      const writeResult = await ops.writeFile(".gitignore", soulguardEntry + "\n");
-      if (!writeResult.ok) {
-        return err({ kind: "git_failed", message: `create .gitignore: ${writeResult.error.kind}` });
-      }
-      gitignoreUpdated = true;
     }
   }
 
@@ -319,7 +335,6 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     sudoersCreated,
     stagingCreated,
     gitInitialized,
-    gitignoreUpdated,
     syncResult: syncResult.value,
   });
 }

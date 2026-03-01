@@ -15,6 +15,7 @@ import { DiffCommand } from "./cli/diff-command.js";
 import { ApplyCommand } from "./cli/apply-command.js";
 import { ResetCommand } from "./cli/reset-command.js";
 import { InitCommand } from "./cli/init-command.js";
+import { LogCommand } from "./cli/log-command.js";
 import { NodeSystemOps, writeFileAbsolute, existsAbsolute } from "./system-ops-node.js";
 import { parseConfig } from "./schema.js";
 import type { StatusOptions } from "./status.js";
@@ -227,6 +228,23 @@ program
         },
         out,
       );
+      process.exitCode = await cmd.execute();
+    } catch (e) {
+      out.error(e instanceof Error ? e.message : String(e));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("log")
+  .description("Show git history for tracked files")
+  .argument("[workspace]", "workspace path", process.cwd())
+  .argument("[file]", "specific file to show history for")
+  .action(async (workspace: string, file?: string) => {
+    const out = new LiveConsoleOutput();
+    try {
+      const opts = await makeOptions(workspace);
+      const cmd = new LogCommand({ ops: opts.ops, config: opts.config, file }, out);
       process.exitCode = await cmd.execute();
     } catch (e) {
       out.error(e instanceof Error ? e.message : String(e));

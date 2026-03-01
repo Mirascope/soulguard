@@ -241,4 +241,15 @@ export class MockSystemOps implements SystemOperations {
     }
     return ok(undefined);
   }
+
+  execCaptureResults = new Map<string, string>();
+
+  async execCapture(command: string, args: string[]): Promise<Result<string, IOError>> {
+    this.ops.push({ kind: "exec", command, args });
+    const key = [command, ...args].join(" ");
+    if (this.failingExecs.has(key)) {
+      return err({ kind: "io_error", path: "", message: `${key} failed` });
+    }
+    return ok(this.execCaptureResults.get(key) ?? "");
+  }
 }
