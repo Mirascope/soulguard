@@ -1,5 +1,5 @@
 /**
- * soulguard approve — apply staging changes to protect-tier files.
+ * soulguard apply — apply staging changes to protect-tier files.
  *
  * Implicit proposal model: staging IS the proposal. At approval time:
  * 1. Compute diff to find modified files
@@ -27,7 +27,7 @@ import { validateSelfProtection } from "./self-protection.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
-export type ApproveOptions = {
+export type ApplyOptions = {
   ops: SystemOperations;
   config: SoulguardConfig;
   /** SHA-256 approval hash — must match computed hash of frozen pending copies */
@@ -41,8 +41,8 @@ export type ApproveOptions = {
   policies?: Policy[];
 };
 
-/** Errors from approve. */
-export type ApprovalError =
+/** Errors from apply. */
+export type ApplyError =
   | { kind: "no_changes" }
   | { kind: "hash_mismatch"; message: string }
   | { kind: "self_protection"; message: string }
@@ -51,7 +51,7 @@ export type ApprovalError =
   | { kind: "apply_failed"; message: string }
   | { kind: "diff_failed"; message: string };
 
-export type ApproveResult = {
+export type ApplyResult = {
   /** Files that were updated */
   appliedFiles: string[];
   /** Git commit result (undefined if git not enabled) */
@@ -59,11 +59,9 @@ export type ApproveResult = {
 };
 
 /**
- * Approve and apply staging changes to protect.
+ * Apply staging changes to protect.
  */
-export async function approve(
-  options: ApproveOptions,
-): Promise<Result<ApproveResult, ApprovalError>> {
+export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, ApplyError>> {
   const { ops, config, hash, protectOwnership, policies } = options;
 
   // ── Phase 0: Validate policy names (fail fast on collisions) ────────

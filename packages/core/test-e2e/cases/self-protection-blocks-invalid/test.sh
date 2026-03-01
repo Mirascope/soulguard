@@ -1,4 +1,4 @@
-# Self-protection: approve blocks invalid soulguard.json changes.
+# Self-protection: apply blocks invalid soulguard.json changes.
 # Even if the owner provides the correct hash, soulguard refuses to
 # brick itself by writing an invalid config.
 
@@ -14,11 +14,11 @@ soulguard init . --agent-user agent
 su - agent -c "echo '{\"vault\":[\"SOUL.md\"]}' > $(pwd)/.soulguard/staging/soulguard.json"
 
 # Get hash — diff will show the change
-HASH=$(NO_COLOR=1 soulguard diff . 2>&1 | grep 'Approval hash:' | awk '{print $NF}')
+HASH=$(NO_COLOR=1 soulguard diff . 2>&1 | grep 'Apply hash:' | awk '{print $NF}')
 
-# Try to approve — should be blocked by self-protection
+# Try to apply — should be blocked by self-protection
 echo "APPROVE:"
-soulguard approve . --hash "$HASH" 2>&1 || true
+soulguard apply . --hash "$HASH" 2>&1 || true
 
 # Verify soulguard.json is unchanged
 echo "CONFIG:"

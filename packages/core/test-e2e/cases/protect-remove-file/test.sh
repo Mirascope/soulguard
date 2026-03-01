@@ -1,4 +1,4 @@
-# Protect-tier file deletion: agent deletes a file from staging, owner approves.
+# Protect-tier file deletion: agent deletes a file from staging, owner applies.
 # Tests the full lifecycle when a protect-tier protected file is deleted through staging.
 
 # Setup: two protect-tier files
@@ -18,9 +18,9 @@ su - agent -c "rm $(pwd)/.soulguard/staging/BOOTSTRAP.md"
 echo "DIFF:"
 NO_COLOR=1 soulguard diff . 2>&1
 
-# Get hash and approve the deletion
-HASH=$(NO_COLOR=1 soulguard diff . 2>&1 | grep 'Approval hash:' | awk '{print $NF}')
-soulguard approve . --hash "$HASH"
+# Get hash and apply the deletion
+HASH=$(NO_COLOR=1 soulguard diff . 2>&1 | grep 'Apply hash:' | awk '{print $NF}')
+soulguard apply . --hash "$HASH"
 
 # BOOTSTRAP.md should be gone from disk
 echo "BOOTSTRAP EXISTS:"

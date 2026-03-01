@@ -8,7 +8,7 @@ Soulguard Init — /workspace
 Done.
 HASH: 0e94615ddc559fbd6541b0b002014ab8ee99df58d6ad360ba45e8510623a8990
 
-Approved 1 file(s):
+Applied 1 file(s):
   ✅ SOUL.md
 
 Protect-tier files updated. Staging synced.

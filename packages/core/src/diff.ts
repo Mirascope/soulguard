@@ -26,7 +26,7 @@ export type DiffResult = {
   hasChanges: boolean;
   /**
    * Approval hash — SHA-256 of all modified file paths + staged content hashes,
-   * sorted deterministically. Used for hash-based approve integrity check.
+   * sorted deterministically. Used for hash-based apply integrity check.
    * Only present when there are changes.
    */
   approvalHash?: string;
@@ -187,7 +187,7 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
 /**
  * Compute a deterministic approval hash from file diffs.
  * Covers all modified files — sorted by path, hashing path + stagedHash pairs.
- * This is the integrity token for hash-based approve.
+ * This is the integrity token for hash-based apply.
  */
 export function computeApprovalHash(files: FileDiff[]): string {
   // Include modified, new (protect_missing), and deleted files in the hash

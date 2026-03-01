@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { MockSystemOps } from "./system-ops-mock.js";
 import { diff } from "./diff.js";
-import { approve } from "./approve.js";
+import { apply } from "./apply.js";
 import type { SoulguardConfig, FileOwnership } from "./types.js";
 import type { Policy } from "./policy.js";
 import { ok, err } from "./result.js";
@@ -33,12 +33,12 @@ async function getApprovalHash(ops: MockSystemOps, cfg: SoulguardConfig): Promis
   return result.value.approvalHash!;
 }
 
-describe("approve (implicit proposals)", () => {
+describe("apply (implicit proposals)", () => {
   test("applies changes when hash matches", async () => {
     const ops = setup();
     const hash = await getApprovalHash(ops, config);
 
-    const result = await approve({ ops, config, hash, protectOwnership });
+    const result = await apply({ ops, config, hash, protectOwnership });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.appliedFiles).toEqual(["SOUL.md"]);
@@ -59,7 +59,7 @@ describe("approve (implicit proposals)", () => {
       mode: "644",
     });
 
-    const result = await approve({ ops, config, hash: "anyhash", protectOwnership });
+    const result = await apply({ ops, config, hash: "anyhash", protectOwnership });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("no_changes");
@@ -76,7 +76,7 @@ describe("approve (implicit proposals)", () => {
       mode: "644",
     });
 
-    const result = await approve({ ops, config, hash, protectOwnership });
+    const result = await apply({ ops, config, hash, protectOwnership });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("hash_mismatch");
@@ -117,7 +117,7 @@ describe("approve (implicit proposals)", () => {
       return originalChown(path, owner);
     };
 
-    const result = await approve({ ops, config: multiConfig, hash, protectOwnership });
+    const result = await apply({ ops, config: multiConfig, hash, protectOwnership });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("apply_failed");
@@ -128,12 +128,12 @@ describe("approve (implicit proposals)", () => {
     if (soulContent.ok) expect(soulContent.value).toBe("original soul");
   });
 
-  test("syncs staging after successful approve", async () => {
+  test("syncs staging after successful apply", async () => {
     const ops = setup();
     const hash = await getApprovalHash(ops, config);
     const stagingOwnership = { user: "agent", group: "soulguard", mode: "644" };
 
-    const result = await approve({ ops, config, hash, protectOwnership, stagingOwnership });
+    const result = await apply({ ops, config, hash, protectOwnership, stagingOwnership });
     expect(result.ok).toBe(true);
 
     // Staging should now match protect tier (no diff)
@@ -147,7 +147,7 @@ describe("approve (implicit proposals)", () => {
     const hash = await getApprovalHash(ops, config);
     const policies: Policy[] = [{ name: "block-all", check: () => err("blocked by policy") }];
 
-    const result = await approve({ ops, config, hash, protectOwnership, policies });
+    const result = await apply({ ops, config, hash, protectOwnership, policies });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("policy_violation");
@@ -166,7 +166,7 @@ describe("approve (implicit proposals)", () => {
     const hash = await getApprovalHash(ops, config);
     const policies: Policy[] = [{ name: "allow-all", check: () => ok(undefined) }];
 
-    const result = await approve({ ops, config, hash, protectOwnership, policies });
+    const result = await apply({ ops, config, hash, protectOwnership, policies });
     expect(result.ok).toBe(true);
   });
 
@@ -178,7 +178,7 @@ describe("approve (implicit proposals)", () => {
       { name: "dupe", check: () => ok(undefined) },
     ];
 
-    const result = await approve({ ops, config, hash, protectOwnership, policies });
+    const result = await apply({ ops, config, hash, protectOwnership, policies });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("policy_name_collision");
@@ -201,15 +201,15 @@ describe("approve (implicit proposals)", () => {
       },
     ];
 
-    await approve({ ops, config, hash, protectOwnership, policies });
+    await apply({ ops, config, hash, protectOwnership, policies });
     expect(capturedFinal).toBe("modified soul");
   });
 
-  test("cleans up pending directory after approve", async () => {
+  test("cleans up pending directory after apply", async () => {
     const ops = setup();
     const hash = await getApprovalHash(ops, config);
 
-    const result = await approve({ ops, config, hash, protectOwnership });
+    const result = await apply({ ops, config, hash, protectOwnership });
     expect(result.ok).toBe(true);
 
     // Pending files should be cleaned up
@@ -225,7 +225,7 @@ describe("approve (implicit proposals)", () => {
 
     const gitConfig: SoulguardConfig = { ...config, git: true };
     const hash = await getApprovalHash(ops, gitConfig);
-    const result = await approve({ ops, config: gitConfig, hash, protectOwnership });
+    const result = await apply({ ops, config: gitConfig, hash, protectOwnership });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -242,7 +242,7 @@ describe("approve (implicit proposals)", () => {
 
     const gitConfig: SoulguardConfig = { ...config, git: false };
     const hash = await getApprovalHash(ops, gitConfig);
-    const result = await approve({ ops, config: gitConfig, hash, protectOwnership });
+    const result = await apply({ ops, config: gitConfig, hash, protectOwnership });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -260,7 +260,7 @@ describe("approve (implicit proposals)", () => {
     // No staging/SOUL.md — agent deleted it
 
     const hash = await getApprovalHash(ops, config);
-    const result = await approve({ ops, config, hash, protectOwnership });
+    const result = await apply({ ops, config, hash, protectOwnership });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -284,14 +284,14 @@ describe("approve (implicit proposals)", () => {
     // No staging/soulguard.json — agent trying to delete config
 
     const hash = await getApprovalHash(ops, sgConfig);
-    const result = await approve({ ops, config: sgConfig, hash, protectOwnership });
+    const result = await apply({ ops, config: sgConfig, hash, protectOwnership });
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("self_protection");
   });
 
-  test("deletion + modification in same approve", async () => {
+  test("deletion + modification in same apply", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile("SOUL.md", "original soul", {
       owner: "soulguardian",
@@ -312,7 +312,7 @@ describe("approve (implicit proposals)", () => {
     });
 
     const hash = await getApprovalHash(ops, multiConfig);
-    const result = await approve({ ops, config: multiConfig, hash, protectOwnership });
+    const result = await apply({ ops, config: multiConfig, hash, protectOwnership });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -351,7 +351,7 @@ describe("approve (implicit proposals)", () => {
     // Make AGENTS.md deletion fail (SOUL.md deletes first alphabetically)
     ops.failingDeletes.add("AGENTS.md");
 
-    const result = await approve({ ops, config: twoDeleteConfig, hash, protectOwnership });
+    const result = await apply({ ops, config: twoDeleteConfig, hash, protectOwnership });
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -377,7 +377,7 @@ describe("approve (implicit proposals)", () => {
 
     const gitConfig: SoulguardConfig = { ...config, git: true };
     const hash = await getApprovalHash(ops, gitConfig);
-    const result = await approve({ ops, config: gitConfig, hash, protectOwnership });
+    const result = await apply({ ops, config: gitConfig, hash, protectOwnership });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;

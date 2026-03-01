@@ -1,5 +1,5 @@
 /**
- * Policy hooks for soulguard approve.
+ * Policy hooks for soulguard apply.
  *
  * Policies are named check functions that run before protect-tier changes are applied.
  * Each receives an ApprovalContext (map of file path → { final, diff, previous })

@@ -69,7 +69,7 @@ export class DiffCommand {
     if (hasChanges) {
       this.out.info(`${changeCount} file(s) changed`);
       if (result.value.approvalHash) {
-        this.out.info(`Approval hash: ${result.value.approvalHash}`);
+        this.out.info(`Apply hash: ${result.value.approvalHash}`);
       }
     } else {
       this.out.info("No changes");

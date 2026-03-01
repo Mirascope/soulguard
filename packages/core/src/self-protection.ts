@@ -1,9 +1,9 @@
 /**
- * Built-in self-protection for soulguard approve.
+ * Built-in self-protection for soulguard apply.
  *
- * These checks are HARDCODED and run on every approval — they cannot be
+ * These checks are HARDCODED and run on every apply — they cannot be
  * bypassed by passing an empty policies array. This prevents soulguard
- * from being bricked through its own approval flow.
+ * from being bricked through its own apply flow.
  *
  * Current checks:
  * - soulguard.json cannot be deleted
@@ -11,7 +11,7 @@
  */
 
 import type { Result } from "./types.js";
-import type { ApprovalError } from "./approve.js";
+import type { ApplyError } from "./apply.js";
 import type { FileDiff } from "./diff.js";
 import { soulguardConfigSchema } from "./schema.js";
 import { ok, err } from "./result.js";
@@ -19,12 +19,12 @@ import { ok, err } from "./result.js";
 /**
  * Validate built-in self-protection rules against pending changes.
  * Takes a map of path → content for content files, and a list of deleted files.
- * Returns an ApprovalError if any check fails.
+ * Returns an ApplyError if any check fails.
  */
 export function validateSelfProtection(
   pendingContents: Map<string, string>,
   deletedFiles: FileDiff[] = [],
-): Result<void, ApprovalError> {
+): Result<void, ApplyError> {
   // Block deletion of soulguard.json — config must always exist
   if (deletedFiles.some((f) => f.path === "soulguard.json")) {
     return err({

@@ -12,7 +12,7 @@ import { LiveConsoleOutput } from "./console-live.js";
 import { StatusCommand } from "./cli/status-command.js";
 import { SyncCommand } from "./cli/sync-command.js";
 import { DiffCommand } from "./cli/diff-command.js";
-import { ApproveCommand } from "./cli/approve-command.js";
+import { ApplyCommand } from "./cli/apply-command.js";
 import { ResetCommand } from "./cli/reset-command.js";
 import { InitCommand } from "./cli/init-command.js";
 import { NodeSystemOps, writeFileAbsolute, existsAbsolute } from "./system-ops-node.js";
@@ -171,7 +171,7 @@ program
   });
 
 program
-  .command("approve")
+  .command("apply")
   .description("Apply staging changes to protect-tier files")
   .argument("[workspace]", "workspace path", process.cwd())
   .option("--hash <hash>", "approval hash for non-interactive mode")
@@ -180,7 +180,7 @@ program
     try {
       const statusOpts = await makeOptions(workspace);
       const agentUser = process.env.SUDO_USER ?? "agent";
-      const cmd = new ApproveCommand(
+      const cmd = new ApplyCommand(
         {
           ops: statusOpts.ops,
           config: statusOpts.config,

@@ -69,9 +69,9 @@ export type {
 // Self-protection (hardcoded, cannot be bypassed)
 export { validateSelfProtection } from "./self-protection.js";
 
-// Approve
-export { approve } from "./approve.js";
-export type { ApproveOptions, ApproveResult, ApprovalError } from "./approve.js";
+// Apply
+export { apply } from "./apply.js";
+export type { ApplyOptions, ApplyResult, ApplyError } from "./apply.js";
 
 // Reset
 export { reset } from "./reset.js";
@@ -95,6 +95,6 @@ export { isGlob, matchGlob, createGlobMatcher, resolvePatterns } from "./glob.js
 export { StatusCommand } from "./cli/status-command.js";
 export { SyncCommand } from "./cli/sync-command.js";
 export { DiffCommand } from "./cli/diff-command.js";
-export { ApproveCommand } from "./cli/approve-command.js";
-export type { ApproveCommandOptions } from "./cli/approve-command.js";
+export { ApplyCommand } from "./cli/apply-command.js";
+export type { ApplyCommandOptions } from "./cli/apply-command.js";
 export { ResetCommand } from "./cli/reset-command.js";
