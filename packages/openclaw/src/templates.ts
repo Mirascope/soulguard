@@ -2,6 +2,7 @@
  * OpenClaw configuration templates for Soulguard.
  *
  * Every known path is explicitly placed in vault, ledger, or unprotected.
+ * Paths are relative to the OpenClaw home directory (~/.openclaw/).
  * Tests validate that all paths are accounted for in every template.
  */
 
@@ -10,15 +11,24 @@ import type { SoulguardConfig } from "@soulguard/core";
 // ── Known path groups ──────────────────────────────────────────────────
 
 export const SOULGUARD_CONFIG = ["soulguard.json"] as const;
-export const CORE_IDENTITY = ["SOUL.md", "AGENTS.md", "IDENTITY.md", "USER.md"] as const;
-export const CORE_SESSION = ["TOOLS.md", "HEARTBEAT.md", "BOOTSTRAP.md"] as const;
-export const CORE_MEMORY = ["MEMORY.md"] as const;
-export const MEMORY_DIR = ["memory/**"] as const;
-export const SKILLS = ["skills/**"] as const;
+export const CORE_IDENTITY = [
+  "workspace/SOUL.md",
+  "workspace/AGENTS.md",
+  "workspace/IDENTITY.md",
+  "workspace/USER.md",
+] as const;
+export const CORE_SESSION = [
+  "workspace/TOOLS.md",
+  "workspace/HEARTBEAT.md",
+  "workspace/BOOTSTRAP.md",
+] as const;
+export const CORE_MEMORY = ["workspace/MEMORY.md"] as const;
+export const MEMORY_DIR = ["workspace/memory/**/*.md"] as const;
+export const SKILLS = ["workspace/skills/**"] as const;
 export const OPENCLAW_CONFIG = ["openclaw.json"] as const;
 export const CRON = ["cron/jobs.json"] as const;
 export const EXTENSIONS = ["extensions/**"] as const;
-export const SESSIONS = ["sessions/**"] as const;
+export const SESSIONS = ["workspace/sessions/**"] as const;
 
 /** All known paths — every template must account for all of these */
 export const ALL_KNOWN_PATHS = [
