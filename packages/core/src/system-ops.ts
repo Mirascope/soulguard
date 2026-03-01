@@ -84,6 +84,9 @@ export interface SystemOperations {
 
   /** Execute a command in the workspace root */
   exec(command: string, args: string[]): Promise<Result<void, IOError>>;
+
+  /** Execute command and capture stdout. */
+  execCapture(command: string, args: string[]): Promise<Result<string, IOError>>;
 }
 
 /** Common error type for stat/hash operations */

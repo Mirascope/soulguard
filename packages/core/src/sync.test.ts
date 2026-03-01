@@ -131,7 +131,7 @@ describe("sync", () => {
 
   test("commits protect and watch-tier files to git when enabled", async () => {
     const ops = makeMock();
-    ops.addFile(".git", "");
+    ops.addFile(".soulguard/.git", "");
     ops.addFile("SOUL.md", "# Soul", {
       owner: VAULT_OWNERSHIP.user,
       group: VAULT_OWNERSHIP.group,
@@ -144,7 +144,10 @@ describe("sync", () => {
     });
 
     // Make post-add diff check fail (= files staged)
-    ops.execFailOnCall.set("git diff --cached --quiet", new Set([1]));
+    ops.execFailOnCall.set(
+      "git --git-dir .soulguard/.git --work-tree . diff --cached --quiet",
+      new Set([1]),
+    );
 
     const result = await sync(
       opts({ version: 1, protect: ["SOUL.md"], watch: ["notes.md"], git: true } as never, ops),

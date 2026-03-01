@@ -131,7 +131,7 @@ workspace/
 ├── memory/                     # agent:soulguard 644 (watch)
 │   ├── 2026-02-01.md
 │   └── 2026-02-02.md
-└── .git/                       # optional — enables auto-commits
+└── .soulguard/.git/            # isolated git repo for auto-commits
 ```
 
 ## Workflows
@@ -224,7 +224,7 @@ Uses Node 22's native `fs.glob`.
 
 - **`protect`** — file paths or glob patterns. Mode 444, owned by soulguardian.
 - **`watch`** — file paths or glob patterns. Mode 644, owned by agent.
-- **`git`** — boolean. Enable/disable auto-commits. Default: enabled (when not specified and .git exists).
+- **`git`** — boolean. Enable/disable auto-commits. Default: enabled (when not specified and .soulguard/.git exists).
 
 `soulguard.json` is always implicitly protected regardless of its presence in the protect tier list.
 

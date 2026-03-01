@@ -463,6 +463,20 @@ export class NodeSystemOps implements SystemOperations {
       });
     }
   }
+
+  async execCapture(command: string, args: string[]): Promise<Result<string, IOError>> {
+    const execFileAsync = promisify(execFile);
+    try {
+      const { stdout } = await execFileAsync(command, args, { cwd: this.workspace });
+      return ok(stdout);
+    } catch (e) {
+      return err({
+        kind: "io_error",
+        path: this.workspace,
+        message: `exec ${command}: ${e instanceof Error ? e.message : String(e)}`,
+      });
+    }
+  }
 }
 
 /**

@@ -81,6 +81,7 @@ export type { ResetOptions, ResetResult, ResetError } from "./reset.js";
 export {
   isGitEnabled,
   gitCommit,
+  gitLog,
   protectCommitMessage,
   watchCommitMessage,
   commitWatchFiles,
