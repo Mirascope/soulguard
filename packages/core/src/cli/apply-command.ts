@@ -96,7 +96,7 @@ export class ApplyCommand {
     }
 
     this.out.write("");
-    this.out.success(`Approved ${result.value.appliedFiles.length} file(s):`);
+    this.out.success(`Applied ${result.value.appliedFiles.length} file(s):`);
     for (const file of result.value.appliedFiles) {
       this.out.success(`  ✅ ${file}`);
     }
