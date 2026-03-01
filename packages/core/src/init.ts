@@ -16,6 +16,7 @@ import { sync } from "./sync.js";
 import { DEFAULT_CONFIG } from "./constants.js";
 import { resolvePatterns } from "./glob.js";
 import { stagingPath } from "./staging.js";
+import { dirname } from "node:path";
 import { execSync } from "node:child_process";
 
 /** Result of `soulguard init` — idempotent, booleans report what was done */
@@ -140,6 +141,14 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     userCreated = true;
   }
 
+  // ── 2b. Add agent user to soulguard group ─────────────────────────
+  // Agent needs group membership to write staging siblings in group-writable dirs.
+  if (process.platform === "darwin") {
+    await ops.exec("dseditgroup", ["-o", "edit", "-a", agentUser, "-t", "user", identity.group]);
+  } else {
+    await ops.exec("usermod", ["-aG", identity.group, agentUser]);
+  }
+
   // ── 3. Write config ──────────────────────────────────────────────────
   let configCreated = false;
   const configExists = await ops.exists("soulguard.json");
@@ -215,6 +224,33 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
           message: `chmod ${siblingPath} failed: ${chmodFile.error.kind}`,
         });
       }
+    }
+  }
+
+  // Make directories containing staging siblings group-writable so
+  // the agent can create/delete staging files (requires write on dir).
+  const stagingDirs = new Set<string>();
+  for (const protectFile of protectFiles) {
+    const dir = dirname(stagingPath(protectFile));
+    stagingDirs.add(dir === "." ? "." : dir);
+  }
+  for (const dir of stagingDirs) {
+    const chownDir = await ops.chown(dir, {
+      user: identity.user,
+      group: identity.group,
+    });
+    if (!chownDir.ok) {
+      return err({
+        kind: "staging_failed",
+        message: `chown dir ${dir} failed: ${chownDir.error.kind}`,
+      });
+    }
+    const chmodDir = await ops.chmod(dir, "775");
+    if (!chmodDir.ok) {
+      return err({
+        kind: "staging_failed",
+        message: `chmod dir ${dir} failed: ${chmodDir.error.kind}`,
+      });
     }
   }
 

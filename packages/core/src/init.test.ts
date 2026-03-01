@@ -206,8 +206,8 @@ describe("DEFAULT_CONFIG", () => {
     if (!result.ok) return;
 
     expect(result.value.gitInitialized).toBe(false);
-    const execOps = ops.ops.filter((o) => o.kind === "exec");
-    expect(execOps).toHaveLength(0);
+    const gitExecOps = ops.ops.filter((o) => o.kind === "exec" && o.command === "git");
+    expect(gitExecOps).toHaveLength(0);
   });
 });
 
