@@ -16,7 +16,7 @@ echo "STATUS:"
 NO_COLOR=1 soulguard status . 2>&1
 
 # Agent modifies a skill
-su - agent -c "echo '# Python v2' > $(pwd)/.soulguard/staging/skills/python.md"
+su - agent -c "echo '# Python v2' > $(pwd)/skills/.soulguard.python.md"
 
 echo "DIFF:"
 NO_COLOR=1 soulguard diff . 2>&1

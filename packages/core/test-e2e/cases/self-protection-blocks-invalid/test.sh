@@ -11,7 +11,7 @@ echo '# My Soul' > SOUL.md
 soulguard init . --agent-user agent
 
 # Agent writes invalid config to staging (missing "ledger" field)
-su - agent -c "echo '{\"vault\":[\"SOUL.md\"]}' > $(pwd)/.soulguard/staging/soulguard.json"
+su - agent -c "echo '{\"vault\":[\"SOUL.md\"]}' > $(pwd)/.soulguard.soulguard.json"
 
 # Get hash — diff will show the change
 HASH=$(NO_COLOR=1 soulguard diff . 2>&1 | grep 'Apply hash:' | awk '{print $NF}')

@@ -9,7 +9,7 @@ EOF
 soulguard init . --agent-user agent
 
 # Agent modifies staging
-su - agent -c "echo '# My Updated Soul' > $(pwd)/.soulguard/staging/SOUL.md"
+su - agent -c "echo '# My Updated Soul' > $(pwd)/.soulguard.SOUL.md"
 
 # Get approval hash from diff output
 HASH=$(NO_COLOR=1 soulguard diff . 2>&1 | grep 'Apply hash:' | awk '{print $NF}')

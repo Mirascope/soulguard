@@ -148,7 +148,7 @@ describe("init", () => {
     expect(result.value.stagingCreated).toBe(true);
 
     // Verify staging copy was created for the default protect-tier file
-    const stagingSoulguard = await ops.exists(".soulguard/staging/soulguard.json");
+    const stagingSoulguard = await ops.exists(".soulguard.soulguard.json");
     expect(stagingSoulguard.ok && stagingSoulguard.value).toBe(true);
   });
 });

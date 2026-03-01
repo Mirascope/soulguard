@@ -4,7 +4,7 @@
  */
 
 import { basename } from "node:path";
-import { isProtectedFile, normalizePath } from "@soulguard/core";
+import { isProtectedFile, isStagingPath, stagingPath } from "@soulguard/core";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -25,9 +25,6 @@ const WRITE_TOOLS = new Set(["Write", "Edit"]);
 
 /** Param keys that carry the target file path. */
 const PATH_KEYS = ["file_path", "path", "file"] as const;
-
-/** Staging directory — writes here are always allowed. */
-const STAGING_PREFIX = ".soulguard/staging/";
 
 // ── Main guard ─────────────────────────────────────────────────────────
 
@@ -56,11 +53,10 @@ export function guardToolCall(
 
   if (!targetPath) return { blocked: false };
 
-  // Never block writes to staging
-  const norm = normalizePath(targetPath);
-  if (norm.startsWith(STAGING_PREFIX)) return { blocked: false };
+  // Never block writes to staging siblings
+  if (isStagingPath(targetPath)) return { blocked: false };
 
-  // Check against vault using core SDK
+  // Check against protect tier using core SDK
   if (!isProtectedFile(options.protectFiles, targetPath)) return { blocked: false };
 
   const fileName = basename(targetPath);
@@ -68,7 +64,7 @@ export function guardToolCall(
     blocked: true,
     reason:
       `${fileName} is protect-tier protected by soulguard. ` +
-      `To modify it, edit .soulguard/staging/${norm} instead. ` +
+      `To modify it, edit ${stagingPath(targetPath)} instead. ` +
       `Your changes will be reviewed and approved by the owner.`,
   };
 }

@@ -6,6 +6,7 @@
  */
 
 import type { SystemOperations } from "./system-ops.js";
+import { isStagingPath } from "./staging.js";
 import type { Result, IOError } from "./types.js";
 import { ok, err } from "./result.js";
 
@@ -73,6 +74,8 @@ export async function resolvePatterns(
         return err(result.error);
       }
       for (const match of result.value) {
+        // Skip staging siblings — they're soulguard internals, not user files
+        if (isStagingPath(match)) continue;
         const statResult = await ops.stat(match);
         if (statResult.ok && !statResult.value.isDirectory) {
           files.add(match);

@@ -24,6 +24,7 @@ import { isGitEnabled, gitCommit, protectCommitMessage } from "./git.js";
 import type { Policy, ApprovalContext } from "./policy.js";
 import { validatePolicies, evaluatePolicies } from "./policy.js";
 import { validateSelfProtection } from "./self-protection.js";
+import { stagingPath } from "./staging.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -93,7 +94,7 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
   await ops.mkdir(".soulguard/pending");
   for (const file of changedFiles.filter((f) => f.status !== "deleted")) {
     const copyResult = await ops.copyFile(
-      `.soulguard/staging/${file.path}`,
+      stagingPath(file.path),
       `.soulguard/pending/${file.path}`,
     );
     if (!copyResult.ok) {
@@ -258,11 +259,11 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
 
   // ── Phase 6: Sync staging copies + cleanup ─────────────────────────
   for (const file of changedFiles.filter((f) => f.status !== "deleted")) {
-    const stagingPath = `.soulguard/staging/${file.path}`;
-    await ops.copyFile(file.path, stagingPath);
+    const stagePath = stagingPath(file.path);
+    await ops.copyFile(file.path, stagePath);
     if (options.stagingOwnership) {
-      await ops.chown(stagingPath, options.stagingOwnership);
-      await ops.chmod(stagingPath, options.stagingOwnership.mode);
+      await ops.chown(stagePath, options.stagingOwnership);
+      await ops.chmod(stagePath, options.stagingOwnership.mode);
     }
   }
   // Deleted files: staging copy is already gone (that's how we detected the deletion)

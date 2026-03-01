@@ -9,6 +9,7 @@ import { ok, err } from "./result.js";
 import type { SoulguardConfig } from "./types.js";
 import type { SystemOperations } from "./system-ops.js";
 import { resolvePatterns } from "./glob.js";
+import { stagingPath } from "./staging.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -33,7 +34,6 @@ export type DiffResult = {
 };
 
 export type DiffError =
-  | { kind: "no_staging" }
   | { kind: "no_config" }
   | { kind: "read_failed"; path: string; message: string };
 
@@ -46,22 +46,11 @@ export type DiffOptions = {
 
 // ── Implementation ─────────────────────────────────────────────────────
 
-const STAGING_DIR = ".soulguard/staging";
-
 /**
  * Compare protect-tier files against their staging copies.
  */
 export async function diff(options: DiffOptions): Promise<Result<DiffResult, DiffError>> {
   const { ops, config, files: filterFiles } = options;
-
-  // Check staging directory exists
-  const stagingExists = await ops.exists(STAGING_DIR);
-  if (!stagingExists.ok) {
-    return err({ kind: "read_failed", path: STAGING_DIR, message: stagingExists.error.message });
-  }
-  if (!stagingExists.value) {
-    return err({ kind: "no_staging" });
-  }
 
   // Resolve glob patterns to concrete file paths
   const resolved = await resolvePatterns(ops, config.protect);
@@ -77,26 +66,26 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
   const fileDiffs: FileDiff[] = [];
 
   for (const path of protectFiles) {
-    const stagingPath = `${STAGING_DIR}/${path}`;
+    const stagePath = stagingPath(path);
 
-    const [protectExists, stagingFileExists] = await Promise.all([
+    const [protectExists, stagingExists] = await Promise.all([
       ops.exists(path),
-      ops.exists(stagingPath),
+      ops.exists(stagePath),
     ]);
 
     if (!protectExists.ok) {
       return err({ kind: "read_failed", path, message: protectExists.error.message });
     }
-    if (!stagingFileExists.ok) {
+    if (!stagingExists.ok) {
       return err({
         kind: "read_failed",
-        path: stagingPath,
-        message: stagingFileExists.error.message,
+        path: stagePath,
+        message: stagingExists.error.message,
       });
     }
 
     // Missing cases
-    if (protectExists.value && !stagingFileExists.value) {
+    if (protectExists.value && !stagingExists.value) {
       // Protect-tier file exists but staging copy deleted → agent wants to delete this file
       const protectHash = await ops.hashFile(path);
       fileDiffs.push({
@@ -106,9 +95,9 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
       });
       continue;
     }
-    if (!protectExists.value && stagingFileExists.value) {
+    if (!protectExists.value && stagingExists.value) {
       // New file — hash staging so it's covered by the approval hash
-      const newHash = await ops.hashFile(stagingPath);
+      const newHash = await ops.hashFile(stagePath);
       fileDiffs.push({
         path,
         status: "protect_missing",
@@ -116,7 +105,7 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
       });
       continue;
     }
-    if (!protectExists.value && !stagingFileExists.value) {
+    if (!protectExists.value && !stagingExists.value) {
       fileDiffs.push({ path, status: "staging_missing" });
       continue;
     }
@@ -124,14 +113,14 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
     // Both exist — compare hashes
     const [protectHash, stagingHash] = await Promise.all([
       ops.hashFile(path),
-      ops.hashFile(stagingPath),
+      ops.hashFile(stagePath),
     ]);
 
     if (!protectHash.ok) {
       return err({ kind: "read_failed", path, message: "hash failed" });
     }
     if (!stagingHash.ok) {
-      return err({ kind: "read_failed", path: stagingPath, message: "hash failed" });
+      return err({ kind: "read_failed", path: stagePath, message: "hash failed" });
     }
 
     if (protectHash.value === stagingHash.value) {
@@ -147,14 +136,14 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
     // Modified — generate unified diff
     const [protectContent, stagingContent] = await Promise.all([
       ops.readFile(path),
-      ops.readFile(stagingPath),
+      ops.readFile(stagePath),
     ]);
 
     if (!protectContent.ok) {
       return err({ kind: "read_failed", path, message: "read failed" });
     }
     if (!stagingContent.ok) {
-      return err({ kind: "read_failed", path: stagingPath, message: "read failed" });
+      return err({ kind: "read_failed", path: stagePath, message: "read failed" });
     }
 
     const unifiedDiff = createTwoFilesPatch(

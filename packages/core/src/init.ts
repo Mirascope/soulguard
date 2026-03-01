@@ -15,6 +15,7 @@ import { ok, err } from "./result.js";
 import { sync } from "./sync.js";
 import { DEFAULT_CONFIG } from "./constants.js";
 import { resolvePatterns } from "./glob.js";
+import { stagingPath } from "./staging.js";
 import { execSync } from "node:child_process";
 
 /** Result of `soulguard init` — idempotent, booleans report what was done */
@@ -177,47 +178,9 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     return err({ kind: "config_write_failed", message: "sync failed unexpectedly" });
   }
 
-  // ── 5. Create staging ────────────────────────────────────────────────
-  // Always (re)create staging — idempotent, self-healing on partial state
+  // ── 5. Create staging siblings ─────────────────────────────────────
+  // Copy protect-tier files to staging siblings (resolve globs first)
   const stagingCreated = true;
-  const mkdirResult = await ops.mkdir(".soulguard/staging");
-  if (!mkdirResult.ok) {
-    return err({ kind: "staging_failed", message: `mkdir failed: ${mkdirResult.error.kind}` });
-  }
-  // .soulguard/ owned by soulguardian — agent CANNOT create/delete files here.
-  // Only staging/ is agent-writable.
-  const chownSg = await ops.chown(".soulguard", { user: identity.user, group: identity.group });
-  if (!chownSg.ok) {
-    return err({
-      kind: "staging_failed",
-      message: `chown .soulguard failed: ${chownSg.error.kind}`,
-    });
-  }
-  const chmodSg = await ops.chmod(".soulguard", "755");
-  if (!chmodSg.ok) {
-    return err({
-      kind: "staging_failed",
-      message: `chmod .soulguard failed: ${chmodSg.error.kind}`,
-    });
-  }
-  const chownStaging = await ops.chown(".soulguard/staging", {
-    user: agentUser,
-    group: identity.group,
-  });
-  if (!chownStaging.ok) {
-    return err({
-      kind: "staging_failed",
-      message: `chown staging failed: ${chownStaging.error.kind}`,
-    });
-  }
-  const chmodStaging = await ops.chmod(".soulguard/staging", "755");
-  if (!chmodStaging.ok) {
-    return err({
-      kind: "staging_failed",
-      message: `chmod staging failed: ${chmodStaging.error.kind}`,
-    });
-  }
-  // Copy protect-tier files to staging (resolve globs first)
   const protectGlob = await resolvePatterns(ops, config.protect);
   if (!protectGlob.ok) {
     return err({ kind: "staging_failed", message: `glob failed: ${protectGlob.error.message}` });
@@ -226,7 +189,8 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   for (const protectFile of protectFiles) {
     const fileExists = await ops.exists(protectFile);
     if (fileExists.ok && fileExists.value) {
-      const copyResult = await ops.copyFile(protectFile, `.soulguard/staging/${protectFile}`);
+      const siblingPath = stagingPath(protectFile);
+      const copyResult = await ops.copyFile(protectFile, siblingPath);
       if (!copyResult.ok) {
         return err({
           kind: "staging_failed",
@@ -234,21 +198,21 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
         });
       }
       // Make staging copy agent-writable
-      const chownFile = await ops.chown(`.soulguard/staging/${protectFile}`, {
+      const chownFile = await ops.chown(siblingPath, {
         user: agentUser,
         group: identity.group,
       });
       if (!chownFile.ok) {
         return err({
           kind: "staging_failed",
-          message: `chown staging/${protectFile} failed: ${chownFile.error.kind}`,
+          message: `chown ${siblingPath} failed: ${chownFile.error.kind}`,
         });
       }
-      const chmodFile = await ops.chmod(`.soulguard/staging/${protectFile}`, "644");
+      const chmodFile = await ops.chmod(siblingPath, "644");
       if (!chmodFile.ok) {
         return err({
           kind: "staging_failed",
-          message: `chmod staging/${protectFile} failed: ${chmodFile.error.kind}`,
+          message: `chmod ${siblingPath} failed: ${chmodFile.error.kind}`,
         });
       }
     }

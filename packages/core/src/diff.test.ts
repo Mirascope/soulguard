@@ -16,9 +16,9 @@ function makeConfig(protect: string[] = ["SOUL.md"]): SoulguardConfig {
 describe("diff", () => {
   test("no changes → all unchanged, hasChanges false", async () => {
     const ops = makeMock();
-    ops.addFile(".soulguard/staging", "");
+
     ops.addFile("SOUL.md", "# Soul");
-    ops.addFile(".soulguard/staging/SOUL.md", "# Soul");
+    ops.addFile(".soulguard.SOUL.md", "# Soul");
 
     const result = await diff({ ops, config: makeConfig() });
 
@@ -31,9 +31,9 @@ describe("diff", () => {
 
   test("modified file → shows diff, hasChanges true", async () => {
     const ops = makeMock();
-    ops.addFile(".soulguard/staging", "");
+
     ops.addFile("SOUL.md", "# Soul\noriginal");
-    ops.addFile(".soulguard/staging/SOUL.md", "# Soul\nmodified");
+    ops.addFile(".soulguard.SOUL.md", "# Soul\nmodified");
 
     const result = await diff({ ops, config: makeConfig() });
 
@@ -47,7 +47,7 @@ describe("diff", () => {
 
   test("protect-tier file exists but staging deleted → deleted status", async () => {
     const ops = makeMock();
-    ops.addFile(".soulguard/staging", "");
+
     ops.addFile("SOUL.md", "# Soul");
 
     const result = await diff({ ops, config: makeConfig() });
@@ -62,7 +62,6 @@ describe("diff", () => {
 
   test("neither protect-tier file nor staging exists → staging_missing status", async () => {
     const ops = makeMock();
-    ops.addFile(".soulguard/staging", "");
 
     const result = await diff({ ops, config: makeConfig() });
 
@@ -73,8 +72,8 @@ describe("diff", () => {
 
   test("protect-tier file missing → protect_missing status", async () => {
     const ops = makeMock();
-    ops.addFile(".soulguard/staging", "");
-    ops.addFile(".soulguard/staging/SOUL.md", "# New Soul");
+
+    ops.addFile(".soulguard.SOUL.md", "# New Soul");
 
     const result = await diff({ ops, config: makeConfig() });
 
@@ -84,24 +83,13 @@ describe("diff", () => {
     expect(result.value.files[0]!.status).toBe("protect_missing");
   });
 
-  test("no staging dir → no_staging error", async () => {
-    const ops = makeMock();
-    ops.addFile("SOUL.md", "# Soul");
-
-    const result = await diff({ ops, config: makeConfig() });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.kind).toBe("no_staging");
-  });
-
   test("specific files filter works", async () => {
     const ops = makeMock();
-    ops.addFile(".soulguard/staging", "");
+
     ops.addFile("SOUL.md", "# Soul");
-    ops.addFile(".soulguard/staging/SOUL.md", "# Soul");
+    ops.addFile(".soulguard.SOUL.md", "# Soul");
     ops.addFile("AGENTS.md", "# Agents");
-    ops.addFile(".soulguard/staging/AGENTS.md", "# Agents modified");
+    ops.addFile(".soulguard.AGENTS.md", "# Agents modified");
 
     const config = makeConfig(["SOUL.md", "AGENTS.md"]);
     const result = await diff({ ops, config, files: ["SOUL.md"] });
@@ -114,11 +102,11 @@ describe("diff", () => {
 
   test("globs resolve to matching files", async () => {
     const ops = makeMock();
-    ops.addFile(".soulguard/staging", "");
+
     ops.addFile("SOUL.md", "# Soul");
-    ops.addFile(".soulguard/staging/SOUL.md", "# Soul");
+    ops.addFile(".soulguard.SOUL.md", "# Soul");
     ops.addFile("memory/day1.md", "notes");
-    ops.addFile(".soulguard/staging/memory/day1.md", "notes");
+    ops.addFile("memory/.soulguard.day1.md", "notes");
 
     const config = makeConfig(["SOUL.md", "memory/**"]);
     const result = await diff({ ops, config });
@@ -132,9 +120,9 @@ describe("diff", () => {
 
   test("approvalHash is present when changes exist", async () => {
     const ops = makeMock();
-    ops.addFile(".soulguard/staging", "");
+
     ops.addFile("SOUL.md", "original");
-    ops.addFile(".soulguard/staging/SOUL.md", "modified");
+    ops.addFile(".soulguard.SOUL.md", "modified");
 
     const result = await diff({ ops, config: makeConfig() });
     expect(result.ok).toBe(true);
@@ -146,9 +134,9 @@ describe("diff", () => {
 
   test("approvalHash is undefined when no changes", async () => {
     const ops = makeMock();
-    ops.addFile(".soulguard/staging", "");
+
     ops.addFile("SOUL.md", "same");
-    ops.addFile(".soulguard/staging/SOUL.md", "same");
+    ops.addFile(".soulguard.SOUL.md", "same");
 
     const result = await diff({ ops, config: makeConfig() });
     expect(result.ok).toBe(true);
@@ -158,9 +146,9 @@ describe("diff", () => {
 
   test("approvalHash is deterministic", async () => {
     const ops = makeMock();
-    ops.addFile(".soulguard/staging", "");
+
     ops.addFile("SOUL.md", "original");
-    ops.addFile(".soulguard/staging/SOUL.md", "modified");
+    ops.addFile(".soulguard.SOUL.md", "modified");
 
     const r1 = await diff({ ops, config: makeConfig() });
     const r2 = await diff({ ops, config: makeConfig() });
@@ -172,13 +160,13 @@ describe("diff", () => {
 
   test("approvalHash changes when staging content changes", async () => {
     const ops = makeMock();
-    ops.addFile(".soulguard/staging", "");
+
     ops.addFile("SOUL.md", "original");
-    ops.addFile(".soulguard/staging/SOUL.md", "modified-v1");
+    ops.addFile(".soulguard.SOUL.md", "modified-v1");
 
     const r1 = await diff({ ops, config: makeConfig() });
 
-    ops.addFile(".soulguard/staging/SOUL.md", "modified-v2");
+    ops.addFile(".soulguard.SOUL.md", "modified-v2");
     const r2 = await diff({ ops, config: makeConfig() });
 
     expect(r1.ok && r2.ok).toBe(true);

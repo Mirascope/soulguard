@@ -12,7 +12,7 @@ echo '# Bootstrap' > BOOTSTRAP.md
 soulguard init . --agent-user agent
 
 # Agent deletes BOOTSTRAP.md from staging (done with it)
-su - agent -c "rm $(pwd)/.soulguard/staging/BOOTSTRAP.md"
+su - agent -c "rm $(pwd)/.soulguard.BOOTSTRAP.md"
 
 # Diff should show deletion
 echo "DIFF:"
