@@ -14,7 +14,7 @@ soulguard init . --agent-user agent
 soulguard status .
 
 # Verify staging copy exists
-ls .soulguard/staging/SOUL.md && echo "STAGING: OK" || echo "STAGING: MISSING"
+ls .soulguard.SOUL.md && echo "STAGING: OK" || echo "STAGING: MISSING"
 
 # Agent can't write to protect-tier file
 su - agent -c "(echo hacked > $(pwd)/SOUL.md) 2>&1"

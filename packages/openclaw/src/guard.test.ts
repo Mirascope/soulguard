@@ -10,7 +10,7 @@ describe("guardToolCall", () => {
     const result = guardToolCall("Write", { file_path: "SOUL.md" }, defaultOpts);
     expect(result.blocked).toBe(true);
     expect(result.reason).toContain("protect-tier protected");
-    expect(result.reason).toContain(".soulguard/staging/SOUL.md");
+    expect(result.reason).toContain(".soulguard.SOUL.md");
     expect(result.reason).toContain("reviewed and approved by the owner");
   });
 
@@ -26,7 +26,7 @@ describe("guardToolCall", () => {
   });
 
   it("allows Write to staging copy of a protect-tier file", () => {
-    const result = guardToolCall("Write", { file_path: ".soulguard/staging/SOUL.md" }, defaultOpts);
+    const result = guardToolCall("Write", { file_path: ".soulguard.SOUL.md" }, defaultOpts);
     expect(result.blocked).toBe(false);
   });
 

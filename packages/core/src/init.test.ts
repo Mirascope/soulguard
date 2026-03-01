@@ -148,7 +148,7 @@ describe("init", () => {
     expect(result.value.stagingCreated).toBe(true);
 
     // Verify staging copy was created for the default protect-tier file
-    const stagingSoulguard = await ops.exists(".soulguard/staging/soulguard.json");
+    const stagingSoulguard = await ops.exists(".soulguard.soulguard.json");
     expect(stagingSoulguard.ok && stagingSoulguard.value).toBe(true);
   });
 });
@@ -206,8 +206,8 @@ describe("DEFAULT_CONFIG", () => {
     if (!result.ok) return;
 
     expect(result.value.gitInitialized).toBe(false);
-    const execOps = ops.ops.filter((o) => o.kind === "exec");
-    expect(execOps).toHaveLength(0);
+    const gitExecOps = ops.ops.filter((o) => o.kind === "exec" && o.command === "git");
+    expect(gitExecOps).toHaveLength(0);
   });
 });
 

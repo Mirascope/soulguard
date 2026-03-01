@@ -18,7 +18,7 @@ function setup() {
     mode: "444",
   });
   ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
-  ops.addFile(".soulguard/staging/SOUL.md", "modified soul", {
+  ops.addFile(".soulguard.SOUL.md", "modified soul", {
     owner: "agent",
     group: "soulguard",
     mode: "644",
@@ -52,8 +52,7 @@ describe("apply (implicit proposals)", () => {
   test("rejects when no changes exist", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile("SOUL.md", "same", { owner: "soulguardian", group: "soulguard", mode: "444" });
-    ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
-    ops.addFile(".soulguard/staging/SOUL.md", "same", {
+    ops.addFile(".soulguard.SOUL.md", "same", {
       owner: "agent",
       group: "soulguard",
       mode: "644",
@@ -70,7 +69,7 @@ describe("apply (implicit proposals)", () => {
     const hash = await getApprovalHash(ops, config);
 
     // Agent sneaks in a change after hash was computed
-    ops.addFile(".soulguard/staging/SOUL.md", "sneaky different content", {
+    ops.addFile(".soulguard.SOUL.md", "sneaky different content", {
       owner: "agent",
       group: "soulguard",
       mode: "644",
@@ -94,13 +93,12 @@ describe("apply (implicit proposals)", () => {
       group: "soulguard",
       mode: "444",
     });
-    ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
-    ops.addFile(".soulguard/staging/SOUL.md", "modified soul", {
+    ops.addFile(".soulguard.SOUL.md", "modified soul", {
       owner: "agent",
       group: "soulguard",
       mode: "644",
     });
-    ops.addFile(".soulguard/staging/AGENTS.md", "modified agents", {
+    ops.addFile(".soulguard.AGENTS.md", "modified agents", {
       owner: "agent",
       group: "soulguard",
       mode: "644",
@@ -259,7 +257,6 @@ describe("apply (implicit proposals)", () => {
       group: "soulguard",
       mode: "444",
     });
-    ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
     // No staging/SOUL.md — agent deleted it
 
     const hash = await getApprovalHash(ops, config);
@@ -283,7 +280,6 @@ describe("apply (implicit proposals)", () => {
       group: "soulguard",
       mode: "444",
     });
-    ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
     // No staging/soulguard.json — agent trying to delete config
 
     const hash = await getApprovalHash(ops, sgConfig);
@@ -306,9 +302,8 @@ describe("apply (implicit proposals)", () => {
       group: "soulguard",
       mode: "444",
     });
-    ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
     // SOUL.md deleted from staging, AGENTS.md modified
-    ops.addFile(".soulguard/staging/AGENTS.md", "modified agents", {
+    ops.addFile(".soulguard.AGENTS.md", "modified agents", {
       owner: "agent",
       group: "soulguard",
       mode: "644",
@@ -346,7 +341,6 @@ describe("apply (implicit proposals)", () => {
       group: "soulguard",
       mode: "444",
     });
-    ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
     // Both files deleted from staging
 
     const hash = await getApprovalHash(ops, twoDeleteConfig);
@@ -374,7 +368,6 @@ describe("apply (implicit proposals)", () => {
       group: "soulguard",
       mode: "444",
     });
-    ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
     // No staging/SOUL.md — agent deleted it
     ops.execFailOnCall.set(
       "git --git-dir .soulguard/.git --work-tree . diff --cached --quiet",

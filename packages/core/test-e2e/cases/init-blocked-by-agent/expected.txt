@@ -2,7 +2,7 @@ Soulguard Init — /workspace
   Created group: soulguard
   Created user: soulguardian
   Wrote /etc/sudoers.d/soulguard
-  Created .soulguard/staging/
+  Created staging siblings
   Synced 2 protect-tier file(s)
 
 Done.

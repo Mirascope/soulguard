@@ -46,6 +46,8 @@ export class MockSystemOps implements SystemOperations {
 
   constructor(workspace: string) {
     this.workspace = workspace;
+    // Register workspace root as a directory so chown/chmod on "." works
+    this.files.set(workspace, { content: "", owner: "root", group: "root", mode: "755" });
   }
 
   private resolve(path: string): string {

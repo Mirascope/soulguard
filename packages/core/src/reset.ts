@@ -8,6 +8,7 @@
 import type { SystemOperations } from "./system-ops.js";
 import type { FileOwnership, SoulguardConfig, Result } from "./types.js";
 import { diff } from "./diff.js";
+import { stagingPath } from "./staging.js";
 import { ok, err } from "./result.js";
 
 export type ResetOptions = {
@@ -48,12 +49,12 @@ export async function reset(options: ResetOptions): Promise<Result<ResetResult, 
   );
 
   for (const file of resettableFiles) {
-    const stagingPath = `.soulguard/staging/${file.path}`;
-    const copyResult = await ops.copyFile(file.path, stagingPath);
+    const stagePath = stagingPath(file.path);
+    const copyResult = await ops.copyFile(file.path, stagePath);
     if (copyResult.ok) {
       if (stagingOwnership) {
-        await ops.chown(stagingPath, stagingOwnership);
-        await ops.chmod(stagingPath, stagingOwnership.mode);
+        await ops.chown(stagePath, stagingOwnership);
+        await ops.chmod(stagePath, stagingOwnership.mode);
       }
       resetFiles.push(file.path);
     }

@@ -88,6 +88,9 @@ export {
 } from "./git.js";
 export type { GitCommitResult, GitError } from "./git.js";
 
+// Staging
+export { stagingPath, isStagingPath, STAGING_PREFIX } from "./staging.js";
+
 // Protect check + glob
 export { isProtectedFile, normalizePath } from "./protect-check.js";
 export { isGlob, matchGlob, createGlobMatcher, resolvePatterns } from "./glob.js";

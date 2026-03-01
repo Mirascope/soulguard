@@ -9,7 +9,7 @@ EOF
 soulguard init . --agent-user agent
 
 # Agent modifies staging
-su - agent -c "echo '# Hacked Soul' > $(pwd)/.soulguard/staging/SOUL.md"
+su - agent -c "echo '# Hacked Soul' > $(pwd)/.soulguard.SOUL.md"
 
 # Owner resets staging
 soulguard reset .
@@ -20,4 +20,4 @@ cat SOUL.md
 
 # Verify staging reset
 echo "STAGING:"
-cat .soulguard/staging/SOUL.md
+cat .soulguard.SOUL.md

@@ -17,9 +17,6 @@ export class DiffCommand {
 
     if (!result.ok) {
       switch (result.error.kind) {
-        case "no_staging":
-          this.out.error("No staging directory found. Run `soulguard init` first.");
-          return 1;
         case "no_config":
           this.out.error("No soulguard.json found.");
           return 1;
