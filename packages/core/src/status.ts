@@ -16,6 +16,7 @@ import { ok } from "./result.js";
 import type { SystemOperations } from "./system-ops.js";
 import { getFileInfo } from "./system-ops.js";
 import { resolvePatterns } from "./glob.js";
+import { protectPatterns, watchPatterns } from "./config.js";
 
 // ── File status ────────────────────────────────────────────────────────
 
@@ -47,8 +48,8 @@ export async function status(options: StatusOptions): Promise<Result<StatusResul
 
   // Resolve glob patterns to concrete file paths
   const [protectResult, watchResult] = await Promise.all([
-    resolvePatterns(ops, config.protect),
-    resolvePatterns(ops, config.watch),
+    resolvePatterns(ops, protectPatterns(config)),
+    resolvePatterns(ops, watchPatterns(config)),
   ]);
   if (!protectResult.ok) return protectResult;
   if (!watchResult.ok) return watchResult;

@@ -7,6 +7,6 @@ Soulguard Init — /workspace
 
 Done.
 APPROVE:
-Self-protection: soulguard.json would be invalid after this change: version: Invalid literal value, expected 1; protect: Required; watch: Required
+Self-protection: soulguard.json would be invalid after this change: version: Invalid literal value, expected 1; files: Required
 CONFIG:
-{"version": 1, "protect":["SOUL.md","soulguard.json"],"watch":[]}
+{"version":1,"files":{"SOUL.md":"protect","soulguard.json":"protect"}}

@@ -12,7 +12,10 @@ function makeMock() {
   return ops;
 }
 
-function opts(config: { version: 1; protect: string[]; watch: string[] }, ops: MockSystemOps) {
+function opts(
+  config: { version: 1; files: Record<string, "protect" | "watch"> },
+  ops: MockSystemOps,
+) {
   return {
     config,
     expectedProtectOwnership: VAULT_OWNERSHIP,
@@ -25,7 +28,17 @@ describe("sync", () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", { owner: "agent", group: "staff", mode: "644" });
 
-    const result = await sync(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
+    const result = await sync(
+      opts(
+        {
+          version: 1,
+          files: {
+            "SOUL.md": "protect",
+          },
+        },
+        ops,
+      ),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -45,7 +58,17 @@ describe("sync", () => {
       mode: "444",
     });
 
-    const result = await sync(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
+    const result = await sync(
+      opts(
+        {
+          version: 1,
+          files: {
+            "SOUL.md": "protect",
+          },
+        },
+        ops,
+      ),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -58,7 +81,17 @@ describe("sync", () => {
   test("missing files remain in issues (can't fix)", async () => {
     const ops = makeMock();
 
-    const result = await sync(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
+    const result = await sync(
+      opts(
+        {
+          version: 1,
+          files: {
+            "SOUL.md": "protect",
+          },
+        },
+        ops,
+      ),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -75,7 +108,17 @@ describe("sync", () => {
       mode: "644",
     });
 
-    const result = await sync(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
+    const result = await sync(
+      opts(
+        {
+          version: 1,
+          files: {
+            "SOUL.md": "protect",
+          },
+        },
+        ops,
+      ),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -91,7 +134,17 @@ describe("sync", () => {
       mode: "644",
     });
 
-    const result = await sync(opts({ version: 1, protect: [], watch: ["notes.md"] }, ops));
+    const result = await sync(
+      opts(
+        {
+          version: 1,
+          files: {
+            "notes.md": "watch",
+          },
+        },
+        ops,
+      ),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -115,7 +168,17 @@ describe("sync", () => {
     });
 
     const result = await sync(
-      opts({ version: 1, protect: ["SOUL.md", "AGENTS.md"], watch: ["notes.md"] }, ops),
+      opts(
+        {
+          version: 1,
+          files: {
+            "SOUL.md": "protect",
+            "AGENTS.md": "protect",
+            "notes.md": "watch",
+          },
+        },
+        ops,
+      ),
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -148,7 +211,17 @@ describe("sync", () => {
     );
 
     const result = await sync(
-      opts({ version: 1, protect: ["SOUL.md"], watch: ["notes.md"], git: true } as never, ops),
+      opts(
+        {
+          version: 1,
+          files: {
+            "SOUL.md": "protect",
+            "notes.md": "watch",
+          },
+          git: true,
+        } as never,
+        ops,
+      ),
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -168,7 +241,16 @@ describe("sync", () => {
     });
 
     const result = await sync(
-      opts({ version: 1, protect: ["SOUL.md"], watch: [], git: false } as never, ops),
+      opts(
+        {
+          version: 1,
+          files: {
+            "SOUL.md": "protect",
+          },
+          git: false,
+        } as never,
+        ops,
+      ),
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;

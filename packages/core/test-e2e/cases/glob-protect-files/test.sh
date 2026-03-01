@@ -3,7 +3,7 @@
 
 # Setup: vault with glob + a couple matching files
 cat > soulguard.json <<'EOF'
-{"version": 1, "protect":["soulguard.json","skills/*.md"],"watch":[]}
+{"version":1,"files":{"soulguard.json":"protect","skills/*.md":"protect"}}
 EOF
 mkdir -p skills
 echo '# Python' > skills/python.md

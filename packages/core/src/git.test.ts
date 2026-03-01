@@ -12,24 +12,46 @@ describe("isGitEnabled", () => {
   test("returns true when git not false and .git exists", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile(".soulguard/.git", "");
-    expect(await isGitEnabled(ops, { version: 1, protect: [], watch: [] })).toBe(true);
+    expect(
+      await isGitEnabled(ops, {
+        version: 1,
+        files: {},
+      }),
+    ).toBe(true);
   });
 
   test("returns true when git explicitly true", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile(".soulguard/.git", "");
-    expect(await isGitEnabled(ops, { version: 1, protect: [], watch: [], git: true })).toBe(true);
+    expect(
+      await isGitEnabled(ops, {
+        version: 1,
+        files: {},
+        git: true,
+      }),
+    ).toBe(true);
   });
 
   test("returns false when git is false", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile(".soulguard/.git", "");
-    expect(await isGitEnabled(ops, { version: 1, protect: [], watch: [], git: false })).toBe(false);
+    expect(
+      await isGitEnabled(ops, {
+        version: 1,
+        files: {},
+        git: false,
+      }),
+    ).toBe(false);
   });
 
   test("returns false when no .git directory", async () => {
     const ops = new MockSystemOps("/workspace");
-    expect(await isGitEnabled(ops, { version: 1, protect: [], watch: [] })).toBe(false);
+    expect(
+      await isGitEnabled(ops, {
+        version: 1,
+        files: {},
+      }),
+    ).toBe(false);
   });
 });
 
@@ -157,8 +179,10 @@ describe("commitWatchFiles", () => {
 
     const result = await commitWatchFiles(ops, {
       version: 1,
-      protect: [],
-      watch: ["MEMORY.md", "memory/*.md"],
+      files: {
+        "MEMORY.md": "watch",
+        "memory/*.md": "watch",
+      },
       git: true,
     });
 
@@ -176,8 +200,9 @@ describe("commitWatchFiles", () => {
     const ops = new MockSystemOps("/workspace");
     const result = await commitWatchFiles(ops, {
       version: 1,
-      protect: [],
-      watch: ["MEMORY.md"],
+      files: {
+        "MEMORY.md": "watch",
+      },
       git: false,
     });
 
@@ -189,7 +214,11 @@ describe("commitWatchFiles", () => {
   test("returns no_files when no watch-tier files", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile(".soulguard/.git", "");
-    const result = await commitWatchFiles(ops, { version: 1, protect: [], watch: [], git: true });
+    const result = await commitWatchFiles(ops, {
+      version: 1,
+      files: {},
+      git: true,
+    });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -201,8 +230,9 @@ describe("commitWatchFiles", () => {
     ops.addFile(".soulguard/.git", "");
     const result = await commitWatchFiles(ops, {
       version: 1,
-      protect: [],
-      watch: ["memory/*.md"],
+      files: {
+        "memory/*.md": "watch",
+      },
       git: true,
     });
 

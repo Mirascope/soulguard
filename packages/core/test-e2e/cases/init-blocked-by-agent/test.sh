@@ -3,7 +3,7 @@
 
 echo '# My Soul' > SOUL.md
 cat > soulguard.json <<'EOF'
-{"version": 1, "protect":["SOUL.md","soulguard.json"],"watch":[]}
+{"version":1,"files":{"SOUL.md":"protect","soulguard.json":"protect"}}
 EOF
 
 # Owner runs init (as root)

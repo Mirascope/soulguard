@@ -17,6 +17,7 @@ export const PROTECT_OWNERSHIP: FileOwnership = {
 /** Sensible default config — protects soulguard's own config */
 export const DEFAULT_CONFIG: SoulguardConfig = {
   version: 1 as const,
-  protect: ["soulguard.json"],
-  watch: [],
+  files: {
+    "soulguard.json": "protect",
+  },
 } as const;

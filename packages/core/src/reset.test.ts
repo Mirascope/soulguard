@@ -4,7 +4,12 @@ import { reset } from "./reset.js";
 import { diff } from "./diff.js";
 import type { SoulguardConfig } from "./types.js";
 
-const config: SoulguardConfig = { version: 1, protect: ["SOUL.md"], watch: [] };
+const config: SoulguardConfig = {
+  version: 1,
+  files: {
+    "SOUL.md": "protect",
+  },
+};
 
 function setup() {
   const ops = new MockSystemOps("/workspace");

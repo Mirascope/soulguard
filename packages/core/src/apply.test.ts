@@ -6,8 +6,19 @@ import type { SoulguardConfig, FileOwnership } from "./types.js";
 import type { Policy } from "./policy.js";
 import { ok, err } from "./result.js";
 
-const config: SoulguardConfig = { version: 1, protect: ["SOUL.md"], watch: [] };
-const multiConfig: SoulguardConfig = { version: 1, protect: ["SOUL.md", "AGENTS.md"], watch: [] };
+const config: SoulguardConfig = {
+  version: 1,
+  files: {
+    "SOUL.md": "protect",
+  },
+};
+const multiConfig: SoulguardConfig = {
+  version: 1,
+  files: {
+    "SOUL.md": "protect",
+    "AGENTS.md": "protect",
+  },
+};
 const protectOwnership: FileOwnership = { user: "soulguardian", group: "soulguard", mode: "444" };
 
 function setup() {
@@ -272,7 +283,12 @@ describe("apply (implicit proposals)", () => {
   });
 
   test("blocks deletion of soulguard.json via self-protection", async () => {
-    const sgConfig: SoulguardConfig = { version: 1, protect: ["soulguard.json"], watch: [] };
+    const sgConfig: SoulguardConfig = {
+      version: 1,
+      files: {
+        "soulguard.json": "protect",
+      },
+    };
     const ops = new MockSystemOps("/workspace");
     ops.addFile("soulguard.json", '{"protect":["soulguard.json"],"watch":[]}', {
       owner: "soulguardian",
@@ -326,8 +342,10 @@ describe("apply (implicit proposals)", () => {
   test("rollback restores deleted files when subsequent deletion fails", async () => {
     const twoDeleteConfig: SoulguardConfig = {
       version: 1,
-      protect: ["SOUL.md", "AGENTS.md"],
-      watch: [],
+      files: {
+        "SOUL.md": "protect",
+        "AGENTS.md": "protect",
+      },
     };
     const ops = new MockSystemOps("/workspace");
     ops.addFile("SOUL.md", "original soul", {

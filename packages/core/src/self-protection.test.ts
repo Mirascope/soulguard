@@ -14,9 +14,14 @@ async function getApprovalHash(ops: MockSystemOps, config: SoulguardConfig): Pro
 
 describe("self-protection", () => {
   test("blocks invalid JSON in soulguard.json", async () => {
-    const config: SoulguardConfig = { version: 1, protect: ["soulguard.json"], watch: [] };
+    const config: SoulguardConfig = {
+      version: 1,
+      files: {
+        "soulguard.json": "protect",
+      },
+    };
     const ops = new MockSystemOps("/workspace");
-    ops.addFile("soulguard.json", '{"version":1,"protect":["soulguard.json"],"watch":[]}', {
+    ops.addFile("soulguard.json", '{"version":1,"files":{"soulguard.json":"protect"}}', {
       owner: "soulguardian",
       group: "soulguard",
       mode: "444",
@@ -38,9 +43,14 @@ describe("self-protection", () => {
   });
 
   test("blocks invalid schema in soulguard.json", async () => {
-    const config: SoulguardConfig = { version: 1, protect: ["soulguard.json"], watch: [] };
+    const config: SoulguardConfig = {
+      version: 1,
+      files: {
+        "soulguard.json": "protect",
+      },
+    };
     const ops = new MockSystemOps("/workspace");
-    ops.addFile("soulguard.json", '{"version":1,"protect":["soulguard.json"],"watch":[]}', {
+    ops.addFile("soulguard.json", '{"version":1,"files":{"soulguard.json":"protect"}}', {
       owner: "soulguardian",
       group: "soulguard",
       mode: "444",
@@ -63,16 +73,21 @@ describe("self-protection", () => {
   });
 
   test("allows valid soulguard.json changes", async () => {
-    const config: SoulguardConfig = { version: 1, protect: ["soulguard.json"], watch: [] };
+    const config: SoulguardConfig = {
+      version: 1,
+      files: {
+        "soulguard.json": "protect",
+      },
+    };
     const ops = new MockSystemOps("/workspace");
-    ops.addFile("soulguard.json", '{"version":1,"protect":["soulguard.json"],"watch":[]}', {
+    ops.addFile("soulguard.json", '{"version":1,"files":{"soulguard.json":"protect"}}', {
       owner: "soulguardian",
       group: "soulguard",
       mode: "444",
     });
     ops.addFile(
       ".soulguard.soulguard.json",
-      '{"version":1,"protect":["soulguard.json","SOUL.md"],"watch":["memory/**"]}',
+      '{"version":1,"files":{"soulguard.json":"protect","SOUL.md":"protect","memory/**":"watch"}}',
       { owner: "agent", group: "soulguard", mode: "644" },
     );
 
@@ -84,8 +99,10 @@ describe("self-protection", () => {
   test("does not run when soulguard.json is not being changed", async () => {
     const config: SoulguardConfig = {
       version: 1,
-      protect: ["SOUL.md", "soulguard.json"],
-      watch: [],
+      files: {
+        "SOUL.md": "protect",
+        "soulguard.json": "protect",
+      },
     };
     const ops = new MockSystemOps("/workspace");
     ops.addFile("SOUL.md", "original", {
@@ -119,9 +136,14 @@ describe("self-protection", () => {
   });
 
   test("self-protection cannot be bypassed with empty policies", async () => {
-    const config: SoulguardConfig = { version: 1, protect: ["soulguard.json"], watch: [] };
+    const config: SoulguardConfig = {
+      version: 1,
+      files: {
+        "soulguard.json": "protect",
+      },
+    };
     const ops = new MockSystemOps("/workspace");
-    ops.addFile("soulguard.json", '{"version":1,"protect":["soulguard.json"],"watch":[]}', {
+    ops.addFile("soulguard.json", '{"version":1,"files":{"soulguard.json":"protect"}}', {
       owner: "soulguardian",
       group: "soulguard",
       mode: "444",

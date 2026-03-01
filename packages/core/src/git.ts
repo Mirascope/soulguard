@@ -9,6 +9,7 @@ import type { SystemOperations } from "./system-ops.js";
 import type { SoulguardConfig, Result } from "./types.js";
 import { ok, err } from "./result.js";
 import { resolvePatterns } from "./glob.js";
+import { watchPatterns } from "./config.js";
 
 export type GitCommitResult =
   | { committed: true; message: string; files: string[] }
@@ -157,7 +158,7 @@ export async function commitWatchFiles(
     return ok({ committed: false, reason: "git_disabled" });
   }
 
-  const resolved = await resolvePatterns(ops, config.watch);
+  const resolved = await resolvePatterns(ops, watchPatterns(config));
   if (!resolved.ok) {
     return err({ kind: "git_error", message: `glob failed: ${resolved.error.message}` });
   }
