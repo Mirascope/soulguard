@@ -1,20 +1,7 @@
 Soulguard Diff — /workspace
 
   ⚠️ SOUL.md (protect-tier file missing — new file)
-  📝 soulguard.json
-      ===================================================================
-      --- a/soulguard.json
-      +++ b/soulguard.json
-      @@ -1,7 +1,1 @@
-      -{
-      -  "version": 1,
-      -  "files": {
-      -    "soulguard.json": "protect",
-      -    "SOUL.md": "protect"
-      -  }
-      -}
-      +{"version":1,"files":{"soulguard.json":"protect"}}
-      
+  🗑️ soulguard.json (staged for deletion)
 
 2 file(s) changed
-Apply hash: 52b36e26ee6b8d30322ed5bcf4f5e0bb1ca928032bb1fb84863f93295ad4a924
+Apply hash: 689a44a4976ae01fdfe94d45f48c8d1639f831df527f9cb81435d2328b3eb5e8

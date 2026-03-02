@@ -5,8 +5,8 @@ echo '# My Soul' > SOUL.md
 SUDO_USER=agent soulguard init .
 soulguard protect SOUL.md -w .
 
-# Agent modifies staging
-su - agent -c "echo '# Hacked Soul' > $(pwd)/.soulguard.SOUL.md"
+# Agent creates staging and modifies it
+su - agent -c "cp $(pwd)/SOUL.md $(pwd)/.soulguard.SOUL.md && echo '# Hacked Soul' > $(pwd)/.soulguard.SOUL.md"
 
 # Owner resets staging
 soulguard reset .

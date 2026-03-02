@@ -4,6 +4,9 @@ echo '# My Soul' > SOUL.md
 SUDO_USER=agent soulguard init . > /dev/null 2>&1
 soulguard protect SOUL.md -w . > /dev/null 2>&1
 
+# Agent creates staging copy
+su - agent -c "cp $(pwd)/SOUL.md $(pwd)/.soulguard.SOUL.md"
+
 # Delete the protect-tier file so staging exists but vault doesn't
 rm SOUL.md
 
