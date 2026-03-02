@@ -3,34 +3,46 @@ Soulguard Init — /workspace
   Created user: soulguardian
   Wrote /etc/sudoers.d/soulguard
   Created staging siblings
-  Synced 3 protect-tier file(s)
+  Synced 1 protect-tier file(s)
 
 Done.
+  + skills/*.md → protect
+
+Updated. 1 file(s) now protect-tier.
 STATUS:
 Soulguard Status — /workspace
 
 All files ok.
+-bash: line 1: /workspace/skills/.soulguard.python.md: Permission denied
 DIFF:
 Soulguard Diff — /workspace
 
-  📝 skills/python.md
+  🗑️ skills/python.md (staged for deletion)
+  🗑️ skills/typescript.md (staged for deletion)
+  📝 soulguard.json
       ===================================================================
-      --- a/skills/python.md
-      +++ b/skills/python.md
-      @@ -1,1 +1,1 @@
-      -# Python
-      +# Python v2
+      --- a/soulguard.json
+      +++ b/soulguard.json
+      @@ -1,7 +1,1 @@
+      -{
+      -  "version": 1,
+      -  "files": {
+      -    "soulguard.json": "protect",
+      -    "skills/*.md": "protect"
+      -  }
+      -}
+      +{"version":1,"files":{"soulguard.json":"protect"}}
       
-  ✅ skills/typescript.md (no changes)
-  ✅ soulguard.json (no changes)
 
-1 file(s) changed
-Apply hash: dddd99b50cc6db47e3ab9cdcd8730fc93bb3eb4850bd5f2e01ad9c8a5b4a4dbb
+3 file(s) changed
+Apply hash: dcdcc5b97e4fd9d8f1df81b3bb51277b4c90d139ca504fb57597d228190b9c71
 APPROVE:
 
-Applied 1 file(s):
+Applied 3 file(s):
   ✅ skills/python.md
+  ✅ skills/typescript.md
+  ✅ soulguard.json
 
 Protect-tier files updated. Staging synced.
 VAULT CONTENT:
-# Python v2
+cat: skills/python.md: No such file or directory

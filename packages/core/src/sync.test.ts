@@ -237,6 +237,85 @@ describe("sync", () => {
     }
   });
 
+  test("restores original ownership when tier changes from protect to watch", async () => {
+    const ops = makeMock();
+    // File currently has soulguardian ownership (was protected)
+    ops.addFile("SOUL.md", "# Soul", {
+      owner: VAULT_OWNERSHIP.user,
+      group: VAULT_OWNERSHIP.group,
+      mode: "444",
+    });
+    // Registry says it was protect-tier with original ownership dandelion:staff 644
+    ops.addFile(
+      ".soulguard/registry.json",
+      JSON.stringify({
+        version: 1,
+        files: {
+          "SOUL.md": {
+            tier: "protect",
+            originalOwnership: { user: "dandelion", group: "staff", mode: "644" },
+          },
+        },
+      }),
+      { owner: "root", group: "root", mode: "644" },
+    );
+
+    // Config now says watch (user downgraded)
+    const result = await sync(opts({ version: 1, files: { "SOUL.md": "watch" } }, ops));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.errors).toHaveLength(0);
+    // Should have restored ownership: chown + chmod
+    const chownOp = ops.ops.find((o) => o.kind === "chown" && o.path === "SOUL.md");
+    const chmodOp = ops.ops.find((o) => o.kind === "chmod" && o.path === "SOUL.md");
+    expect(chownOp).toBeDefined();
+    expect(chmodOp).toBeDefined();
+    if (chownOp?.kind === "chown") {
+      expect(chownOp.owner).toEqual({ user: "dandelion", group: "staff" });
+    }
+    if (chmodOp?.kind === "chmod") {
+      expect(chmodOp.mode).toBe("644");
+    }
+  });
+
+  test("does not restore ownership when tier changes from watch to protect", async () => {
+    const ops = makeMock();
+    // File currently has user ownership (was watched)
+    ops.addFile("notes.md", "# Notes", {
+      owner: "agent",
+      group: "staff",
+      mode: "644",
+    });
+    // Registry says it was watch-tier
+    ops.addFile(
+      ".soulguard/registry.json",
+      JSON.stringify({
+        version: 1,
+        files: {
+          "notes.md": { tier: "watch" },
+        },
+      }),
+      { owner: "root", group: "root", mode: "644" },
+    );
+
+    // Config now says protect (user upgraded)
+    const result = await sync(opts({ version: 1, files: { "notes.md": "protect" } }, ops));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.errors).toHaveLength(0);
+    // Should have enforced protect ownership (chown to soulguardian, chmod to 444)
+    const chownOp = ops.ops.find((o) => o.kind === "chown" && o.path === "notes.md");
+    expect(chownOp).toBeDefined();
+    if (chownOp?.kind === "chown") {
+      expect(chownOp.owner).toEqual({
+        user: VAULT_OWNERSHIP.user,
+        group: VAULT_OWNERSHIP.group,
+      });
+    }
+  });
+
   test("skips git commit when git disabled", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", {

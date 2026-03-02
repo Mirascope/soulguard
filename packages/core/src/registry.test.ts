@@ -13,7 +13,7 @@ describe("Registry", () => {
     expect(result.value.toData()).toEqual({ version: 1, files: {} });
   });
 
-  test("load parses valid registry", async () => {
+  test("load parses valid registry with protect entry", async () => {
     const ops = new MockSystemOps(WORKSPACE);
     ops.addFile(
       ".soulguard/registry.json",
@@ -31,8 +31,30 @@ describe("Registry", () => {
     const result = await Registry.load(ops);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.get("SOUL.md")?.tier).toBe("protect");
-    expect(result.value.get("SOUL.md")?.originalOwnership?.user).toBe("dandelion");
+    const entry = result.value.get("SOUL.md");
+    expect(entry?.tier).toBe("protect");
+    if (entry?.tier === "protect") {
+      expect(entry.originalOwnership.user).toBe("dandelion");
+    }
+  });
+
+  test("load parses valid registry with watch entry", async () => {
+    const ops = new MockSystemOps(WORKSPACE);
+    ops.addFile(
+      ".soulguard/registry.json",
+      JSON.stringify({
+        version: 1,
+        files: {
+          "notes.md": { tier: "watch" },
+        },
+      }),
+      { owner: "root", group: "root", mode: "644" },
+    );
+    const result = await Registry.load(ops);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const entry = result.value.get("notes.md");
+    expect(entry?.tier).toBe("watch");
   });
 
   test("register snapshots ownership for protect tier", async () => {
@@ -44,16 +66,20 @@ describe("Registry", () => {
     if (!result.ok) return;
     const reg = result.value;
 
-    await reg.register("SOUL.md", "protect");
-    expect(reg.get("SOUL.md")?.tier).toBe("protect");
-    expect(reg.get("SOUL.md")?.originalOwnership).toEqual({
-      user: "dandelion",
-      group: "staff",
-      mode: "644",
-    });
+    const ok = await reg.register("SOUL.md", "protect");
+    expect(ok).toBe(true);
+    const entry = reg.get("SOUL.md");
+    expect(entry?.tier).toBe("protect");
+    if (entry?.tier === "protect") {
+      expect(entry.originalOwnership).toEqual({
+        user: "dandelion",
+        group: "staff",
+        mode: "644",
+      });
+    }
   });
 
-  test("register does NOT snapshot ownership for watch tier", async () => {
+  test("register watch tier has no originalOwnership", async () => {
     const ops = new MockSystemOps(WORKSPACE);
     ops.addFile("notes.md", "# Notes", { owner: "dandelion", group: "staff", mode: "644" });
 
@@ -62,30 +88,43 @@ describe("Registry", () => {
     const reg = result.value;
 
     await reg.register("notes.md", "watch");
-    expect(reg.get("notes.md")?.tier).toBe("watch");
-    expect(reg.get("notes.md")?.originalOwnership).toBeUndefined();
+    const entry = reg.get("notes.md");
+    expect(entry).toEqual({ tier: "watch" });
+  });
+
+  test("register protect returns false if file doesn't exist", async () => {
+    const ops = new MockSystemOps(WORKSPACE);
+    const result = await Registry.load(ops);
+    if (!result.ok) return;
+    const reg = result.value;
+
+    const ok = await reg.register("NOPE.md", "protect");
+    expect(ok).toBe(false);
+    expect(reg.get("NOPE.md")).toBeUndefined();
   });
 
   test("register is no-op for same tier", async () => {
     const ops = new MockSystemOps(WORKSPACE);
-    ops.addFile("SOUL.md", "# Soul v2", { owner: "soulguardian", group: "soulguard", mode: "444" });
+    ops.addFile("SOUL.md", "# Soul", { owner: "dandelion", group: "staff", mode: "644" });
 
     const result = await Registry.load(ops);
     if (!result.ok) return;
     const reg = result.value;
 
-    // Pre-populate
-    ops.addFile("SOUL.md", "# Soul", { owner: "dandelion", group: "staff", mode: "644" });
     await reg.register("SOUL.md", "protect");
-    const original = reg.get("SOUL.md")?.originalOwnership;
+    const entry = reg.get("SOUL.md");
+    if (entry?.tier !== "protect") return;
+    const original = entry.originalOwnership;
 
     // Re-register at same tier — should keep original
     ops.addFile("SOUL.md", "# Soul v2", { owner: "soulguardian", group: "soulguard", mode: "444" });
     await reg.register("SOUL.md", "protect");
-    expect(reg.get("SOUL.md")?.originalOwnership).toEqual(original);
+    const entry2 = reg.get("SOUL.md");
+    if (entry2?.tier !== "protect") return;
+    expect(entry2.originalOwnership).toEqual(original);
   });
 
-  test("updateTier preserves originalOwnership", async () => {
+  test("updateTier protect→watch produces watch entry", async () => {
     const ops = new MockSystemOps(WORKSPACE);
     ops.addFile("SOUL.md", "# Soul", { owner: "soulguardian", group: "soulguard", mode: "444" });
 
@@ -93,17 +132,36 @@ describe("Registry", () => {
     if (!result.ok) return;
     const reg = result.value;
 
-    // Manually set up an entry with known originalOwnership
-    await reg.register("SOUL.md", "protect");
-    // Override to simulate pre-soulguard ownership
+    // Set up a protect entry
     reg.toData().files["SOUL.md"] = {
       tier: "protect",
       originalOwnership: { user: "dandelion", group: "staff", mode: "644" },
     };
 
     await reg.updateTier("SOUL.md", "watch");
-    expect(reg.get("SOUL.md")?.tier).toBe("watch");
-    expect(reg.get("SOUL.md")?.originalOwnership?.user).toBe("dandelion");
+    expect(reg.get("SOUL.md")).toEqual({ tier: "watch" });
+  });
+
+  test("updateTier watch→protect snapshots current ownership", async () => {
+    const ops = new MockSystemOps(WORKSPACE);
+    ops.addFile("notes.md", "# Notes", { owner: "agent", group: "staff", mode: "644" });
+
+    const result = await Registry.load(ops);
+    if (!result.ok) return;
+    const reg = result.value;
+
+    reg.toData().files["notes.md"] = { tier: "watch" };
+
+    await reg.updateTier("notes.md", "protect");
+    const entry = reg.get("notes.md");
+    expect(entry?.tier).toBe("protect");
+    if (entry?.tier === "protect") {
+      expect(entry.originalOwnership).toEqual({
+        user: "agent",
+        group: "staff",
+        mode: "644",
+      });
+    }
   });
 
   test("unregister removes entry and returns it", async () => {
@@ -119,7 +177,9 @@ describe("Registry", () => {
 
     const entry = reg.unregister("SOUL.md");
     expect(entry).toBeDefined();
-    expect(entry?.originalOwnership?.user).toBe("dandelion");
+    if (entry?.tier === "protect") {
+      expect(entry.originalOwnership.user).toBe("dandelion");
+    }
     expect(reg.get("SOUL.md")).toBeUndefined();
   });
 

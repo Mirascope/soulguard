@@ -24,7 +24,7 @@ import { ok } from "./result.js";
 import type { SystemOperations } from "./system-ops.js";
 import { getFileInfo } from "./system-ops.js";
 import { resolvePatterns } from "./glob.js";
-import { protectPatterns, watchPatterns, patternsForTier } from "./config.js";
+import { protectPatterns, watchPatterns } from "./config.js";
 import type { Registry } from "./registry.js";
 
 // ── File status ────────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ export async function status(options: StatusOptions): Promise<Result<StatusResul
           status: "orphaned",
           path: regPath,
           registryTier: entry.tier,
-          originalOwnership: entry.originalOwnership,
+          originalOwnership: entry.tier === "protect" ? entry.originalOwnership : undefined,
         });
       }
     }

@@ -1,0 +1,18 @@
+# ls -lah SOUL.md:
+-rw-r--r-- root root SOUL.md
+
+# soulguard init
+
+# soulguard protect SOUL.md
+  · SOUL.md (already protect)
+Nothing to change.
+
+# ls -lah SOUL.md:
+-r--r--r-- soulguardian soulguard SOUL.md
+
+# soulguard watch SOUL.md
+  ↓ SOUL.md → watch (was protect)
+
+Updated. 1 file(s) now watch-tier.
+# ls -lah SOUL.md
+-rw-r--r-- root root SOUL.md
