@@ -21,24 +21,8 @@ import { NodeSystemOps, writeFileAbsolute, existsAbsolute } from "./system-ops-n
 import { parseConfig } from "./schema.js";
 import type { StatusOptions } from "./status.js";
 import { Registry } from "./registry.js";
-import type { SoulguardConfig } from "./types.js";
 
 import { IDENTITY, PROTECT_OWNERSHIP } from "./constants.js";
-const DEFAULT_CONFIG: SoulguardConfig = {
-  version: 1 as const,
-  files: {
-    "SOUL.md": "protect",
-    "AGENTS.md": "protect",
-    "IDENTITY.md": "protect",
-    "USER.md": "protect",
-    "TOOLS.md": "protect",
-    "HEARTBEAT.md": "protect",
-    "BOOTSTRAP.md": "protect",
-    "soulguard.json": "protect",
-    "memory/**": "watch",
-    "skills/**": "watch",
-  },
-};
 
 async function makeBaseOptions(workspace: string) {
   const ops = new NodeSystemOps(resolve(workspace));
@@ -132,20 +116,10 @@ program
       return;
     }
 
-    // Use existing config if present, otherwise default
-    let config: SoulguardConfig = DEFAULT_CONFIG;
-    try {
-      const raw = await readFile(resolve(absWorkspace, "soulguard.json"), "utf-8");
-      config = parseConfig(JSON.parse(raw));
-    } catch {
-      // No existing config — will be created by init
-    }
-
     const cmd = new InitCommand(
       {
         ops: nodeOps,
         identity: IDENTITY,
-        config,
         callerUser,
         writeAbsolute: writeFileAbsolute,
         existsAbsolute,

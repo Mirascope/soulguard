@@ -15,6 +15,9 @@
   "scripts": {
     "build": "bun run --filter '*' build",
     "test": "bun run --filter '*' test",
+    "test:integration": "bun run --filter '@soulguard/core' test:integration",
+    "test:e2e": "bun run --filter '@soulguard/core' test:e2e",
+    "test:e2e:update": "bun run --filter '@soulguard/core' test:e2e:update",
     "typecheck": "bun run --filter '*' typecheck",
     "lint": "oxlint packages/*/src",
     "format": "oxfmt --write .",

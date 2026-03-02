@@ -26,12 +26,6 @@ function makeOptions(ops: MockSystemOps, overrides?: Partial<InitOptions>): Init
   return {
     ops,
     identity: { user: "soulguardian", group: "soulguard" },
-    config: {
-      version: 1,
-      files: {
-        "SOUL.md": "protect",
-      },
-    },
     callerUser: "agent",
     writeAbsolute: writer,
     existsAbsolute: exists,
@@ -194,29 +188,6 @@ describe("DEFAULT_CONFIG", () => {
       command: "git",
       args: ["init", "--bare", ".soulguard/.git"],
     });
-  });
-
-  test("git=false — no git operations", async () => {
-    const ops = new MockSystemOps("/workspace");
-    ops.addFile("SOUL.md", "# My Soul", { owner: "agent", group: "staff", mode: "644" });
-
-    const result = await init(
-      makeOptions(ops, {
-        config: {
-          version: 1,
-          files: {
-            "SOUL.md": "protect",
-          },
-          git: false,
-        },
-      }),
-    );
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-
-    expect(result.value.gitInitialized).toBe(false);
-    const gitExecOps = ops.ops.filter((o) => o.kind === "exec" && o.command === "git");
-    expect(gitExecOps).toHaveLength(0);
   });
 });
 
