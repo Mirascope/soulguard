@@ -6,9 +6,13 @@ Soulguard Init — /workspace
   Synced 2 protect-tier file(s)
 
 Done.
-Soulguard Status — /workspace
-
-All files ok.
-.soulguard.SOUL.md
-STAGING: OK
--bash: line 1: /workspace/SOUL.md: Permission denied
+BEFORE:
+soulguardian:soulguard 444
+SYNC:
+Soulguard Sync — /workspace
+Released:
+  🔓 SOUL.md (released)
+All files now ok.
+  📝 Committed 1 file(s) to git
+AFTER:
+root:root 644

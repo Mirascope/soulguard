@@ -8,7 +8,7 @@
 import { z } from "zod";
 import type { SoulguardConfig } from "./types.js";
 
-const tierSchema = z.enum(["protect", "watch"]);
+export const tierSchema = z.enum(["protect", "watch"]);
 
 export const soulguardConfigSchema: z.ZodType<SoulguardConfig> = z.object({
   version: z.literal(1),

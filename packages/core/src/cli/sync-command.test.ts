@@ -66,6 +66,6 @@ describe("SyncCommand", () => {
     const code = await cmd.execute();
 
     expect(code).toBe(1);
-    expect(out.hasText("remaining after sync")).toBe(true);
+    expect(out.hasText("missing")).toBe(true);
   });
 });

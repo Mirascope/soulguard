@@ -1,9 +1,8 @@
 Soulguard Status — /workspace
 
-Protect
   ⚠️  SOUL.md
       owner is root, expected soulguardian
       group is root, expected soulguard
       mode is 644, expected 444
 
-0 files ok, 1 drifted, 0 missing
+1 drifted, 0 missing

@@ -3,31 +3,17 @@ Soulguard Init — /workspace
   Created user: soulguardian
   Wrote /etc/sudoers.d/soulguard
   Created staging siblings
-  Synced 1 protect-tier file(s)
+  Synced 3 protect-tier file(s)
 
 Done.
 STATUS:
 Soulguard Status — /workspace
 
-Protect
-  ✅ soulguard.json
-
-Watch
-  ✅ memory/2026-01-01.md
-  ✅ memory/2026-01-02.md
-
-3 files ok, 0 drifted, 0 missing
+All files ok.
 STATUS AFTER DRIFT:
 Soulguard Status — /workspace
 
-Protect
-  ✅ soulguard.json
-
-Watch
-  ✅ memory/2026-01-01.md
-  ✅ memory/2026-01-02.md
-
-3 files ok, 0 drifted, 0 missing
+All files ok.
 SYNC:
 Soulguard Sync — /workspace
 
@@ -35,11 +21,4 @@ Nothing to fix — all files ok.
 STATUS AFTER SYNC:
 Soulguard Status — /workspace
 
-Protect
-  ✅ soulguard.json
-
-Watch
-  ✅ memory/2026-01-01.md
-  ✅ memory/2026-01-02.md
-
-3 files ok, 0 drifted, 0 missing
+All files ok.

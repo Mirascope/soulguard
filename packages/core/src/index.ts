@@ -103,3 +103,7 @@ export { ApplyCommand } from "./cli/apply-command.js";
 export type { ApplyCommandOptions } from "./cli/apply-command.js";
 export { ResetCommand } from "./cli/reset-command.js";
 export { protectPatterns, watchPatterns, patternsForTier } from "./config.js";
+
+// Registry
+export { Registry } from "./registry.js";
+export type { RegistryData, RegistryEntry, RegistryError } from "./registry.js";

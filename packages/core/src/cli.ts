@@ -19,6 +19,7 @@ import { LogCommand } from "./cli/log-command.js";
 import { NodeSystemOps, writeFileAbsolute, existsAbsolute } from "./system-ops-node.js";
 import { parseConfig } from "./schema.js";
 import type { StatusOptions } from "./status.js";
+import { Registry } from "./registry.js";
 import type { SoulguardConfig } from "./types.js";
 
 import { IDENTITY, PROTECT_OWNERSHIP } from "./constants.js";
@@ -38,7 +39,7 @@ const DEFAULT_CONFIG: SoulguardConfig = {
   },
 };
 
-async function makeOptions(workspace: string): Promise<StatusOptions> {
+async function makeBaseOptions(workspace: string) {
   const ops = new NodeSystemOps(resolve(workspace));
   const configPath = resolve(workspace, "soulguard.json");
 
@@ -56,6 +57,13 @@ async function makeOptions(workspace: string): Promise<StatusOptions> {
     expectedProtectOwnership: PROTECT_OWNERSHIP,
     ops,
   };
+}
+
+async function makeStatusOptions(workspace: string): Promise<StatusOptions> {
+  const base = await makeBaseOptions(workspace);
+  const registryResult = await Registry.load(base.ops);
+  if (!registryResult.ok) throw new Error("Failed to load registry");
+  return { ...base, registry: registryResult.value };
 }
 
 function getVersion(): string {
@@ -80,8 +88,8 @@ program
   .action(async (workspace: string) => {
     const out = new LiveConsoleOutput();
     try {
-      const opts = await makeOptions(workspace);
-      const cmd = new StatusCommand(opts, out);
+      const statusOpts = await makeStatusOptions(workspace);
+      const cmd = new StatusCommand(statusOpts, out);
       process.exitCode = await cmd.execute();
     } catch (e) {
       out.error(e instanceof Error ? e.message : String(e));
@@ -96,7 +104,7 @@ program
   .action(async (workspace: string) => {
     const out = new LiveConsoleOutput();
     try {
-      const opts = await makeOptions(workspace);
+      const opts = await makeBaseOptions(workspace);
       const cmd = new SyncCommand(opts, out);
       process.exitCode = await cmd.execute();
     } catch (e) {
@@ -155,7 +163,7 @@ program
   .action(async (workspace: string, files: string[]) => {
     const out = new LiveConsoleOutput();
     try {
-      const opts = await makeOptions(workspace);
+      const opts = await makeBaseOptions(workspace);
       const cmd = new DiffCommand(
         {
           ops: opts.ops,
@@ -179,7 +187,7 @@ program
   .action(async (workspace: string, opts: { hash?: string }) => {
     const out = new LiveConsoleOutput();
     try {
-      const statusOpts = await makeOptions(workspace);
+      const statusOpts = await makeBaseOptions(workspace);
 
       const cmd = new ApplyCommand(
         {
@@ -217,7 +225,7 @@ program
   .action(async (workspace: string) => {
     const out = new LiveConsoleOutput();
     try {
-      const statusOpts = await makeOptions(workspace);
+      const statusOpts = await makeBaseOptions(workspace);
 
       const cmd = new ResetCommand(
         {
@@ -241,7 +249,7 @@ program
   .action(async (workspace: string, file?: string) => {
     const out = new LiveConsoleOutput();
     try {
-      const opts = await makeOptions(workspace);
+      const opts = await makeBaseOptions(workspace);
       const cmd = new LogCommand({ ops: opts.ops, config: opts.config, file }, out);
       process.exitCode = await cmd.execute();
     } catch (e) {
