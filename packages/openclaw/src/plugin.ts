@@ -4,13 +4,22 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { status, diff, parseConfig, NodeSystemOps, type SoulguardConfig } from "@soulguard/core";
+import {
+  status,
+  diff,
+  parseConfig,
+  NodeSystemOps,
+  protectPatterns,
+  type SoulguardConfig,
+} from "@soulguard/core";
 
 /** OpenClaw-specific default config — also protects openclaw.json */
 const OPENCLAW_DEFAULT_CONFIG: SoulguardConfig = {
   version: 1 as const,
-  protect: ["openclaw.json", "soulguard.json"],
-  watch: [],
+  files: {
+    "openclaw.json": "protect",
+    "soulguard.json": "protect",
+  },
 };
 import { guardToolCall } from "./guard.js";
 import type {
@@ -48,11 +57,11 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
       try {
         const raw = JSON.parse(readFileSync(configPath, "utf-8"));
         config = parseConfig(raw);
-        protectFiles = config.protect;
+        protectFiles = protectPatterns(config);
       } catch {
         // No config file — use OpenClaw defaults (includes openclaw.json)
         config = OPENCLAW_DEFAULT_CONFIG;
-        protectFiles = config.protect;
+        protectFiles = protectPatterns(config);
         api.logger?.warn("soulguard: no soulguard.json found — using OpenClaw defaults");
       }
 

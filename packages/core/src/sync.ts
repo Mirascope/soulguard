@@ -13,6 +13,7 @@ import type { StatusOptions, StatusResult } from "./status.js";
 import { isGitEnabled, gitCommit } from "./git.js";
 import type { GitCommitResult } from "./git.js";
 import { resolvePatterns } from "./glob.js";
+import { protectPatterns, watchPatterns } from "./config.js";
 
 export type SyncError = {
   path: string;
@@ -82,8 +83,8 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
   let git: GitCommitResult | undefined;
   if (await isGitEnabled(ops, options.config)) {
     const [protectResolved, watchResolved] = await Promise.all([
-      resolvePatterns(ops, options.config.protect),
-      resolvePatterns(ops, options.config.watch),
+      resolvePatterns(ops, protectPatterns(options.config)),
+      resolvePatterns(ops, watchPatterns(options.config)),
     ]);
     const allFiles = [
       ...(protectResolved.ok ? protectResolved.value : []),

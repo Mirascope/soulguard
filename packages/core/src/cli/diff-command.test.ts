@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { DiffCommand } from "./diff-command.js";
 import { MockSystemOps } from "../system-ops-mock.js";
 import { MockConsoleOutput } from "../console-mock.js";
-import type { SoulguardConfig } from "../types.js";
+import type { SoulguardConfig, Tier } from "../types.js";
 
 const WORKSPACE = "/test/workspace";
 
@@ -11,7 +11,9 @@ function makeMock() {
 }
 
 function makeConfig(protect: string[] = ["SOUL.md"]): SoulguardConfig {
-  return { version: 1, protect, watch: [] };
+  const files: Record<string, Tier> = {};
+  for (const p of protect) files[p] = "protect";
+  return { version: 1, files };
 }
 
 describe("DiffCommand", () => {

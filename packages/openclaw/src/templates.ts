@@ -6,7 +6,7 @@
  * Tests validate that all paths are accounted for in every template.
  */
 
-import type { SoulguardConfig } from "@soulguard/core";
+import type { SoulguardConfig, Tier } from "@soulguard/core";
 
 // ── Known path groups ──────────────────────────────────────────────────
 
@@ -58,11 +58,10 @@ export type Template = {
 
 /** Extract just the SoulguardConfig from a template */
 export function templateToConfig(template: Template): SoulguardConfig {
-  return {
-    version: 1,
-    protect: [...template.protect],
-    watch: [...template.watch],
-  };
+  const files: Record<string, Tier> = {};
+  for (const p of template.protect) files[p] = "protect";
+  for (const w of template.watch) files[w] = "watch";
+  return { version: 1, files };
 }
 
 // ── Templates ──────────────────────────────────────────────────────────

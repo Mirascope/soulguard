@@ -16,7 +16,13 @@ function setup(configureMock: (ops: MockSystemOps) => void): {
   configureMock(ops);
   const out = new MockConsoleOutput();
   const opts: StatusOptions = {
-    config: { version: 1, protect: ["SOUL.md"], watch: ["memory/today.md"] },
+    config: {
+      version: 1,
+      files: {
+        "SOUL.md": "protect",
+        "memory/today.md": "watch",
+      },
+    },
     expectedProtectOwnership: VAULT_OWNERSHIP,
     ops,
   };
@@ -69,7 +75,13 @@ describe("StatusCommand", () => {
     ops.addFile("memory/day1.md", "notes", { owner: "selene", group: "staff", mode: "644" });
     const out = new MockConsoleOutput();
     const opts: StatusOptions = {
-      config: { version: 1, protect: ["SOUL.md"], watch: ["memory/*.md"] },
+      config: {
+        version: 1,
+        files: {
+          "SOUL.md": "protect",
+          "memory/*.md": "watch",
+        },
+      },
       expectedProtectOwnership: VAULT_OWNERSHIP,
       ops,
     };

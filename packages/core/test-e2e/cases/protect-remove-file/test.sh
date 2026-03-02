@@ -3,7 +3,7 @@
 
 # Setup: two protect-tier files
 cat > soulguard.json <<'EOF'
-{"version": 1, "protect":["SOUL.md","BOOTSTRAP.md","soulguard.json"],"watch":[]}
+{"version":1,"files":{"SOUL.md":"protect","BOOTSTRAP.md":"protect","soulguard.json":"protect"}}
 EOF
 echo '# My Soul' > SOUL.md
 echo '# Bootstrap' > BOOTSTRAP.md

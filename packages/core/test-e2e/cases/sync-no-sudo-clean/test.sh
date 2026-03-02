@@ -1,5 +1,5 @@
 # After init, agent can sudo soulguard sync on a clean workspace
-echo '{"version": 1, "protect": ["SOUL.md"], "watch": []}' > soulguard.json
+echo '{"version":1,"files":{"SOUL.md":"protect"}}' > soulguard.json
 echo '# My Soul' > SOUL.md
 
 # Owner runs init (creates sudoers for agent)

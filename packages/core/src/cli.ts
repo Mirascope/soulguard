@@ -24,17 +24,18 @@ import type { SoulguardConfig } from "./types.js";
 import { IDENTITY, PROTECT_OWNERSHIP } from "./constants.js";
 const DEFAULT_CONFIG: SoulguardConfig = {
   version: 1 as const,
-  protect: [
-    "SOUL.md",
-    "AGENTS.md",
-    "IDENTITY.md",
-    "USER.md",
-    "TOOLS.md",
-    "HEARTBEAT.md",
-    "BOOTSTRAP.md",
-    "soulguard.json",
-  ],
-  watch: ["memory/**", "skills/**"],
+  files: {
+    "SOUL.md": "protect",
+    "AGENTS.md": "protect",
+    "IDENTITY.md": "protect",
+    "USER.md": "protect",
+    "TOOLS.md": "protect",
+    "HEARTBEAT.md": "protect",
+    "BOOTSTRAP.md": "protect",
+    "soulguard.json": "protect",
+    "memory/**": "watch",
+    "skills/**": "watch",
+  },
 };
 
 async function makeOptions(workspace: string): Promise<StatusOptions> {

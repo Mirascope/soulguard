@@ -15,6 +15,7 @@ import { ok, err } from "./result.js";
 import { sync } from "./sync.js";
 import { DEFAULT_CONFIG } from "./constants.js";
 import { resolvePatterns } from "./glob.js";
+import { protectPatterns } from "./config.js";
 import { stagingPath } from "./staging.js";
 import { dirname } from "node:path";
 import { execSync } from "node:child_process";
@@ -184,7 +185,7 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   // ── 5. Create staging siblings ─────────────────────────────────────
   // Copy protect-tier files to staging siblings (resolve globs first)
   const stagingCreated = true;
-  const protectGlob = await resolvePatterns(ops, config.protect);
+  const protectGlob = await resolvePatterns(ops, protectPatterns(config));
   if (!protectGlob.ok) {
     return err({ kind: "staging_failed", message: `glob failed: ${protectGlob.error.message}` });
   }
@@ -263,7 +264,7 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
 
     // Initial commit of all tracked files
     if (gitInitialized) {
-      const allFiles = [...config.protect, ...config.watch];
+      const allFiles = Object.keys(config.files);
       // Resolve globs to actual files
       const resolved = await resolvePatterns(ops, allFiles);
       if (resolved.ok && resolved.value.length > 0) {

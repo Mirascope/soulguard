@@ -1,7 +1,7 @@
 # soulguard log: verifies git integration by checking log after sync.
 
 cat > soulguard.json <<'EOF'
-{"version": 1, "protect":["soulguard.json","SOUL.md"],"watch":["memory/notes.md"]}
+{"version":1,"files":{"soulguard.json":"protect","SOUL.md":"protect","memory/notes.md":"watch"}}
 EOF
 echo '# My Soul' > SOUL.md
 mkdir -p memory

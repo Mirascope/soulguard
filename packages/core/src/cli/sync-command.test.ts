@@ -17,7 +17,13 @@ function setup(configureMock: (ops: MockSystemOps) => void): {
   configureMock(ops);
   const out = new MockConsoleOutput();
   const opts: SyncOptions = {
-    config: { version: 1, protect: ["SOUL.md"], watch: ["memory/today.md"] },
+    config: {
+      version: 1,
+      files: {
+        "SOUL.md": "protect",
+        "memory/today.md": "watch",
+      },
+    },
     expectedProtectOwnership: VAULT_OWNERSHIP,
     ops,
   };

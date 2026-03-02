@@ -26,7 +26,12 @@ function makeOptions(ops: MockSystemOps, overrides?: Partial<InitOptions>): Init
   return {
     ops,
     identity: { user: "soulguardian", group: "soulguard" },
-    config: { version: 1, protect: ["SOUL.md"], watch: [] },
+    config: {
+      version: 1,
+      files: {
+        "SOUL.md": "protect",
+      },
+    },
     callerUser: "agent",
     writeAbsolute: writer,
     existsAbsolute: exists,
@@ -155,8 +160,7 @@ describe("init", () => {
 
 describe("DEFAULT_CONFIG", () => {
   test("has expected default protect-tier files", () => {
-    expect(DEFAULT_CONFIG.protect).toEqual(["soulguard.json"]);
-    expect(DEFAULT_CONFIG.watch).toEqual([]);
+    expect(DEFAULT_CONFIG.files).toEqual({ "soulguard.json": "protect" });
   });
 
   test("git=true (default), no existing repo — git init called", async () => {
@@ -200,7 +204,15 @@ describe("DEFAULT_CONFIG", () => {
     ops.addFile("SOUL.md", "# My Soul", { owner: "agent", group: "staff", mode: "644" });
 
     const result = await init(
-      makeOptions(ops, { config: { version: 1, protect: ["SOUL.md"], watch: [], git: false } }),
+      makeOptions(ops, {
+        config: {
+          version: 1,
+          files: {
+            "SOUL.md": "protect",
+          },
+          git: false,
+        },
+      }),
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;

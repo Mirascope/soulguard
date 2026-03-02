@@ -5,24 +5,29 @@ describe("soulguardConfigSchema", () => {
   test("parses valid config", () => {
     const config = parseConfig({
       version: 1,
-      protect: ["SOUL.md", "AGENTS.md"],
-      watch: ["memory/**"],
+      files: {
+        "SOUL.md": "protect",
+        "AGENTS.md": "protect",
+        "memory/**": "watch",
+      },
     });
-    expect(config.protect).toEqual(["SOUL.md", "AGENTS.md"]);
-    expect(config.watch).toEqual(["memory/**"]);
+    expect(config.files).toEqual({
+      "SOUL.md": "protect",
+      "AGENTS.md": "protect",
+      "memory/**": "watch",
+    });
   });
 
-  test("rejects missing protect", () => {
-    expect(() => parseConfig({ version: 1, watch: [] })).toThrow();
+  test("rejects missing files", () => {
+    expect(() => parseConfig({ version: 1 })).toThrow();
   });
 
-  test("rejects missing watch", () => {
-    expect(() => parseConfig({ version: 1, protect: [] })).toThrow();
+  test("rejects invalid tier value", () => {
+    expect(() => parseConfig({ version: 1, files: { "SOUL.md": "invalid" } })).toThrow();
   });
 
-  test("accepts empty arrays", () => {
-    const config = parseConfig({ version: 1, protect: [], watch: [] });
-    expect(config.protect).toEqual([]);
-    expect(config.watch).toEqual([]);
+  test("accepts empty files map", () => {
+    const config = parseConfig({ version: 1, files: {} });
+    expect(config.files).toEqual({});
   });
 });

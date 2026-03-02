@@ -15,7 +15,10 @@ function makeMock() {
   return ops;
 }
 
-function opts(config: { version: 1; protect: string[]; watch: string[] }, ops: MockSystemOps) {
+function opts(
+  config: { version: 1; files: Record<string, "protect" | "watch"> },
+  ops: MockSystemOps,
+) {
   return {
     config,
     expectedProtectOwnership: VAULT_OWNERSHIP,
@@ -32,7 +35,17 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
+    const result = await status(
+      opts(
+        {
+          version: 1,
+          files: {
+            "SOUL.md": "protect",
+          },
+        },
+        ops,
+      ),
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -50,7 +63,17 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
+    const result = await status(
+      opts(
+        {
+          version: 1,
+          files: {
+            "SOUL.md": "protect",
+          },
+        },
+        ops,
+      ),
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -73,7 +96,17 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
+    const result = await status(
+      opts(
+        {
+          version: 1,
+          files: {
+            "SOUL.md": "protect",
+          },
+        },
+        ops,
+      ),
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -90,7 +123,17 @@ describe("status", () => {
   test("reports missing protect-tier files", async () => {
     const ops = makeMock();
 
-    const result = await status(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
+    const result = await status(
+      opts(
+        {
+          version: 1,
+          files: {
+            "SOUL.md": "protect",
+          },
+        },
+        ops,
+      ),
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -107,7 +150,17 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
+    const result = await status(
+      opts(
+        {
+          version: 1,
+          files: {
+            "SOUL.md": "protect",
+          },
+        },
+        ops,
+      ),
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -130,7 +183,16 @@ describe("status", () => {
     });
 
     const result = await status(
-      opts({ version: 1, protect: ["memory/**"], watch: ["skills/**"] }, ops),
+      opts(
+        {
+          version: 1,
+          files: {
+            "memory/**": "protect",
+            "skills/**": "watch",
+          },
+        },
+        ops,
+      ),
     );
 
     expect(result.ok).toBe(true);
@@ -147,7 +209,16 @@ describe("status", () => {
     const ops = makeMock();
 
     const result = await status(
-      opts({ version: 1, protect: ["memory/**"], watch: ["skills/**"] }, ops),
+      opts(
+        {
+          version: 1,
+          files: {
+            "memory/**": "protect",
+            "skills/**": "watch",
+          },
+        },
+        ops,
+      ),
     );
 
     expect(result.ok).toBe(true);
@@ -165,7 +236,17 @@ describe("status", () => {
       mode: "777",
     });
 
-    const result = await status(opts({ version: 1, protect: ["SOUL.md"], watch: [] }, ops));
+    const result = await status(
+      opts(
+        {
+          version: 1,
+          files: {
+            "SOUL.md": "protect",
+          },
+        },
+        ops,
+      ),
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -184,7 +265,16 @@ describe("status", () => {
     });
 
     const result = await status(
-      opts({ version: 1, protect: ["SOUL.md"], watch: ["notes.md"] }, ops),
+      opts(
+        {
+          version: 1,
+          files: {
+            "SOUL.md": "protect",
+            "notes.md": "watch",
+          },
+        },
+        ops,
+      ),
     );
 
     expect(result.ok).toBe(true);
@@ -201,7 +291,17 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(opts({ version: 1, protect: [], watch: ["notes.md"] }, ops));
+    const result = await status(
+      opts(
+        {
+          version: 1,
+          files: {
+            "notes.md": "watch",
+          },
+        },
+        ops,
+      ),
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -220,7 +320,17 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(opts({ version: 1, protect: [], watch: ["notes.md"] }, ops));
+    const result = await status(
+      opts(
+        {
+          version: 1,
+          files: {
+            "notes.md": "watch",
+          },
+        },
+        ops,
+      ),
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;

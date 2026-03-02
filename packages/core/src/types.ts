@@ -8,10 +8,11 @@
 export type SoulguardConfig = {
   /** Schema version for forward compatibility */
   version: 1;
-  /** Files in the protect tier (require owner approval to modify) */
-  protect: string[];
-  /** File patterns in the watch tier (agent writes freely, changes recorded) */
-  watch: string[];
+  /**
+   * Map from file path or glob pattern to its protection tier.
+   * When multiple patterns match a file, the highest tier wins (seal > protect > watch).
+   */
+  files: Record<string, Tier>;
   /** Whether to initialize and track git (default: true) */
   git?: boolean;
 };
@@ -19,6 +20,17 @@ export type SoulguardConfig = {
 // ── Tiers ──────────────────────────────────────────────────────────────
 
 export type Tier = "protect" | "watch";
+
+/** Tier rank for highest-tier-wins resolution. Higher number = more protected. */
+export const TIER_RANK: Record<Tier, number> = {
+  watch: 1,
+  protect: 2,
+};
+
+/** Compare two tiers — returns positive if a > b, negative if a < b, 0 if equal. */
+export function compareTiers(a: Tier, b: Tier): number {
+  return TIER_RANK[a] - TIER_RANK[b];
+}
 
 // ── File primitives ────────────────────────────────────────────────────
 

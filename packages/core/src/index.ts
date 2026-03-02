@@ -102,3 +102,4 @@ export { DiffCommand } from "./cli/diff-command.js";
 export { ApplyCommand } from "./cli/apply-command.js";
 export type { ApplyCommandOptions } from "./cli/apply-command.js";
 export { ResetCommand } from "./cli/reset-command.js";
+export { protectPatterns, watchPatterns, patternsForTier } from "./config.js";
