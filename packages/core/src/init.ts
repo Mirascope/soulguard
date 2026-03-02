@@ -10,7 +10,7 @@
 
 import type { SyncResult } from "./sync.js";
 import type { SystemOperations } from "./system-ops.js";
-import type { SoulguardConfig, SystemIdentity, FileOwnership, Result, IOError } from "./types.js";
+import type { SystemIdentity, FileOwnership, Result, IOError } from "./types.js";
 import { ok, err } from "./result.js";
 import { sync } from "./sync.js";
 import { DEFAULT_CONFIG } from "./constants.js";
@@ -55,7 +55,6 @@ export type AbsoluteExists = (path: string) => Promise<boolean>;
 export type InitOptions = {
   ops: SystemOperations;
   identity: SystemIdentity;
-  config?: SoulguardConfig;
   /** Calling user's OS username (for sudoers) */
   callerUser: string;
   /** Writer for files outside the workspace (sudoers). Keeps SystemOperations clean. */
@@ -88,13 +87,12 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   const {
     ops,
     identity,
-    config: configOption,
     writeAbsolute,
     existsAbsolute,
     sudoersPath = DEFAULT_SUDOERS_PATH,
     callerUser,
   } = options;
-  const config = configOption ?? DEFAULT_CONFIG;
+  const config = DEFAULT_CONFIG;
 
   // ── 0. Check root ─────────────────────────────────────────────────────
   if (

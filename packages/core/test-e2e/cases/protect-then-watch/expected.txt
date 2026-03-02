@@ -4,8 +4,9 @@
 # soulguard init
 
 # soulguard protect SOUL.md
-  · SOUL.md (already protect)
-Nothing to change.
+  + SOUL.md → protect
+
+Updated. 1 file(s) now protect-tier.
 
 # ls -lah SOUL.md:
 -r--r--r-- soulguardian soulguard SOUL.md
