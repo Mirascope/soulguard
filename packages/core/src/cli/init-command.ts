@@ -54,7 +54,7 @@ export class InitCommand {
     if (r.userCreated) steps.push("Created user: soulguardian");
     if (r.configCreated) steps.push("Wrote soulguard.json");
     if (r.sudoersCreated) steps.push("Wrote /etc/sudoers.d/soulguard");
-    if (r.stagingCreated) steps.push("Created staging siblings");
+    steps.push("Prepared directories for staging");
     if (steps.length > 0) {
       for (const step of steps) {
         this.out.success(`  ${step}`);

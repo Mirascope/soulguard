@@ -2,13 +2,13 @@ Soulguard Init — /workspace
   Created group: soulguard
   Created user: soulguardian
   Wrote /etc/sudoers.d/soulguard
-  Created staging siblings
+  Prepared directories for staging
   Synced 2 protect-tier file(s)
 
 Done.
 Soulguard Status — /workspace
 
 All files ok.
-.soulguard.SOUL.md
-STAGING: OK
+ls: cannot access '.soulguard.SOUL.md': No such file or directory
+STAGING: NOT PRE-CREATED
 -bash: line 1: /workspace/SOUL.md: Permission denied

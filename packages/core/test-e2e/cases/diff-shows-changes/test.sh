@@ -4,8 +4,8 @@ echo '# My Soul' > SOUL.md
 SUDO_USER=agent soulguard init . > /dev/null 2>&1
 soulguard protect SOUL.md -w . > /dev/null 2>&1
 
-# Create staging with modified copy
-echo '# My Modified Soul' > .soulguard.SOUL.md
+# Agent creates staging with modified content
+su - agent -c "echo '# My Modified Soul' > $(pwd)/.soulguard.SOUL.md"
 
 # Run diff
 soulguard diff .

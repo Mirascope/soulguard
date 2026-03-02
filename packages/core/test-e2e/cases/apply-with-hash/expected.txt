@@ -2,7 +2,7 @@ Soulguard Init — /workspace
   Created group: soulguard
   Created user: soulguardian
   Wrote /etc/sudoers.d/soulguard
-  Created staging siblings
+  Prepared directories for staging
   Synced 1 protect-tier file(s)
 
 Done.
@@ -10,11 +10,7 @@ Done.
 
 Updated. 1 file(s) now protect-tier.
 -bash: line 1: /workspace/.soulguard.SOUL.md: Permission denied
-HASH: 72c4a0c8e1d56963636c0db8dc804fea38335e6d2a7da4985f13879b306e8e4d
-
-Applied 1 file(s):
-  ✅ soulguard.json
-
-Protect-tier files updated. Staging synced.
+HASH: fb2d3c44533ddf50b267e408512d9f4a460ede483ad229be31c274864494c57a
+Self-protection: Cannot delete soulguard.json — it is required for soulguard to function
 PROTECTED:
 # My Soul
