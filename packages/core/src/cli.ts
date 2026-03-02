@@ -16,6 +16,7 @@ import { ApplyCommand } from "./cli/apply-command.js";
 import { ResetCommand } from "./cli/reset-command.js";
 import { InitCommand } from "./cli/init-command.js";
 import { LogCommand } from "./cli/log-command.js";
+import { TierCommand } from "./cli/tier-command.js";
 import { NodeSystemOps, writeFileAbsolute, existsAbsolute } from "./system-ops-node.js";
 import { parseConfig } from "./schema.js";
 import type { StatusOptions } from "./status.js";
@@ -251,6 +252,96 @@ program
     try {
       const opts = await makeBaseOptions(workspace);
       const cmd = new LogCommand({ ops: opts.ops, config: opts.config, file }, out);
+      process.exitCode = await cmd.execute();
+    } catch (e) {
+      out.error(e instanceof Error ? e.message : String(e));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("protect")
+  .description("Add files to the protect tier (requires sudo)")
+  .argument("<files...>", "files or glob patterns to protect")
+  .option("-w, --workspace <path>", "workspace path", process.cwd())
+  .action(async (files: string[], opts: { workspace: string }) => {
+    const out = new LiveConsoleOutput();
+    if (process.getuid?.() !== 0) {
+      out.error("soulguard protect requires sudo. Run with: sudo soulguard protect <files...>");
+      process.exitCode = 1;
+      return;
+    }
+    try {
+      const base = await makeBaseOptions(opts.workspace);
+      const cmd = new TierCommand(
+        {
+          ops: base.ops,
+          files,
+          action: { kind: "set", tier: "protect" },
+          expectedProtectOwnership: PROTECT_OWNERSHIP,
+        },
+        out,
+      );
+      process.exitCode = await cmd.execute();
+    } catch (e) {
+      out.error(e instanceof Error ? e.message : String(e));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("watch")
+  .description("Add files to the watch tier (requires sudo)")
+  .argument("<files...>", "files or glob patterns to watch")
+  .option("-w, --workspace <path>", "workspace path", process.cwd())
+  .action(async (files: string[], opts: { workspace: string }) => {
+    const out = new LiveConsoleOutput();
+    if (process.getuid?.() !== 0) {
+      out.error("soulguard watch requires sudo. Run with: sudo soulguard watch <files...>");
+      process.exitCode = 1;
+      return;
+    }
+    try {
+      const base = await makeBaseOptions(opts.workspace);
+      const cmd = new TierCommand(
+        {
+          ops: base.ops,
+          files,
+          action: { kind: "set", tier: "watch" },
+          expectedProtectOwnership: PROTECT_OWNERSHIP,
+        },
+        out,
+      );
+      process.exitCode = await cmd.execute();
+    } catch (e) {
+      out.error(e instanceof Error ? e.message : String(e));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("release")
+  .description("Release files from all tiers (requires sudo)")
+  .argument("<files...>", "files to release")
+  .option("-w, --workspace <path>", "workspace path", process.cwd())
+  .action(async (files: string[], opts: { workspace: string }) => {
+    const out = new LiveConsoleOutput();
+    if (process.getuid?.() !== 0) {
+      out.error("soulguard release requires sudo. Run with: sudo soulguard release <files...>");
+      process.exitCode = 1;
+      return;
+    }
+    try {
+      const base = await makeBaseOptions(opts.workspace);
+      const cmd = new TierCommand(
+        {
+          ops: base.ops,
+          files,
+          action: { kind: "release" },
+          expectedProtectOwnership: PROTECT_OWNERSHIP,
+        },
+        out,
+      );
       process.exitCode = await cmd.execute();
     } catch (e) {
       out.error(e instanceof Error ? e.message : String(e));

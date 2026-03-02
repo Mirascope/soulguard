@@ -1,16 +1,11 @@
 # Self-protection: apply blocks invalid soulguard.json changes.
-# Even if the owner provides the correct hash, soulguard refuses to
-# brick itself by writing an invalid config.
-
-cat > soulguard.json <<'EOF'
-{"version":1,"files":{"SOUL.md":"protect","soulguard.json":"protect"}}
-EOF
+echo '{"version":1,"files":{"soulguard.json":"protect"}}' > soulguard.json
 echo '# My Soul' > SOUL.md
 
-# Owner runs init
 SUDO_USER=agent soulguard init .
+soulguard protect SOUL.md -w .
 
-# Agent writes invalid config to staging (missing "ledger" field)
+# Agent writes invalid config to staging
 su - agent -c "echo '{\"vault\":[\"SOUL.md\"]}' > $(pwd)/.soulguard.soulguard.json"
 
 # Get hash — diff will show the change

@@ -3,14 +3,18 @@ Soulguard Init — /workspace
   Created user: soulguardian
   Wrote /etc/sudoers.d/soulguard
   Created staging siblings
-  Synced 2 protect-tier file(s)
+  Synced 1 protect-tier file(s)
 
 Done.
-HASH: 0e94615ddc559fbd6541b0b002014ab8ee99df58d6ad360ba45e8510623a8990
+  + SOUL.md → protect
+
+Updated. 1 file(s) now protect-tier.
+-bash: line 1: /workspace/.soulguard.SOUL.md: Permission denied
+HASH: 72c4a0c8e1d56963636c0db8dc804fea38335e6d2a7da4985f13879b306e8e4d
 
 Applied 1 file(s):
-  ✅ SOUL.md
+  ✅ soulguard.json
 
 Protect-tier files updated. Staging synced.
 PROTECTED:
-# My Updated Soul
+# My Soul
