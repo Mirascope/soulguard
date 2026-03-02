@@ -9,12 +9,19 @@ Done.
   + SOUL.md → protect
 
 Updated. 1 file(s) now protect-tier.
--bash: line 1: /workspace/.soulguard.SOUL.md: Permission denied
-Soulguard Reset — /workspace
+BEFORE RELEASE:
+soulguardian:soulguard 444
+  - SOUL.md (released)
 
-Reset 1 staging file(s):
-  ↩️  soulguard.json
-PROTECTED:
-# My Soul
+Released. 1 file(s) untracked.
+AFTER RELEASE:
+root:root 644
+CONFIG:
+{
+  "version": 1,
+  "files": {
+    "soulguard.json": "protect"
+  }
+}
 STAGING:
-# My Soul
+missing

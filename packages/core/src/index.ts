@@ -107,3 +107,11 @@ export { protectPatterns, watchPatterns, patternsForTier } from "./config.js";
 // Registry
 export { Registry } from "./registry.js";
 export type { RegistryData, RegistryEntry, RegistryError } from "./registry.js";
+
+// Tier management
+export { setTier, release, readConfig, writeConfig } from "./tier.js";
+export type { TierChangeResult, ReleaseResult, TierError } from "./tier.js";
+
+// Tier CLI command
+export { TierCommand } from "./cli/tier-command.js";
+export type { TierAction, TierCommandOptions } from "./cli/tier-command.js";

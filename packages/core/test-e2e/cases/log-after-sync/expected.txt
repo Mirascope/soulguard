@@ -3,15 +3,23 @@ Soulguard Init — /workspace
   Created user: soulguardian
   Wrote /etc/sudoers.d/soulguard
   Created staging siblings
-  Synced 3 protect-tier file(s)
+  Synced 1 protect-tier file(s)
 
 Done.
+  + SOUL.md → protect
+
+Updated. 1 file(s) now protect-tier.
+  + memory/notes.md → watch
+
+Updated. 1 file(s) now watch-tier.
 Soulguard Sync — /workspace
 Nothing to fix — all files ok.
   📝 Committed 3 file(s) to git
 LOG:
 HASH soulguard: sync
+HASH soulguard: sync
+HASH soulguard: sync
 HASH soulguard: initial commit
 LOG FILE:
 HASH soulguard: sync
-HASH soulguard: initial commit
+HASH soulguard: sync

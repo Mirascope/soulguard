@@ -3,10 +3,19 @@ Soulguard Init — /workspace
   Created user: soulguardian
   Wrote /etc/sudoers.d/soulguard
   Created staging siblings
-  Synced 2 protect-tier file(s)
+  Synced 1 protect-tier file(s)
 
 Done.
+  + SOUL.md → protect
+
+Updated. 1 file(s) now protect-tier.
 APPROVE:
 Self-protection: soulguard.json would be invalid after this change: version: Invalid literal value, expected 1; files: Required
 CONFIG:
-{"version":1,"files":{"SOUL.md":"protect","soulguard.json":"protect"}}
+{
+  "version": 1,
+  "files": {
+    "soulguard.json": "protect",
+    "SOUL.md": "protect"
+  }
+}

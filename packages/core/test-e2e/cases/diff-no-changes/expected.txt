@@ -1,5 +1,20 @@
 Soulguard Diff — /workspace
 
   ✅ SOUL.md (no changes)
+  📝 soulguard.json
+      ===================================================================
+      --- a/soulguard.json
+      +++ b/soulguard.json
+      @@ -1,7 +1,1 @@
+      -{
+      -  "version": 1,
+      -  "files": {
+      -    "soulguard.json": "protect",
+      -    "SOUL.md": "protect"
+      -  }
+      -}
+      +{"version":1,"files":{"soulguard.json":"protect"}}
+      
 
-No changes
+1 file(s) changed
+Apply hash: 72c4a0c8e1d56963636c0db8dc804fea38335e6d2a7da4985f13879b306e8e4d

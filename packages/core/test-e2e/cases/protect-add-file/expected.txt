@@ -6,15 +6,22 @@ Soulguard Init — /workspace
   Synced 1 protect-tier file(s)
 
 Done.
+BEFORE PROTECT:
+root:root 644
   + SOUL.md → protect
 
 Updated. 1 file(s) now protect-tier.
--bash: line 1: /workspace/.soulguard.SOUL.md: Permission denied
-Soulguard Reset — /workspace
-
-Reset 1 staging file(s):
-  ↩️  soulguard.json
-PROTECTED:
-# My Soul
+AFTER PROTECT:
+soulguardian:soulguard 444
 STAGING:
-# My Soul
+exists
+CONFIG:
+{
+  "version": 1,
+  "files": {
+    "soulguard.json": "protect",
+    "SOUL.md": "protect"
+  }
+}
+-bash: line 1: /workspace/SOUL.md: Permission denied
+WRITE BLOCKED
