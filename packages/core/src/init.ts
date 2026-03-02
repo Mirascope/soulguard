@@ -30,8 +30,6 @@ export type InitResult = {
   configCreated: boolean;
   /** Whether the sudoers file was written */
   sudoersCreated: boolean;
-  /** Whether staging directory was created */
-  stagingCreated: boolean;
   /** Whether git was initialized (false if already existed or git disabled) */
   gitInitialized: boolean;
   /** Sync result from the initial sync after setup */
@@ -182,48 +180,14 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     return err({ kind: "config_write_failed", message: "sync failed unexpectedly" });
   }
 
-  // ── 5. Create staging siblings ─────────────────────────────────────
-  // Copy protect-tier files to staging siblings (resolve globs first)
-  const stagingCreated = true;
+  // ── 5. Prepare directories for staging ─────────────────────────────
+  // Make directories containing protect-tier files group-writable so
+  // the agent can create staging siblings on-demand.
   const protectGlob = await resolvePatterns(ops, protectPatterns(config));
   if (!protectGlob.ok) {
     return err({ kind: "staging_failed", message: `glob failed: ${protectGlob.error.message}` });
   }
   const protectFiles = protectGlob.value;
-  for (const protectFile of protectFiles) {
-    const fileExists = await ops.exists(protectFile);
-    if (fileExists.ok && fileExists.value) {
-      const siblingPath = stagingPath(protectFile);
-      const copyResult = await ops.copyFile(protectFile, siblingPath);
-      if (!copyResult.ok) {
-        return err({
-          kind: "staging_failed",
-          message: `copy ${protectFile} failed: ${copyResult.error.kind}`,
-        });
-      }
-      // Make staging copy writable by the calling user
-      const chownFile = await ops.chown(siblingPath, {
-        user: callerUser,
-        group: identity.group,
-      });
-      if (!chownFile.ok) {
-        return err({
-          kind: "staging_failed",
-          message: `chown ${siblingPath} failed: ${chownFile.error.kind}`,
-        });
-      }
-      const chmodFile = await ops.chmod(siblingPath, "644");
-      if (!chmodFile.ok) {
-        return err({
-          kind: "staging_failed",
-          message: `chmod ${siblingPath} failed: ${chmodFile.error.kind}`,
-        });
-      }
-    }
-  }
-
-  // Make directories containing staging siblings group-writable so
-  // the agent can create/delete staging files (requires write on dir).
   const stagingDirs = new Set<string>();
   for (const protectFile of protectFiles) {
     const dir = dirname(stagingPath(protectFile));
@@ -328,7 +292,6 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     groupCreated,
     configCreated,
     sudoersCreated,
-    stagingCreated,
     gitInitialized,
     syncResult: syncResult.value,
   });

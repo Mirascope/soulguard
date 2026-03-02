@@ -13,8 +13,8 @@ SUDO_USER=agent soulguard init .
 # Owner verifies status is clean
 soulguard status .
 
-# Verify staging copy exists
-ls .soulguard.SOUL.md && echo "STAGING: OK" || echo "STAGING: MISSING"
+# Staging siblings are not eagerly created — verify they don't exist
+ls .soulguard.SOUL.md 2>&1 && echo "STAGING: EXISTS" || echo "STAGING: NOT PRE-CREATED"
 
 # Agent can't write to protect-tier file
 su - agent -c "(echo hacked > $(pwd)/SOUL.md) 2>&1"

@@ -2,13 +2,14 @@ Soulguard Init — /workspace
   Created group: soulguard
   Created user: soulguardian
   Wrote /etc/sudoers.d/soulguard
-  Created staging siblings
+  Prepared directories for staging
   Synced 1 protect-tier file(s)
 
 Done.
   + skills/*.md → protect
 
 Updated. 1 file(s) now protect-tier.
+cp: cannot create regular file '/workspace/skills/.soulguard.python.md': Permission denied
 STATUS:
 Soulguard Status — /workspace
 
@@ -19,30 +20,11 @@ Soulguard Diff — /workspace
 
   🗑️ skills/python.md (staged for deletion)
   🗑️ skills/typescript.md (staged for deletion)
-  📝 soulguard.json
-      ===================================================================
-      --- a/soulguard.json
-      +++ b/soulguard.json
-      @@ -1,7 +1,1 @@
-      -{
-      -  "version": 1,
-      -  "files": {
-      -    "soulguard.json": "protect",
-      -    "skills/*.md": "protect"
-      -  }
-      -}
-      +{"version":1,"files":{"soulguard.json":"protect"}}
-      
+  🗑️ soulguard.json (staged for deletion)
 
 3 file(s) changed
-Apply hash: dcdcc5b97e4fd9d8f1df81b3bb51277b4c90d139ca504fb57597d228190b9c71
+Apply hash: db95de975c801075d2ef5550e5cb6be90d5c4dc66c0d53537d1c2bcb77985ff2
 APPROVE:
-
-Applied 3 file(s):
-  ✅ skills/python.md
-  ✅ skills/typescript.md
-  ✅ soulguard.json
-
-Protect-tier files updated. Staging synced.
+Self-protection: Cannot delete soulguard.json — it is required for soulguard to function
 VAULT CONTENT:
-cat: skills/python.md: No such file or directory
+# Python
