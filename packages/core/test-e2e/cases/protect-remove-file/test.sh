@@ -1,15 +1,10 @@
 # Protect-tier file deletion: agent deletes a file from staging, owner applies.
-# Tests the full lifecycle when a protect-tier protected file is deleted through staging.
-
-# Setup: two protect-tier files
-cat > soulguard.json <<'EOF'
-{"version":1,"files":{"SOUL.md":"protect","BOOTSTRAP.md":"protect","soulguard.json":"protect"}}
-EOF
+echo '{"version":1,"files":{"soulguard.json":"protect"}}' > soulguard.json
 echo '# My Soul' > SOUL.md
 echo '# Bootstrap' > BOOTSTRAP.md
 
-# Owner runs init
 SUDO_USER=agent soulguard init .
+soulguard protect SOUL.md BOOTSTRAP.md -w .
 
 # Agent deletes BOOTSTRAP.md from staging (done with it)
 su - agent -c "rm $(pwd)/.soulguard.BOOTSTRAP.md"

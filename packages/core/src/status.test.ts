@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { status } from "./status.js";
 import { MockSystemOps } from "./system-ops-mock.js";
-import type { FileStatus } from "./status.js";
 import { Registry } from "./registry.js";
 import { formatIssue } from "./types.js";
 import type { DriftIssue } from "./types.js";

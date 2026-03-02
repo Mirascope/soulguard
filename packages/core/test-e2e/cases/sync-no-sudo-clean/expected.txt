@@ -6,6 +6,9 @@ Soulguard Init — /workspace
   Synced 1 protect-tier file(s)
 
 Done.
+  + SOUL.md → protect
+
+Updated. 1 file(s) now protect-tier.
 Soulguard Sync — /workspace
 
 Nothing to fix — all files ok.

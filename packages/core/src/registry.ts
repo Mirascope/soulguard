@@ -8,19 +8,20 @@
  */
 
 import { z } from "zod";
-import { tierSchema } from "./schema.js";
 import type { SystemOperations } from "./system-ops.js";
 import type { FileOwnership, Tier, Result } from "./types.js";
 import { ok, err } from "./result.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
-export type RegistryEntry = {
-  /** The tier soulguard applied to this file */
-  tier: Tier;
-  /** Original ownership before soulguard took over (only for protect+ tiers) */
-  originalOwnership?: FileOwnership;
-};
+/**
+ * Discriminated union: protect entries always carry the pre-soulguard ownership
+ * snapshot (needed to restore on release/downgrade). Watch entries never do
+ * (soulguard doesn't change ownership for watch-tier files).
+ */
+export type RegistryEntry =
+  | { tier: "protect"; originalOwnership: FileOwnership }
+  | { tier: "watch" };
 
 export type RegistryData = {
   /** Schema version for forward compatibility */
@@ -40,10 +41,16 @@ const ownershipSchema = z.object({
   mode: z.string(),
 });
 
-const registryEntrySchema = z.object({
-  tier: tierSchema,
-  originalOwnership: ownershipSchema.optional(),
+const protectEntrySchema = z.object({
+  tier: z.literal("protect"),
+  originalOwnership: ownershipSchema,
 });
+
+const watchEntrySchema = z.object({
+  tier: z.literal("watch"),
+});
+
+const registryEntrySchema = z.discriminatedUnion("tier", [protectEntrySchema, watchEntrySchema]);
 
 const registryDataSchema = z.object({
   version: z.literal(1),
@@ -110,45 +117,39 @@ export class Registry {
   }
 
   /**
-   * Register a file at a given tier. For protect+ tiers, snapshots current ownership.
+   * Register a file at a given tier.
+   * For protect: snapshots current ownership (required by DU).
+   * For watch: no snapshot needed.
    * No-op if already registered at the same tier.
    */
-  async register(path: string, tier: Tier): Promise<void> {
+  async register(path: string, tier: Tier): Promise<boolean> {
     const existing = this.data.files[path];
-    if (existing && existing.tier === tier) return;
+    if (existing && existing.tier === tier) return true;
 
-    const needsOwnership = tier === "protect"; // SOUL-23: will add "seal" here
-
-    let originalOwnership: FileOwnership | undefined;
-    if (needsOwnership) {
+    if (tier === "protect") {
       const stat = await this.ops.stat(path);
-      if (stat.ok) {
-        originalOwnership = {
+      if (!stat.ok) return false; // can't protect what we can't stat
+      this.data.files[path] = {
+        tier: "protect",
+        originalOwnership: {
           user: stat.value.ownership.user,
           group: stat.value.ownership.group,
           mode: stat.value.ownership.mode,
-        };
-      }
+        },
+      };
+    } else {
+      this.data.files[path] = { tier: "watch" };
     }
-
-    this.data.files[path] = { tier, ...(originalOwnership ? { originalOwnership } : {}) };
+    return true;
   }
 
   /**
-   * Update a file's tier, preserving original ownership across tier changes.
+   * Update a file's tier. Caller is responsible for ownership restore
+   * before calling this (e.g. sync restores ownership on protect→watch).
    */
-  async updateTier(path: string, newTier: Tier): Promise<void> {
-    const existing = this.data.files[path];
-    const preservedOwnership = existing?.originalOwnership;
-
-    // Re-register at new tier (may snapshot new ownership if upgrading to protect)
+  async updateTier(path: string, newTier: Tier): Promise<boolean> {
     delete this.data.files[path];
-    await this.register(path, newTier);
-
-    // Preserve original ownership if we had it
-    if (preservedOwnership && this.data.files[path]) {
-      this.data.files[path].originalOwnership = preservedOwnership;
-    }
+    return this.register(path, newTier);
   }
 
   /**

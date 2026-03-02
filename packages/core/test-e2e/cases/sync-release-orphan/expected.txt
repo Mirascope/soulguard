@@ -3,16 +3,16 @@ Soulguard Init — /workspace
   Created user: soulguardian
   Wrote /etc/sudoers.d/soulguard
   Created staging siblings
-  Synced 2 protect-tier file(s)
+  Synced 1 protect-tier file(s)
 
 Done.
+  + SOUL.md → protect
+
+Updated. 1 file(s) now protect-tier.
 BEFORE:
 soulguardian:soulguard 444
-SYNC:
-Soulguard Sync — /workspace
-Released:
-  🔓 SOUL.md (released)
-All files now ok.
-  📝 Committed 1 file(s) to git
+  - SOUL.md (released)
+
+Released. 1 file(s) untracked.
 AFTER:
 root:root 644

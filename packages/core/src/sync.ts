@@ -71,13 +71,27 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
         break;
       }
       case "tier_changed": {
+        // Downgrading from protect→watch: restore original ownership
+        if (issue.registryTier === "protect" && issue.tier === "watch") {
+          const entry = registry.get(issue.path);
+          if (entry?.tier === "protect") {
+            const { user, group, mode } = entry.originalOwnership;
+            const chownResult = await ops.chown(issue.path, { user, group });
+            const chmodResult = await ops.chmod(issue.path, mode);
+            if (!chownResult.ok) {
+              errors.push({ path: issue.path, operation: "chown", error: chownResult.error });
+            } else if (!chmodResult.ok) {
+              errors.push({ path: issue.path, operation: "chmod", error: chmodResult.error });
+            }
+          }
+        }
         await registry.updateTier(issue.path, issue.tier);
         break;
       }
       case "orphaned": {
         const entry = registry.unregister(issue.path);
 
-        if (entry?.originalOwnership) {
+        if (entry?.tier === "protect") {
           const { user, group, mode } = entry.originalOwnership;
           const chownResult = await ops.chown(issue.path, { user, group });
           const chmodResult = await ops.chmod(issue.path, mode);

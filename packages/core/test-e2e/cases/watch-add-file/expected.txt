@@ -6,22 +6,18 @@ Soulguard Init — /workspace
   Synced 1 protect-tier file(s)
 
 Done.
-  + memory/*.md → watch
+  + memory/notes.md → watch
 
 Updated. 1 file(s) now watch-tier.
+CONFIG:
+{
+  "version": 1,
+  "files": {
+    "soulguard.json": "protect",
+    "memory/notes.md": "watch"
+  }
+}
 STATUS:
-Soulguard Status — /workspace
-
-All files ok.
-STATUS AFTER DRIFT:
-Soulguard Status — /workspace
-
-All files ok.
-SYNC:
-Soulguard Sync — /workspace
-
-Nothing to fix — all files ok.
-STATUS AFTER SYNC:
 Soulguard Status — /workspace
 
 All files ok.

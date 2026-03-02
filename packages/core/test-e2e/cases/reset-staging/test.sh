@@ -1,12 +1,9 @@
 # Reset staging (implicit proposal)
-
+echo '{"version":1,"files":{"soulguard.json":"protect"}}' > soulguard.json
 echo '# My Soul' > SOUL.md
-cat > soulguard.json <<'EOF'
-{"version":1,"files":{"SOUL.md":"protect","soulguard.json":"protect"}}
-EOF
 
-# Owner runs init
 SUDO_USER=agent soulguard init .
+soulguard protect SOUL.md -w .
 
 # Agent modifies staging
 su - agent -c "echo '# Hacked Soul' > $(pwd)/.soulguard.SOUL.md"
