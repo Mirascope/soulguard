@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { status } from "./status.js";
 import { MockSystemOps } from "./system-ops-mock.js";
 import type { FileStatus } from "./status.js";
+import { Registry } from "./registry.js";
 import { formatIssue } from "./types.js";
 import type { DriftIssue } from "./types.js";
 
@@ -15,19 +16,22 @@ function makeMock() {
   return ops;
 }
 
-function opts(
+async function opts(
   config: { version: 1; files: Record<string, "protect" | "watch"> },
   ops: MockSystemOps,
 ) {
+  const registryResult = await Registry.load(ops);
+  if (!registryResult.ok) throw new Error("Failed to load registry");
   return {
     config,
     expectedProtectOwnership: VAULT_OWNERSHIP,
     ops,
+    registry: registryResult.value,
   };
 }
 
 describe("status", () => {
-  test("reports ok when protect-tier file is correct", async () => {
+  test("no issues when protect-tier file is correct", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", {
       owner: VAULT_OWNERSHIP.user,
@@ -35,27 +39,16 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(
-      opts(
-        {
-          version: 1,
-          files: {
-            "SOUL.md": "protect",
-          },
-        },
-        ops,
-      ),
-    );
-
+    const result = await status(await opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.protect).toHaveLength(1);
-    expect(result.value.protect[0]!.status).toBe("ok");
-    expect(result.value.issues).toHaveLength(0);
+    // Only registry issues (unregistered), no file-level issues
+    const fileIssues = result.value.issues.filter((i) => i.status !== "unregistered");
+    expect(fileIssues).toHaveLength(0);
   });
 
-  test("reports drifted with semantic issues when protect-tier file has wrong owner", async () => {
+  test("reports drifted when protect-tier file has wrong owner", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", {
       owner: "agent",
@@ -63,29 +56,18 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(
-      opts(
-        {
-          version: 1,
-          files: {
-            "SOUL.md": "protect",
-          },
-        },
-        ops,
-      ),
-    );
-
+    const result = await status(await opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const file = result.value.protect[0]! as FileStatus & { status: "drifted" };
-    expect(file.status).toBe("drifted");
-    expect(file.issues).toContainEqual({
+    const drifted = result.value.issues.find((i) => i.status === "drifted");
+    expect(drifted).toBeDefined();
+    if (drifted?.status !== "drifted") return;
+    expect(drifted.issues).toContainEqual({
       kind: "wrong_owner",
       expected: VAULT_OWNERSHIP.user,
       actual: "agent",
     });
-    expect(result.value.issues).toHaveLength(1);
   });
 
   test("reports drifted when protect-tier file has wrong mode", async () => {
@@ -96,24 +78,14 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(
-      opts(
-        {
-          version: 1,
-          files: {
-            "SOUL.md": "protect",
-          },
-        },
-        ops,
-      ),
-    );
-
+    const result = await status(await opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const file = result.value.protect[0]! as FileStatus & { status: "drifted" };
-    expect(file.status).toBe("drifted");
-    expect(file.issues).toContainEqual({
+    const drifted = result.value.issues.find((i) => i.status === "drifted");
+    expect(drifted).toBeDefined();
+    if (drifted?.status !== "drifted") return;
+    expect(drifted.issues).toContainEqual({
       kind: "wrong_mode",
       expected: "444",
       actual: "644",
@@ -123,50 +95,12 @@ describe("status", () => {
   test("reports missing protect-tier files", async () => {
     const ops = makeMock();
 
-    const result = await status(
-      opts(
-        {
-          version: 1,
-          files: {
-            "SOUL.md": "protect",
-          },
-        },
-        ops,
-      ),
-    );
-
+    const result = await status(await opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.protect[0]!.status).toBe("missing");
-    expect(result.value.issues).toHaveLength(1);
-  });
-
-  test("includes hashes in FileInfo for ok files", async () => {
-    const ops = makeMock();
-    ops.addFile("SOUL.md", "# Soul", {
-      owner: VAULT_OWNERSHIP.user,
-      group: VAULT_OWNERSHIP.group,
-      mode: "444",
-    });
-
-    const result = await status(
-      opts(
-        {
-          version: 1,
-          files: {
-            "SOUL.md": "protect",
-          },
-        },
-        ops,
-      ),
-    );
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-
-    const file = result.value.protect[0]! as FileStatus & { status: "ok" };
-    expect(file.file.hash).toMatch(/^[a-f0-9]{64}$/);
+    const missing = result.value.issues.find((i) => i.status === "missing");
+    expect(missing).toBeDefined();
   });
 
   test("resolves glob patterns to matching files", async () => {
@@ -183,80 +117,46 @@ describe("status", () => {
     });
 
     const result = await status(
-      opts(
-        {
-          version: 1,
-          files: {
-            "memory/**": "protect",
-            "skills/**": "watch",
-          },
-        },
-        ops,
-      ),
+      await opts({ version: 1, files: { "memory/**": "protect", "skills/**": "watch" } }, ops),
     );
-
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.protect).toHaveLength(1);
-    expect(result.value.protect[0]!.status).toBe("ok");
-    expect(result.value.watch).toHaveLength(1);
-    expect(result.value.watch[0]!.status).toBe("ok");
-    expect(result.value.issues).toHaveLength(0);
+    // No file-level issues (both files are correct for their tier)
+    const fileIssues = result.value.issues.filter(
+      (i) => !["unregistered", "tier_changed", "orphaned"].includes(i.status),
+    );
+    expect(fileIssues).toHaveLength(0);
   });
 
-  test("glob with no matches returns empty", async () => {
+  test("glob with no matches returns no issues", async () => {
     const ops = makeMock();
 
     const result = await status(
-      opts(
-        {
-          version: 1,
-          files: {
-            "memory/**": "protect",
-            "skills/**": "watch",
-          },
-        },
-        ops,
-      ),
+      await opts({ version: 1, files: { "memory/**": "protect", "skills/**": "watch" } }, ops),
     );
-
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.protect).toHaveLength(0);
-    expect(result.value.watch).toHaveLength(0);
+    expect(result.value.issues).toHaveLength(0);
   });
 
   test("reports multiple semantic issues on same file", async () => {
     const ops = makeMock();
-    ops.addFile("SOUL.md", "# Soul", {
-      owner: "agent",
-      group: "staff",
-      mode: "777",
-    });
+    ops.addFile("SOUL.md", "# Soul", { owner: "agent", group: "staff", mode: "777" });
 
-    const result = await status(
-      opts(
-        {
-          version: 1,
-          files: {
-            "SOUL.md": "protect",
-          },
-        },
-        ops,
-      ),
-    );
-
+    const result = await status(await opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const file = result.value.protect[0]! as FileStatus & { status: "drifted" };
-    expect(file.issues).toHaveLength(3);
-    expect(file.issues.map((i) => i.kind)).toEqual(["wrong_owner", "wrong_group", "wrong_mode"]);
+    const drifted = result.value.issues.find((i) => i.status === "drifted");
+    expect(drifted).toBeDefined();
+    if (drifted?.status !== "drifted") return;
+    expect(drifted.issues).toHaveLength(3);
+    expect(drifted.issues.map((i) => i.kind)).toEqual(["wrong_owner", "wrong_group", "wrong_mode"]);
   });
 
-  test("issues array contains all problems from both tiers", async () => {
+  test("issues array contains problems from both tiers", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", {
       owner: "agent",
@@ -265,54 +165,19 @@ describe("status", () => {
     });
 
     const result = await status(
-      opts(
-        {
-          version: 1,
-          files: {
-            "SOUL.md": "protect",
-            "notes.md": "watch",
-          },
-        },
-        ops,
-      ),
+      await opts({ version: 1, files: { "SOUL.md": "protect", "notes.md": "watch" } }, ops),
     );
-
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.issues).toHaveLength(2);
-  });
-
-  test("watch ok files include FileInfo", async () => {
-    const ops = makeMock();
-    ops.addFile("notes.md", "# Notes", {
-      owner: "selene",
-      group: "staff",
-      mode: "644",
-    });
-
-    const result = await status(
-      opts(
-        {
-          version: 1,
-          files: {
-            "notes.md": "watch",
-          },
-        },
-        ops,
-      ),
+    // SOUL.md drifted + notes.md missing = 2 file-level issues
+    const fileIssues = result.value.issues.filter(
+      (i) => !["unregistered", "tier_changed", "orphaned"].includes(i.status),
     );
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-
-    const file = result.value.watch[0]! as FileStatus & { status: "ok" };
-    expect(file.status).toBe("ok");
-    expect(file.file.hash).toMatch(/^[a-f0-9]{64}$/);
-    expect(file.file.ownership.user).toBe("selene");
+    expect(fileIssues).toHaveLength(2);
   });
 
-  test("watch-tier file reports ok regardless of ownership", async () => {
+  test("watch-tier files with any ownership report no issues", async () => {
     const ops = makeMock();
     ops.addFile("notes.md", "# Notes", {
       owner: VAULT_OWNERSHIP.user,
@@ -320,23 +185,14 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(
-      opts(
-        {
-          version: 1,
-          files: {
-            "notes.md": "watch",
-          },
-        },
-        ops,
-      ),
-    );
-
+    const result = await status(await opts({ version: 1, files: { "notes.md": "watch" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const file = result.value.watch[0]!;
-    expect(file.status).toBe("ok");
+    const fileIssues = result.value.issues.filter(
+      (i) => !["unregistered", "tier_changed", "orphaned"].includes(i.status),
+    );
+    expect(fileIssues).toHaveLength(0);
   });
 
   test("formatIssue produces readable strings", () => {

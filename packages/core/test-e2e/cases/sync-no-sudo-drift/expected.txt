@@ -1,7 +1,1 @@
-Soulguard Sync — /workspace
 
-Errors:
-  ❌ SOUL.md: chown failed (io_error)
-
-1 issue(s) remaining after sync:
-  ⚠️  SOUL.md

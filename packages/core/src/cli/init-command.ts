@@ -61,23 +61,26 @@ export class InitCommand {
       }
     }
 
-    // Report sync results
-    const fixed = r.syncResult.before.issues.length - r.syncResult.after.issues.length;
-    if (fixed > 0) {
-      this.out.success(`  Synced ${fixed} protect-tier file(s)`);
+    // Report sync results — count unique files (a file can be both unregistered + drifted)
+    const syncedPaths = new Set(
+      r.syncResult.before.issues
+        .filter((i) => i.status === "drifted" || i.status === "unregistered")
+        .map((i) => ("file" in i ? i.file.path : i.path)),
+    );
+    if (syncedPaths.size > 0) {
+      this.out.success(`  Synced ${syncedPaths.size} protect-tier file(s)`);
     }
 
-    const remaining = r.syncResult.after.issues.length;
-    if (remaining > 0) {
-      this.out.warn(`  ${remaining} issue(s) remaining after sync`);
+    if (r.syncResult.errors.length > 0) {
+      this.out.warn(`  ${r.syncResult.errors.length} error(s) during sync`);
     }
 
-    if (steps.length === 0 && fixed === 0) {
+    if (steps.length === 0 && syncedPaths.size === 0) {
       this.out.info("Already initialized — nothing to do.");
     } else {
       this.out.success("\nDone.");
     }
 
-    return remaining > 0 ? 1 : 0;
+    return r.syncResult.errors.length > 0 ? 1 : 0;
   }
 }

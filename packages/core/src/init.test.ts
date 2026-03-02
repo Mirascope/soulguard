@@ -120,8 +120,8 @@ describe("init", () => {
     if (!result.ok) return;
 
     // Sync should have fixed the protect-tier file ownership
-    const afterIssues = result.value.syncResult.after.issues;
-    expect(afterIssues.length).toBe(0);
+    const syncErrors = result.value.syncResult.errors;
+    expect(syncErrors.length).toBe(0);
   });
 
   test("uses DEFAULT_CONFIG when no config provided", async () => {

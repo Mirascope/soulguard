@@ -9,12 +9,7 @@ Done.
 STATUS:
 Soulguard Status — /workspace
 
-Protect
-  ✅ skills/python.md
-  ✅ skills/typescript.md
-  ✅ soulguard.json
-
-3 files ok, 0 drifted, 0 missing
+All files ok.
 DIFF:
 Soulguard Diff — /workspace
 
