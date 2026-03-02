@@ -5,7 +5,7 @@ echo '# My Soul' > SOUL.md
 SUDO_USER=agent soulguard init .
 soulguard protect SOUL.md -w .
 
-# Agent writes invalid config to staging
+# Agent creates staging and writes invalid config
 su - agent -c "echo '{\"vault\":[\"SOUL.md\"]}' > $(pwd)/.soulguard.soulguard.json"
 
 # Get hash — diff will show the change

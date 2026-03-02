@@ -8,20 +8,7 @@ Soulguard Diff — /workspace
       -# My Soul
       +# My Modified Soul
       
-  📝 soulguard.json
-      ===================================================================
-      --- a/soulguard.json
-      +++ b/soulguard.json
-      @@ -1,7 +1,1 @@
-      -{
-      -  "version": 1,
-      -  "files": {
-      -    "soulguard.json": "protect",
-      -    "SOUL.md": "protect"
-      -  }
-      -}
-      +{"version":1,"files":{"soulguard.json":"protect"}}
-      
+  🗑️ soulguard.json (staged for deletion)
 
 2 file(s) changed
-Apply hash: 855f2cf85d9d2b9008b822ace97dc2d38f11a55d1cf428bab256c93d93ef173c
+Apply hash: ada752b4c16ee49314d51a49ee7feb6c3083bf8dda70eb2cf2f4ae3aca7da89e

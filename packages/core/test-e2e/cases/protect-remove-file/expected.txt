@@ -2,7 +2,7 @@ Soulguard Init — /workspace
   Created group: soulguard
   Created user: soulguardian
   Wrote /etc/sudoers.d/soulguard
-  Created staging siblings
+  Prepared directories for staging
   Synced 1 protect-tier file(s)
 
 Done.
@@ -15,31 +15,12 @@ Soulguard Diff — /workspace
 
   🗑️ BOOTSTRAP.md (staged for deletion)
   ✅ SOUL.md (no changes)
-  📝 soulguard.json
-      ===================================================================
-      --- a/soulguard.json
-      +++ b/soulguard.json
-      @@ -1,8 +1,1 @@
-      -{
-      -  "version": 1,
-      -  "files": {
-      -    "soulguard.json": "protect",
-      -    "SOUL.md": "protect",
-      -    "BOOTSTRAP.md": "protect"
-      -  }
-      -}
-      +{"version":1,"files":{"soulguard.json":"protect"}}
-      
+  🗑️ soulguard.json (staged for deletion)
 
 2 file(s) changed
-Apply hash: e709b1bcf0ef93132dda7e788fd7bdf399741b474a4fb54df21e8d1ad2293d34
-
-Applied 2 file(s):
-  ✅ BOOTSTRAP.md
-  ✅ soulguard.json
-
-Protect-tier files updated. Staging synced.
+Apply hash: 4f66305d06fdf7ffe719d8968197003f675a72c5139bd00cf03106c1ef095454
+Self-protection: Cannot delete soulguard.json — it is required for soulguard to function
 BOOTSTRAP EXISTS:
-no
+yes
 SOUL EXISTS:
 yes

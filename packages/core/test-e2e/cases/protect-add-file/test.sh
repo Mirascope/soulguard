@@ -13,9 +13,9 @@ soulguard protect SOUL.md -w .
 echo "AFTER PROTECT:"
 stat -c '%U:%G %a' SOUL.md
 
-# Verify staging exists
+# Staging is NOT eagerly created — agent creates it on-demand
 echo "STAGING:"
-test -f .soulguard.SOUL.md && echo "exists" || echo "missing"
+test -f .soulguard.SOUL.md && echo "exists" || echo "not pre-created"
 
 # Verify config updated
 echo "CONFIG:"

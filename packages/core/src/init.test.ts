@@ -53,7 +53,6 @@ describe("init", () => {
     expect(result.value.groupCreated).toBe(true);
     expect(result.value.userCreated).toBe(true);
     expect(result.value.configCreated).toBe(true);
-    expect(result.value.stagingCreated).toBe(true);
     expect(result.value.sudoersCreated).toBe(true);
   });
 
@@ -71,7 +70,6 @@ describe("init", () => {
     expect(result.value.userCreated).toBe(false);
     // Config and staging should still be created
     expect(result.value.configCreated).toBe(true);
-    expect(result.value.stagingCreated).toBe(true);
   });
 
   test("skips existing config", async () => {
@@ -108,7 +106,6 @@ describe("init", () => {
     expect(second.value.configCreated).toBe(false);
     expect(second.value.sudoersCreated).toBe(false);
     // Staging is always recreated (idempotent, self-healing)
-    expect(second.value.stagingCreated).toBe(true);
   });
 
   test("syncs protect-tier files after setup", async () => {
@@ -150,11 +147,11 @@ describe("init", () => {
 
     // Config file already existed so configCreated is false, but sync should
     // have processed the default protect-tier file (soulguard.json)
-    expect(result.value.stagingCreated).toBe(true);
 
-    // Verify staging copy was created for the default protect-tier file
+    // Staging siblings are no longer eagerly created — they are created
+    // on-demand when the agent wants to edit a protect-tier file.
     const stagingSoulguard = await ops.exists(".soulguard.soulguard.json");
-    expect(stagingSoulguard.ok && stagingSoulguard.value).toBe(true);
+    expect(stagingSoulguard.ok && stagingSoulguard.value).toBe(false);
   });
 });
 
