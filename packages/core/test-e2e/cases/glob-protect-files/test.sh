@@ -7,10 +7,13 @@ echo '# TypeScript' > skills/typescript.md
 SUDO_USER=agent soulguard init .
 soulguard protect "skills/*.md" -w .
 
+# Agent creates staging copies
+su - agent -c "cp $(pwd)/skills/python.md $(pwd)/skills/.soulguard.python.md && cp $(pwd)/skills/typescript.md $(pwd)/skills/.soulguard.typescript.md"
+
 echo "STATUS:"
 NO_COLOR=1 soulguard status . 2>&1
 
-# Agent modifies a skill
+# Agent modifies a skill staging copy
 su - agent -c "echo '# Python v2' > $(pwd)/skills/.soulguard.python.md"
 
 echo "DIFF:"

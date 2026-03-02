@@ -6,7 +6,8 @@ echo '# Bootstrap' > BOOTSTRAP.md
 SUDO_USER=agent soulguard init .
 soulguard protect SOUL.md BOOTSTRAP.md -w .
 
-# Agent deletes BOOTSTRAP.md from staging (done with it)
+# Agent creates staging copies, then deletes BOOTSTRAP staging
+su - agent -c "cp $(pwd)/SOUL.md $(pwd)/.soulguard.SOUL.md && cp $(pwd)/BOOTSTRAP.md $(pwd)/.soulguard.BOOTSTRAP.md"
 su - agent -c "rm $(pwd)/.soulguard.BOOTSTRAP.md"
 
 # Diff should show deletion

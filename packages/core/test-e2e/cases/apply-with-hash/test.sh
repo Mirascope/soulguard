@@ -6,8 +6,8 @@ echo '{"version":1,"files":{"soulguard.json":"protect"}}' > soulguard.json
 SUDO_USER=agent soulguard init .
 soulguard protect SOUL.md -w .
 
-# Agent modifies staging
-su - agent -c "echo '# My Updated Soul' > $(pwd)/.soulguard.SOUL.md"
+# Agent creates staging and modifies it
+su - agent -c "cp $(pwd)/SOUL.md $(pwd)/.soulguard.SOUL.md && echo '# My Updated Soul' > $(pwd)/.soulguard.SOUL.md"
 
 # Get approval hash from diff output
 HASH=$(NO_COLOR=1 soulguard diff . 2>&1 | grep 'Apply hash:' | awk '{print $NF}')

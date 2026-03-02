@@ -109,19 +109,7 @@ export class TierCommand {
     }
 
     // Tier-specific post-sync cleanup
-    if (action.kind === "set" && action.tier === "protect") {
-      // Create staging siblings for newly protected files
-      for (const file of changedFiles) {
-        const exists = await ops.exists(file);
-        if (exists.ok && exists.value) {
-          const sibling = stagingPath(file);
-          const siblingExists = await ops.exists(sibling);
-          if (!siblingExists.ok || !siblingExists.value) {
-            await ops.copyFile(file, sibling);
-          }
-        }
-      }
-    } else if (action.kind === "release") {
+    if (action.kind === "release") {
       // Clean up staging siblings for released files
       for (const file of changedFiles) {
         const sibling = stagingPath(file);
