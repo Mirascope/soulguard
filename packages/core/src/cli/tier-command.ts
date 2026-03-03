@@ -2,7 +2,8 @@
  * CLI command: soulguard protect|watch|release <files...>
  *
  * Unified command for all tier operations. Modifies soulguard.json,
- * runs sync, and handles tier-specific cleanup.
+ * then performs targeted file operations for just the specified files.
+ * Does NOT call sync — that's a separate global reconciliation pass.
  */
 
 import type { ConsoleOutput } from "../console.js";
@@ -10,7 +11,7 @@ import type { SystemOperations } from "../system-ops.js";
 import type { FileOwnership, Tier } from "../types.js";
 import { readConfig, writeConfig, setTier, release } from "../tier.js";
 import { stagingPath } from "../staging.js";
-import { sync } from "../sync.js";
+import { Registry } from "../registry.js";
 
 export type TierAction = { kind: "set"; tier: Tier } | { kind: "release" };
 
@@ -54,6 +55,14 @@ export class TierCommand {
       this.out.error(`Failed to read config: ${configResult.error.message}`);
       return 1;
     }
+
+    // Load registry
+    const registryResult = await Registry.load(ops);
+    if (!registryResult.ok) {
+      this.out.error("Failed to load registry.");
+      return 1;
+    }
+    const registry = registryResult.value;
 
     let config;
     let changedFiles: string[];
@@ -101,23 +110,59 @@ export class TierCommand {
       return 1;
     }
 
-    // Sync to enforce ownership + update registry
-    const syncResult = await sync({ config, expectedProtectOwnership, ops });
-    if (!syncResult.ok) {
-      this.out.error("Sync failed after config update.");
-      return 1;
-    }
+    // ── Targeted file operations (only for changed files) ──────────
 
-    // Tier-specific post-sync cleanup
-    if (action.kind === "release") {
-      // Clean up staging siblings for released files
+    if (action.kind === "set" && action.tier === "protect") {
+      // Register in registry (snapshots current ownership), then lock down
       for (const file of changedFiles) {
+        await registry.register(file, "protect");
+        const chownResult = await ops.chown(file, {
+          user: expectedProtectOwnership.user,
+          group: expectedProtectOwnership.group,
+        });
+        if (!chownResult.ok) {
+          this.out.error(`  Failed to chown ${file}`);
+        }
+        const chmodResult = await ops.chmod(file, expectedProtectOwnership.mode);
+        if (!chmodResult.ok) {
+          this.out.error(`  Failed to chmod ${file}`);
+        }
+      }
+    } else if (action.kind === "set" && action.tier === "watch") {
+      for (const file of changedFiles) {
+        // If downgrading from protect, restore original ownership first
+        const entry = registry.get(file);
+        if (entry?.tier === "protect") {
+          const { user, group, mode } = entry.originalOwnership;
+          await ops.chown(file, { user, group });
+          await ops.chmod(file, mode);
+        }
+        await registry.register(file, "watch");
+      }
+    } else if (action.kind === "release") {
+      for (const file of changedFiles) {
+        // Restore original ownership from registry
+        const entry = registry.unregister(file);
+        if (entry?.tier === "protect") {
+          const { user, group, mode } = entry.originalOwnership;
+          await ops.chown(file, { user, group });
+          await ops.chmod(file, mode);
+        }
+
+        // Clean up staging sibling
         const sibling = stagingPath(file);
         const siblingExists = await ops.exists(sibling);
         if (siblingExists.ok && siblingExists.value) {
           await ops.deleteFile(sibling);
         }
       }
+    }
+
+    // Persist registry
+    const regWriteResult = await registry.write();
+    if (!regWriteResult.ok) {
+      this.out.error("Failed to write registry.");
+      return 1;
     }
 
     // Summary
