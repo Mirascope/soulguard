@@ -38,6 +38,9 @@
     "*.ts": [
       "oxfmt --write",
       "oxlint --fix"
+    ],
+    "*.md": [
+      "oxfmt --write"
     ]
   }
 }
