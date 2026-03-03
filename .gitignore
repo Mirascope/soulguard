@@ -7,3 +7,4 @@ dist/
 bun.lockb
 .soulguard/.secret
 .stash/
+.claude/settings.local.json
