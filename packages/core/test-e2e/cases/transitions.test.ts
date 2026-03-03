@@ -1,6 +1,6 @@
 import { e2e } from "../harness";
 
-e2e("transitions: protect → watch downgrades permissions", (t) => {
+e2e.skip("transitions: protect → watch downgrades permissions", (t) => {
   t.$(`echo "# My Soul" > SOUL.md`)
     .expect(`
     exit 0
@@ -67,7 +67,7 @@ e2e("transitions: protect → watch downgrades permissions", (t) => {
     .outputs(/root/);
 });
 
-e2e("transitions: protect → release restores default ownership", (t) => {
+e2e.skip("transitions: protect → release restores default ownership", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
     exit 0

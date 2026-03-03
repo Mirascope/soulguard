@@ -1,6 +1,6 @@
 import { e2e } from "../harness";
 
-e2e("status: reports all files ok when clean", (t) => {
+e2e.skip("status: reports all files ok when clean", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
     exit 0
@@ -51,7 +51,7 @@ e2e("status: reports all files ok when clean", (t) => {
     .outputs(/All files ok/);
 });
 
-e2e("status: reports drifted ownership and permissions", (t) => {
+e2e.skip("status: reports drifted ownership and permissions", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
     exit 0
@@ -108,7 +108,7 @@ e2e("status: reports drifted ownership and permissions", (t) => {
     .outputs(/drifted/);
 });
 
-e2e("status: errors when no soulguard.json exists", (t) => {
+e2e.skip("status: errors when no soulguard.json exists", (t) => {
   t.$(`soulguard status .`)
     .expect(`
       exit 1

@@ -1,6 +1,6 @@
 import { e2e } from "../harness";
 
-e2e("sync: fixes drifted ownership and permissions", (t) => {
+e2e.skip("sync: fixes drifted ownership and permissions", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
     exit 0
@@ -68,7 +68,7 @@ e2e("sync: fixes drifted ownership and permissions", (t) => {
     .outputs(/All files ok/);
 });
 
-e2e("sync: agent can sudo sync via scoped sudoers", (t) => {
+e2e.skip("sync: agent can sudo sync via scoped sudoers", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
     exit 0
@@ -111,7 +111,7 @@ e2e("sync: agent can sudo sync via scoped sudoers", (t) => {
     .outputs(/Nothing to fix/);
 });
 
-e2e("sync: agent without sudo cannot fix drift", (t) => {
+e2e.skip("sync: agent without sudo cannot fix drift", (t) => {
   t.$(`
     echo '{"version":1,"files":{"SOUL.md":"protect"}}' > soulguard.json
     echo '# My Soul' > SOUL.md

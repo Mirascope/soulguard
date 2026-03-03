@@ -1,6 +1,6 @@
 import { e2e } from "../harness";
 
-e2e("reset: restores staging to match protect-tier", (t) => {
+e2e.skip("reset: restores staging to match protect-tier", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
     exit 0

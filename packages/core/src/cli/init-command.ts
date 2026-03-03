@@ -7,11 +7,6 @@ import type { InitOptions, InitResult, InitError } from "../init.js";
 import type { Result } from "../types.js";
 import { init } from "../init.js";
 
-export type InitCommandOptions = {
-  initOptions: InitOptions;
-  out: ConsoleOutput;
-};
-
 export class InitCommand {
   constructor(
     private options: InitOptions,
@@ -25,62 +20,33 @@ export class InitCommand {
       const e = result.error;
       switch (e.kind) {
         case "not_root":
-          this.out.error("soulguard init requires root. Run with sudo.");
+          this.out.error("soulguard init requires sudo. Run with: sudo soulguard init");
           break;
-        case "group_creation_failed":
-          this.out.error(`Failed to create group: ${e.message}`);
+        case "config_invalid":
+          this.out.error(`Invalid soulguard.json: ${e.message}`);
+          this.out.error("Fix or remove soulguard.json and re-run `sudo soulguard init`.");
           break;
-        case "user_creation_failed":
-          this.out.error(`Failed to create user: ${e.message}`);
+        case "registry_invalid":
+          this.out.error(`Invalid registry: ${e.message}`);
+          this.out.error(
+            "Fix or remove .soulguard/registry.json and re-run `sudo soulguard init`.",
+          );
           break;
-        case "config_write_failed":
-          this.out.error(`Failed to write config: ${e.message}`);
-          break;
-        case "sudoers_write_failed":
-          this.out.error(`Failed to write sudoers: ${e.message}`);
-          break;
-        case "staging_failed":
-          this.out.error(`Failed to create staging: ${e.message}`);
+        case "system_error":
+          this.out.error(`Init failed: ${e.message}`);
           break;
       }
       return 1;
     }
 
-    const r = result.value;
-    this.out.heading(`Soulguard Init — ${this.options.ops.workspace}`);
+    this.out.success("✓ Soulguard initialized.");
 
-    const steps: string[] = [];
-    if (r.groupCreated) steps.push("Created group: soulguard");
-    if (r.userCreated) steps.push("Created user: soulguardian");
-    if (r.configCreated) steps.push("Wrote soulguard.json");
-    if (r.sudoersCreated) steps.push("Wrote /etc/sudoers.d/soulguard");
-    steps.push("Prepared directories for staging");
-    if (steps.length > 0) {
-      for (const step of steps) {
-        this.out.success(`  ${step}`);
-      }
+    if (result.value.issueCount > 0) {
+      this.out.warn(
+        `${result.value.issueCount} file(s) need protection. Run \`sudo soulguard sync\` to enforce.`,
+      );
     }
 
-    // Report sync results — count unique files (a file can be both unregistered + drifted)
-    const syncedPaths = new Set(
-      r.syncResult.before.issues
-        .filter((i) => i.status === "drifted" || i.status === "unregistered")
-        .map((i) => ("file" in i ? i.file.path : i.path)),
-    );
-    if (syncedPaths.size > 0) {
-      this.out.success(`  Synced ${syncedPaths.size} protect-tier file(s)`);
-    }
-
-    if (r.syncResult.errors.length > 0) {
-      this.out.warn(`  ${r.syncResult.errors.length} error(s) during sync`);
-    }
-
-    if (steps.length === 0 && syncedPaths.size === 0) {
-      this.out.info("Already initialized — nothing to do.");
-    } else {
-      this.out.success("\nDone.");
-    }
-
-    return r.syncResult.errors.length > 0 ? 1 : 0;
+    return 0;
   }
 }

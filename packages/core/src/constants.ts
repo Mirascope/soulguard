@@ -5,12 +5,12 @@
 import type { FileOwnership, SoulguardConfig } from "./types.js";
 
 /** System user/group identity for soulguard */
-export const IDENTITY = { user: "soulguardian", group: "soulguard" } as const;
+export const SOULGUARDIAN_IDENTITY = { user: "soulguardian", group: "soulguard" } as const;
 
 /** Default protect-tier file ownership */
 export const PROTECT_OWNERSHIP: FileOwnership = {
-  user: IDENTITY.user,
-  group: IDENTITY.group,
+  user: SOULGUARDIAN_IDENTITY.user,
+  group: SOULGUARDIAN_IDENTITY.group,
   mode: "444",
 } as const;
 

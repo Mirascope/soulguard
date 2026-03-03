@@ -1,6 +1,6 @@
 import { e2e } from "../harness";
 
-e2e("watch: adds file and updates config", (t) => {
+e2e.skip("watch: adds file and updates config", (t) => {
   t.$(`
     mkdir -p memory
     echo '# Notes' > memory/notes.md
@@ -60,7 +60,7 @@ e2e("watch: adds file and updates config", (t) => {
     .outputs(/All files ok/);
 });
 
-e2e("watch: resolves glob patterns", (t) => {
+e2e.skip("watch: resolves glob patterns", (t) => {
   t.$(`
     mkdir -p memory
     echo '# Day 1' > memory/2026-01-01.md

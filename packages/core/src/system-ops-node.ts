@@ -478,37 +478,3 @@ export class NodeSystemOps implements SystemOperations {
     }
   }
 }
-
-/**
- * Check if an absolute path exists (outside any workspace).
- * Deliberately NOT on SystemOperations.
- */
-export async function existsAbsolute(path: string): Promise<boolean> {
-  try {
-    await access(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Write to an absolute path (outside any workspace).
- * Deliberately NOT on SystemOperations — used only for init's sudoers writing.
- */
-export async function writeFileAbsolute(
-  path: string,
-  content: string,
-): Promise<Result<void, IOError>> {
-  try {
-    await fsMkdir(dirname(path), { recursive: true });
-    await fsWriteFile(path, content, "utf-8");
-    return ok(undefined);
-  } catch (e) {
-    return err({
-      kind: "io_error",
-      path,
-      message: `writeFileAbsolute: ${e instanceof Error ? e.message : String(e)}`,
-    });
-  }
-}

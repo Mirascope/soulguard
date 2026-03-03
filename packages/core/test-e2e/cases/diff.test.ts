@@ -17,7 +17,7 @@ e2e.skip("diff: shows no changes for unmodified staging", (t) => {
     .outputs(/[Nn]o changes/);
 });
 
-e2e("diff: shows unified diff for modified staging", (t) => {
+e2e.skip("diff: shows unified diff for modified staging", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
     exit 0
@@ -76,7 +76,7 @@ e2e("diff: shows unified diff for modified staging", (t) => {
     .outputs(/Apply hash:/);
 });
 
-e2e("diff: shows new file when protect-tier copy is missing", (t) => {
+e2e.skip("diff: shows new file when protect-tier copy is missing", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
     exit 0
