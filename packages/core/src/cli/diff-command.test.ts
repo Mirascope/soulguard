@@ -46,7 +46,7 @@ describe("DiffCommand", () => {
     expect(out.hasText("1 file(s) changed")).toBe(true);
   });
 
-  test("deleted file → exit 1, output contains deletion marker", async () => {
+  test("missing staging → exit 0, treated as unchanged", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul");
 
@@ -54,7 +54,7 @@ describe("DiffCommand", () => {
     const cmd = new DiffCommand({ ops, config: makeConfig() }, out);
     const exitCode = await cmd.execute();
 
-    expect(exitCode).toBe(1);
-    expect(out.hasText("staged for deletion")).toBe(true);
+    expect(exitCode).toBe(0);
+    expect(out.hasText("no changes")).toBe(true);
   });
 });

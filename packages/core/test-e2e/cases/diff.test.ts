@@ -1,6 +1,6 @@
 import { e2e } from "../harness";
 
-e2e.skip("diff: shows no changes for unmodified staging", (t) => {
+e2e("diff: shows no changes for unmodified staging", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`).expect(``).exits(0);
 
   t.$(`SUDO_USER=agent soulguard init .`).expect(``).exits(0);
@@ -67,10 +67,9 @@ e2e.skip("diff: shows unified diff for modified staging", (t) => {
             -# My Soul
             +# My Modified Soul
             
-        🗑️ soulguard.json (staged for deletion)
+        ✅ soulguard.json (no changes)
 
-      2 file(s) changed
-      Apply hash: ada752b4c16ee49314d51a49ee7feb6c3083bf8dda70eb2cf2f4ae3aca7da89e
+      1 file(s) changed
     `)
     .exits(1)
     .outputs(/Apply hash:/);
@@ -126,10 +125,9 @@ e2e.skip("diff: shows new file when protect-tier copy is missing", (t) => {
       Soulguard Diff — /workspace
 
         ⚠️ SOUL.md (protect-tier file missing — new file)
-        🗑️ soulguard.json (staged for deletion)
+        ✅ soulguard.json (no changes)
 
-      2 file(s) changed
-      Apply hash: 689a44a4976ae01fdfe94d45f48c8d1639f831df527f9cb81435d2328b3eb5e8
+      1 file(s) changed
     `)
     .exits(1)
     .outputs(/missing/);

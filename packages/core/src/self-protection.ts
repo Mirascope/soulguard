@@ -12,27 +12,17 @@
 
 import type { Result } from "./types.js";
 import type { ApplyError } from "./apply.js";
-import type { FileDiff } from "./diff.js";
 import { soulguardConfigSchema } from "./schema.js";
 import { ok, err } from "./result.js";
 
 /**
  * Validate built-in self-protection rules against pending changes.
- * Takes a map of path → content for content files, and a list of deleted files.
+ * Takes a map of path → content for modified/new files.
  * Returns an ApplyError if any check fails.
  */
 export function validateSelfProtection(
   pendingContents: Map<string, string>,
-  deletedFiles: FileDiff[] = [],
 ): Result<void, ApplyError> {
-  // Block deletion of soulguard.json — config must always exist
-  if (deletedFiles.some((f) => f.path === "soulguard.json")) {
-    return err({
-      kind: "self_protection",
-      message: "Cannot delete soulguard.json — it is required for soulguard to function",
-    });
-  }
-
   const sgContent = pendingContents.get("soulguard.json");
   if (sgContent === undefined) {
     return ok(undefined);

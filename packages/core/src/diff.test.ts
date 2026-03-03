@@ -47,7 +47,7 @@ describe("diff", () => {
     expect(result.value.files[0]!.diff).toContain("+modified");
   });
 
-  test("protect-tier file exists but staging deleted → deleted status", async () => {
+  test("protect-tier file exists but no staging → unchanged status", async () => {
     const ops = makeMock();
 
     ops.addFile("SOUL.md", "# Soul");
@@ -56,10 +56,10 @@ describe("diff", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.hasChanges).toBe(true);
-    expect(result.value.files[0]!.status).toBe("deleted");
+    expect(result.value.hasChanges).toBe(false);
+    expect(result.value.files[0]!.status).toBe("unchanged");
     expect(result.value.files[0]!.protectedHash).toBeDefined();
-    expect(result.value.approvalHash).toBeDefined();
+    expect(result.value.approvalHash).toBeUndefined();
   });
 
   test("neither protect-tier file nor staging exists → staging_missing status", async () => {
