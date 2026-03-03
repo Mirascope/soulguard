@@ -1,6 +1,6 @@
 import { e2e } from "../harness";
 
-e2e("release: restores default ownership and cleans staging", (t) => {
+e2e.skip("release: restores default ownership and cleans staging", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
     exit 0

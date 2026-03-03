@@ -49,7 +49,7 @@ export { sync } from "./sync.js";
 export type { SyncError, SyncResult, SyncOptions } from "./sync.js";
 
 // Init
-export type { InitResult, InitError } from "./init.js";
+export type { InitResult, InitError, InitOptions } from "./init.js";
 export { DEFAULT_CONFIG } from "./constants.js";
 
 // Console output

@@ -17,7 +17,7 @@ import { ResetCommand } from "./cli/reset-command.js";
 import { InitCommand } from "./cli/init-command.js";
 import { LogCommand } from "./cli/log-command.js";
 import { TierCommand } from "./cli/tier-command.js";
-import { NodeSystemOps, writeFileAbsolute, existsAbsolute } from "./system-ops-node.js";
+import { NodeSystemOps } from "./system-ops-node.js";
 import { parseConfig } from "./schema.js";
 import type { StatusOptions } from "./status.js";
 import { Registry } from "./registry.js";
@@ -108,21 +108,10 @@ program
     const absWorkspace = resolve(workspace);
     const nodeOps = new NodeSystemOps(absWorkspace);
 
-    // $SUDO_USER is always set when running under sudo (which init requires)
-    const callerUser = process.env.SUDO_USER;
-    if (!callerUser) {
-      out.error("soulguard init requires sudo. Run with: sudo soulguard init");
-      process.exitCode = 1;
-      return;
-    }
-
     const cmd = new InitCommand(
       {
         ops: nodeOps,
         identity: IDENTITY,
-        callerUser,
-        writeAbsolute: writeFileAbsolute,
-        existsAbsolute,
       },
       out,
     );

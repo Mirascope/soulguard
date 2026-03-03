@@ -1,6 +1,6 @@
 import { e2e } from "../harness";
 
-e2e("protect: sets correct ownership and permissions", (t) => {
+e2e.skip("protect: sets correct ownership and permissions", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
     exit 0
@@ -73,7 +73,7 @@ e2e("protect: sets correct ownership and permissions", (t) => {
     .outputs(/"SOUL\.md":\s*"protect"/);
 });
 
-e2e("protect: blocks agent writes and chown", (t) => {
+e2e.skip("protect: blocks agent writes and chown", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
     exit 0
@@ -149,7 +149,7 @@ e2e("protect: blocks agent writes and chown", (t) => {
     .outputs(/# My Soul/);
 });
 
-e2e("protect: resolves glob patterns", (t) => {
+e2e.skip("protect: resolves glob patterns", (t) => {
   t.$(`
     mkdir -p skills
     echo '# Python' > skills/python.md

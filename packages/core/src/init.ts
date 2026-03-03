@@ -1,24 +1,20 @@
 /**
  * soulguard init — one-time workspace setup.
  *
- * Creates system user/group, writes config, syncs protect-tier files,
- * creates staging copies, generates scoped sudoers.
+ * Creates system user/group, writes config, initializes registry and git.
+ * Does NOT enforce protection — that's `sync`.
  *
  * Idempotent: skips already-completed steps, reports what was done.
  * Requires root (sudo).
  */
 
-import type { SyncResult } from "./sync.js";
 import type { SystemOperations } from "./system-ops.js";
 import type { SystemIdentity, FileOwnership, Result, IOError } from "./types.js";
 import { ok, err } from "./result.js";
-import { sync } from "./sync.js";
-import { DEFAULT_CONFIG } from "./constants.js";
-import { resolvePatterns } from "./glob.js";
-import { protectPatterns } from "./config.js";
-import { stagingPath } from "./staging.js";
-import { dirname } from "node:path";
-import { execSync } from "node:child_process";
+import { DEFAULT_CONFIG, PROTECT_OWNERSHIP } from "./constants.js";
+import { parseConfig } from "./schema.js";
+import { Registry } from "./registry.js";
+import { status } from "./status.js";
 
 /** Result of `soulguard init` — idempotent, booleans report what was done */
 export type InitResult = {
@@ -28,12 +24,12 @@ export type InitResult = {
   groupCreated: boolean;
   /** Whether soulguard.json was written (false if it already existed) */
   configCreated: boolean;
-  /** Whether the sudoers file was written */
-  sudoersCreated: boolean;
+  /** Whether .soulguard/registry.json was created (false if it already existed) */
+  registryCreated: boolean;
   /** Whether git was initialized (false if already existed or git disabled) */
   gitInitialized: boolean;
-  /** Sync result from the initial sync after setup */
-  syncResult: SyncResult;
+  /** Number of issues found by status check (files needing sync) */
+  issueCount: number;
 };
 
 /** Errors specific to init */
@@ -42,57 +38,20 @@ export type InitError =
   | { kind: "user_creation_failed"; message: string }
   | { kind: "group_creation_failed"; message: string }
   | { kind: "config_write_failed"; message: string }
-  | { kind: "sudoers_write_failed"; message: string }
+  | { kind: "config_invalid"; message: string }
+  | { kind: "registry_invalid"; message: string }
   | { kind: "staging_failed"; message: string }
   | { kind: "git_failed"; message: string };
-
-/** Write content to an absolute path (outside workspace). Used for sudoers. */
-export type AbsoluteWriter = (path: string, content: string) => Promise<Result<void, IOError>>;
-
-/** Check if an absolute path exists (outside workspace). */
-export type AbsoluteExists = (path: string) => Promise<boolean>;
 
 export type InitOptions = {
   ops: SystemOperations;
   identity: SystemIdentity;
-  /** Calling user's OS username (for sudoers) */
-  callerUser: string;
-  /** Writer for files outside the workspace (sudoers). Keeps SystemOperations clean. */
-  writeAbsolute: AbsoluteWriter;
-  /** Check if absolute path exists. Used for sudoers idempotency. */
-  existsAbsolute: AbsoluteExists;
-  /** Path to write sudoers file (default: /etc/sudoers.d/soulguard) */
-  sudoersPath?: string;
   /** @internal Skip root check (for testing only) */
   _skipRootCheck?: boolean;
 };
 
-/** Generate scoped sudoers content */
-export function generateSudoers(callerUser: string, soulguardBin: string): string {
-  const cmds = ["sync", "status", "diff", "reset"].map((cmd) => `${soulguardBin} ${cmd} *`);
-  return `# Soulguard — scoped sudo for calling user\n${callerUser} ALL=(root) NOPASSWD: ${cmds.join(", ")}\n`;
-}
-
-const DEFAULT_SUDOERS_PATH = "/etc/sudoers.d/soulguard";
-/** Resolve the soulguard binary path dynamically. */
-function resolveSoulguardBin(): string {
-  try {
-    return execSync("which soulguard", { encoding: "utf-8" }).trim();
-  } catch {
-    return "/usr/local/bin/soulguard";
-  }
-}
-
 export async function init(options: InitOptions): Promise<Result<InitResult, InitError>> {
-  const {
-    ops,
-    identity,
-    writeAbsolute,
-    existsAbsolute,
-    sudoersPath = DEFAULT_SUDOERS_PATH,
-    callerUser,
-  } = options;
-  const config = DEFAULT_CONFIG;
+  const { ops, identity } = options;
 
   // ── 0. Check root ─────────────────────────────────────────────────────
   if (
@@ -101,10 +60,41 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     typeof process.getuid === "function" &&
     process.getuid() !== 0
   ) {
-    return err({ kind: "not_root", message: "soulguard init requires root. Run with sudo." });
+    return err({
+      kind: "not_root",
+      message: "soulguard init requires sudo. Run with: sudo soulguard init",
+    });
   }
 
-  // ── 1. Create group ──────────────────────────────────────────────────
+  // ── 1. Validate config (if it exists) ─────────────────────────────────
+  const configExists = await ops.exists("soulguard.json");
+  if (!configExists.ok) {
+    return err({ kind: "config_write_failed", message: configExists.error.message });
+  }
+
+  let config = DEFAULT_CONFIG;
+  let configCreated = false;
+
+  if (configExists.value) {
+    const raw = await ops.readFile("soulguard.json");
+    if (!raw.ok) {
+      return err({
+        kind: "config_invalid",
+        message: `Could not read soulguard.json: ${raw.error.kind}`,
+      });
+    }
+    try {
+      const parsed = JSON.parse(raw.value);
+      config = parseConfig(parsed);
+    } catch (e) {
+      return err({
+        kind: "config_invalid",
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  // ── 2. Create group ──────────────────────────────────────────────────
   let groupCreated = false;
   const groupExists = await ops.groupExists(identity.group);
   if (!groupExists.ok) {
@@ -121,7 +111,7 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     groupCreated = true;
   }
 
-  // ── 2. Create user ───────────────────────────────────────────────────
+  // ── 3. Create user ───────────────────────────────────────────────────
   let userCreated = false;
   const userExists = await ops.userExists(identity.user);
   if (!userExists.ok) {
@@ -138,20 +128,7 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     userCreated = true;
   }
 
-  // ── 2b. Add agent user to soulguard group ─────────────────────────
-  // Agent needs group membership to write staging siblings in group-writable dirs.
-  if (process.platform === "darwin") {
-    await ops.exec("dseditgroup", ["-o", "edit", "-a", callerUser, "-t", "user", identity.group]);
-  } else {
-    await ops.exec("usermod", ["-aG", identity.group, callerUser]);
-  }
-
-  // ── 3. Write config ──────────────────────────────────────────────────
-  let configCreated = false;
-  const configExists = await ops.exists("soulguard.json");
-  if (!configExists.ok) {
-    return err({ kind: "config_write_failed", message: configExists.error.message });
-  }
+  // ── 4. Write config ──────────────────────────────────────────────────
   if (!configExists.value) {
     const content = JSON.stringify(config, null, 2) + "\n";
     const result = await ops.writeFile("soulguard.json", content);
@@ -161,60 +138,90 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     configCreated = true;
   }
 
-  // ── 4. Sync protect-tier files ──────────────────────────────────────────────
-  const protectOwnership: FileOwnership = {
-    user: identity.user,
-    group: identity.group,
-    mode: "444",
-  };
-
-  const syncResult = await sync({
-    config,
-    expectedProtectOwnership: protectOwnership,
-    ops,
-  });
-  if (!syncResult.ok) {
-    // sync currently never errors at the Result level, but handle it
-    return err({ kind: "config_write_failed", message: "sync failed unexpectedly" });
+  // ── 5. Create .soulguard/ directory ──────────────────────────────────
+  const sgDirExists = await ops.exists(".soulguard");
+  if (sgDirExists.ok && !sgDirExists.value) {
+    const mkResult = await ops.mkdir(".soulguard");
+    if (!mkResult.ok) {
+      return err({
+        kind: "staging_failed",
+        message: `mkdir .soulguard failed: ${mkResult.error.kind}`,
+      });
+    }
+  }
+  const chownSg = await ops.chown(".soulguard", { user: identity.user, group: identity.group });
+  if (!chownSg.ok) {
+    return err({
+      kind: "staging_failed",
+      message: `chown .soulguard failed: ${chownSg.error.kind}`,
+    });
+  }
+  const chmodSg = await ops.chmod(".soulguard", "755");
+  if (!chmodSg.ok) {
+    return err({
+      kind: "staging_failed",
+      message: `chmod .soulguard failed: ${chmodSg.error.kind}`,
+    });
   }
 
-  // ── 5. Prepare directories for staging ─────────────────────────────
-  // Make directories containing protect-tier files group-writable so
-  // the agent can create staging siblings on-demand.
-  const protectGlob = await resolvePatterns(ops, protectPatterns(config));
-  if (!protectGlob.ok) {
-    return err({ kind: "staging_failed", message: `glob failed: ${protectGlob.error.message}` });
+  // ── 6. Create .soulguard-staging/ directory ──────────────────────────
+  const stagingDirExists = await ops.exists(".soulguard-staging");
+  if (stagingDirExists.ok && !stagingDirExists.value) {
+    const mkResult = await ops.mkdir(".soulguard-staging");
+    if (!mkResult.ok) {
+      return err({
+        kind: "staging_failed",
+        message: `mkdir .soulguard-staging failed: ${mkResult.error.kind}`,
+      });
+    }
   }
-  const protectFiles = protectGlob.value;
-  const stagingDirs = new Set<string>();
-  for (const protectFile of protectFiles) {
-    const dir = dirname(stagingPath(protectFile));
-    stagingDirs.add(dir === "." ? "." : dir);
-  }
-  for (const dir of stagingDirs) {
-    const chownDir = await ops.chown(dir, {
+
+  // ── 7. Initialize registry ──────────────────────────────────────────
+  let registryCreated = false;
+  const registryExists = await ops.exists(".soulguard/registry.json");
+  if (registryExists.ok && registryExists.value) {
+    const registryResult = await Registry.load(ops);
+    if (!registryResult.ok) {
+      return err({
+        kind: "registry_invalid",
+        message: registryResult.error.message,
+      });
+    }
+  } else {
+    const registryResult = await Registry.load(ops);
+    if (!registryResult.ok) {
+      return err({ kind: "registry_invalid", message: registryResult.error.message });
+    }
+    const registry = registryResult.value;
+    await registry.register("soulguard.json", "protect");
+    const writeResult = await registry.write();
+    if (!writeResult.ok) {
+      return err({ kind: "registry_invalid", message: writeResult.error.message });
+    }
+    registryCreated = true;
+
+    const chownReg = await ops.chown(".soulguard/registry.json", {
       user: identity.user,
       group: identity.group,
     });
-    if (!chownDir.ok) {
+    if (!chownReg.ok) {
       return err({
         kind: "staging_failed",
-        message: `chown dir ${dir} failed: ${chownDir.error.kind}`,
+        message: `chown registry.json failed: ${chownReg.error.kind}`,
       });
     }
-    const chmodDir = await ops.chmod(dir, "775");
-    if (!chmodDir.ok) {
+    const chmodReg = await ops.chmod(".soulguard/registry.json", "444");
+    if (!chmodReg.ok) {
       return err({
         kind: "staging_failed",
-        message: `chmod dir ${dir} failed: ${chmodDir.error.kind}`,
+        message: `chmod registry.json failed: ${chmodReg.error.kind}`,
       });
     }
   }
 
-  // ── 6. Git integration ────────────────────────────────────────────────
+  // ── 8. Git integration ────────────────────────────────────────────────
   let gitInitialized = false;
   if (config.git !== false) {
-    // Initialize git repo inside .soulguard/ (isolated from workspace git)
     const gitDirExists = await ops.exists(".soulguard/.git");
     if (gitDirExists.ok && !gitDirExists.value) {
       const gitResult = await ops.exec("git", ["init", "--bare", ".soulguard/.git"]);
@@ -222,44 +229,37 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
         return err({ kind: "git_failed", message: gitResult.error.message });
       }
       gitInitialized = true;
-    }
 
-    // Initial commit of all tracked files
-    if (gitInitialized) {
-      const allFiles = Object.keys(config.files);
-      // Resolve globs to actual files
-      const resolved = await resolvePatterns(ops, allFiles);
-      if (resolved.ok && resolved.value.length > 0) {
-        // Need to configure git user for commits in bare repo
+      await ops.exec("git", [
+        "--git-dir",
+        ".soulguard/.git",
+        "--work-tree",
+        ".",
+        "config",
+        "user.email",
+        "soulguardian@soulguard.ai",
+      ]);
+      await ops.exec("git", [
+        "--git-dir",
+        ".soulguard/.git",
+        "--work-tree",
+        ".",
+        "config",
+        "user.name",
+        "SoulGuardian",
+      ]);
+
+      const sgJsonExists = await ops.exists("soulguard.json");
+      if (sgJsonExists.ok && sgJsonExists.value) {
         await ops.exec("git", [
           "--git-dir",
           ".soulguard/.git",
           "--work-tree",
           ".",
-          "config",
-          "user.email",
-          "soulguardian@soulguard.ai",
+          "add",
+          "--",
+          "soulguard.json",
         ]);
-        await ops.exec("git", [
-          "--git-dir",
-          ".soulguard/.git",
-          "--work-tree",
-          ".",
-          "config",
-          "user.name",
-          "SoulGuardian",
-        ]);
-        for (const file of resolved.value) {
-          await ops.exec("git", [
-            "--git-dir",
-            ".soulguard/.git",
-            "--work-tree",
-            ".",
-            "add",
-            "--",
-            file,
-          ]);
-        }
         await ops.exec("git", [
           "--git-dir",
           ".soulguard/.git",
@@ -273,24 +273,29 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     }
   }
 
-  // ── 7. Write sudoers ─ ─────────────────────────────────────────────────
-  let sudoersCreated = false;
-  const sudoersAlreadyExists = await existsAbsolute(sudoersPath);
-  if (!sudoersAlreadyExists) {
-    const sudoersContent = generateSudoers(callerUser, resolveSoulguardBin());
-    const sudoersResult = await writeAbsolute(sudoersPath, sudoersContent);
-    if (!sudoersResult.ok) {
-      return err({ kind: "sudoers_write_failed", message: sudoersResult.error.message });
+  // ── 9. Run status check ───────────────────────────────────────────────
+  let issueCount = 0;
+  {
+    const registryResult = await Registry.load(ops);
+    if (registryResult.ok) {
+      const statusResult = await status({
+        config,
+        expectedProtectOwnership: PROTECT_OWNERSHIP,
+        ops,
+        registry: registryResult.value,
+      });
+      if (statusResult.ok) {
+        issueCount = statusResult.value.issues.length;
+      }
     }
-    sudoersCreated = true;
   }
 
   return ok({
     userCreated,
     groupCreated,
     configCreated,
-    sudoersCreated,
+    registryCreated,
     gitInitialized,
-    syncResult: syncResult.value,
+    issueCount,
   });
 }
