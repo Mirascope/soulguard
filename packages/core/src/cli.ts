@@ -22,7 +22,7 @@ import { parseConfig } from "./schema.js";
 import type { StatusOptions } from "./status.js";
 import { Registry } from "./registry.js";
 
-import { IDENTITY, PROTECT_OWNERSHIP } from "./constants.js";
+import { PROTECT_OWNERSHIP } from "./constants.js";
 
 async function makeBaseOptions(workspace: string) {
   const ops = new NodeSystemOps(resolve(workspace));
@@ -111,7 +111,6 @@ program
     const cmd = new InitCommand(
       {
         ops: nodeOps,
-        identity: IDENTITY,
       },
       out,
     );

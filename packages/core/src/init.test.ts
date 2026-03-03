@@ -7,7 +7,6 @@ import { DEFAULT_CONFIG } from "./constants.js";
 function makeOptions(ops: MockSystemOps, overrides?: Partial<InitOptions>): InitOptions {
   return {
     ops,
-    identity: { user: "soulguardian", group: "soulguard" },
     _skipRootCheck: true,
     ...overrides,
   };
@@ -150,7 +149,6 @@ describe("init", () => {
 
   test("malformed registry bails with registry_invalid", async () => {
     const ops = new MockSystemOps("/workspace");
-    // Create .soulguard dir and a bad registry
     ops.addFile(".soulguard/registry.json", "{not valid json");
 
     const result = await init(makeOptions(ops));

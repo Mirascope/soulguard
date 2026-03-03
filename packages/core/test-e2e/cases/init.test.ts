@@ -1,27 +1,21 @@
 import { e2e } from "../harness";
 
 // 1. Happy path — fresh init, verify side effects
-e2e("init: happy path creates group, user, config, registry, git, staging dir", (t) => {
+e2e("init: happy path creates dirs, config, registry, git", (t) => {
   t.$(`sudo soulguard init .`)
     .expect(`
       exit 0
     `)
     .exits(0)
-    .outputs(/Created group/)
-    .outputs(/Created user/)
-    .outputs(/Wrote soulguard\.json/)
-    .outputs(/Initialized registry/)
-    .outputs(/Initialized git/)
     .outputs(/Soulguard initialized/);
 
-  // Verify .soulguard/ exists and is owned by soulguardian
-  t.$(`stat -c '%U:%G' .soulguard`)
+  // Verify .soulguard/ owned by soulguardian:soulguard, mode 755
+  t.$(`stat -c '%U:%G %a' .soulguard`)
     .expect(`
       exit 0
-      soulguardian:soulguard
+      soulguardian:soulguard 755
     `)
-    .exits(0)
-    .outputs(/soulguardian:soulguard/);
+    .exits(0);
 
   // Verify .soulguard-staging/ exists
   t.$(`test -d .soulguard-staging && echo exists`)
@@ -31,23 +25,31 @@ e2e("init: happy path creates group, user, config, registry, git, staging dir", 
     `)
     .exits(0);
 
-  // Verify registry.json exists
-  t.$(`test -f .soulguard/registry.json && echo exists`)
+  // Verify registry.json owned by soulguardian:soulguard, mode 444
+  t.$(`stat -c '%U:%G %a' .soulguard/registry.json`)
     .expect(`
       exit 0
-      exists
+      soulguardian:soulguard 444
     `)
     .exits(0);
 
   // Verify soulguard.json was written with default config
-  t.$(
-    `cat soulguard.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['version'])"`,
-  )
+  t.$(`cat soulguard.json`)
     .expect(`
       exit 0
-      1
+      {
+        "soulguard.json": "protect"
+      }
     `)
     .exits(0);
+
+  // Verify git initial commit contains soulguard.json
+  t.$(`git --git-dir .soulguard/.git --work-tree . log --oneline --name-only -1`)
+    .expect(`
+      exit 0
+    `)
+    .exits(0)
+    .outputs(/soulguard\.json/);
 });
 
 // 2. Idempotent — second init succeeds, skips completed steps
@@ -59,22 +61,21 @@ e2e("init: second run is idempotent", (t) => {
     .exits(0)
     .outputs(/Soulguard initialized/);
 
-  // Second init — should skip already-completed steps
   t.$(`sudo soulguard init .`)
     .expect(`
       exit 0
     `)
     .exits(0)
-    .outputs(/Already initialized/);
+    .outputs(/Soulguard initialized/);
 });
 
 // 3. Pre-existing config — preserves it, doesn't overwrite
 e2e("init: preserves pre-existing config", (t) => {
   t.$(`
     echo '# My Soul' > SOUL.md
-    cat > soulguard.json <<'CONFIG'
+    cat > soulguard.json <<'JSON'
 {"version":1,"files":{"SOUL.md":"protect","soulguard.json":"protect"}}
-CONFIG
+JSON
   `)
     .expect(`
       exit 0
@@ -89,12 +90,10 @@ CONFIG
     .outputs(/Soulguard initialized/);
 
   // Verify config still has SOUL.md
-  t.$(
-    `cat soulguard.json | python3 -c "import sys,json; d=json.load(sys.stdin); print('SOUL.md' in d['files'])"`,
-  )
+  t.$(`cat soulguard.json | jq -r '.files["SOUL.md"]'`)
     .expect(`
       exit 0
-      True
+      protect
     `)
     .exits(0);
 });
@@ -103,9 +102,9 @@ CONFIG
 e2e("init: does not enforce protection", (t) => {
   t.$(`
     echo '# My Soul' > SOUL.md
-    cat > soulguard.json <<'CONFIG'
+    cat > soulguard.json <<'JSON'
 {"version":1,"files":{"SOUL.md":"protect","soulguard.json":"protect"}}
-CONFIG
+JSON
   `)
     .expect(`
       exit 0
