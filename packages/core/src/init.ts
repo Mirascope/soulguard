@@ -11,7 +11,7 @@
 import type { SystemOperations } from "./system-ops.js";
 import type { SoulguardConfig, Result } from "./types.js";
 import { ok, err } from "./result.js";
-import { IDENTITY, PROTECT_OWNERSHIP } from "./constants.js";
+import { SOULGUARDIAN_IDENTITY, PROTECT_OWNERSHIP } from "./constants.js";
 import { ensureConfig } from "./config.js";
 import type { ConfigError } from "./config.js";
 import { Registry } from "./registry.js";
@@ -47,7 +47,7 @@ async function ensureGuardianExists(
   ops: SystemOperations,
 ): Promise<Result<{ userCreated: boolean; groupCreated: boolean }, InitError>> {
   let groupCreated = false;
-  const groupExists = await ops.groupExists(IDENTITY.group);
+  const groupExists = await ops.groupExists(SOULGUARDIAN_IDENTITY.group);
   if (!groupExists.ok) {
     return err({
       kind: "system_error",
@@ -55,7 +55,7 @@ async function ensureGuardianExists(
     });
   }
   if (!groupExists.value) {
-    const result = await ops.createGroup(IDENTITY.group);
+    const result = await ops.createGroup(SOULGUARDIAN_IDENTITY.group);
     if (!result.ok) {
       return err({ kind: "system_error", message: `create group failed: ${result.error.message}` });
     }
@@ -63,12 +63,12 @@ async function ensureGuardianExists(
   }
 
   let userCreated = false;
-  const userExists = await ops.userExists(IDENTITY.user);
+  const userExists = await ops.userExists(SOULGUARDIAN_IDENTITY.user);
   if (!userExists.ok) {
     return err({ kind: "system_error", message: `user check failed: ${userExists.error.message}` });
   }
   if (!userExists.value) {
-    const result = await ops.createUser(IDENTITY.user, IDENTITY.group);
+    const result = await ops.createUser(SOULGUARDIAN_IDENTITY.user, SOULGUARDIAN_IDENTITY.group);
     if (!result.ok) {
       return err({ kind: "system_error", message: `create user failed: ${result.error.message}` });
     }
@@ -90,7 +90,10 @@ async function ensureSoulguardDir(ops: SystemOperations): Promise<Result<void, I
       });
     }
   }
-  const chown = await ops.chown(".soulguard", { user: IDENTITY.user, group: IDENTITY.group });
+  const chown = await ops.chown(".soulguard", {
+    user: SOULGUARDIAN_IDENTITY.user,
+    group: SOULGUARDIAN_IDENTITY.group,
+  });
   if (!chown.ok) {
     return err({ kind: "system_error", message: `chown .soulguard failed: ${chown.error.kind}` });
   }
@@ -151,8 +154,8 @@ async function ensureRegistry(
 
   // Set ownership: soulguardian:soulguard 444
   const chown = await ops.chown(".soulguard/registry.json", {
-    user: IDENTITY.user,
-    group: IDENTITY.group,
+    user: SOULGUARDIAN_IDENTITY.user,
+    group: SOULGUARDIAN_IDENTITY.group,
   });
   if (!chown.ok) {
     return err({

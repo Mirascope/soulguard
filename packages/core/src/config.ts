@@ -80,7 +80,7 @@ export async function ensureConfig(
   }
 
   if (result.error.kind !== "not_found") {
-    return result as Result<never, ConfigError>;
+    return err(result.error);
   }
 
   // Write default config

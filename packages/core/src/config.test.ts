@@ -2,16 +2,22 @@ import { describe, expect, test } from "bun:test";
 import { MockSystemOps } from "./system-ops-mock.js";
 import { readConfig, ensureConfig } from "./config.js";
 import { DEFAULT_CONFIG } from "./constants.js";
+import type { SoulguardConfig } from "./types.js";
+
+const testConfig: SoulguardConfig = {
+  version: 1,
+  files: { "SOUL.md": "protect" },
+};
 
 describe("readConfig", () => {
   test("returns parsed config when file exists", async () => {
     const ops = new MockSystemOps("/workspace");
-    ops.addFile("soulguard.json", JSON.stringify({ version: 1, files: { "SOUL.md": "protect" } }));
+    ops.addFile("soulguard.json", JSON.stringify(testConfig));
 
     const result = await readConfig(ops);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.files["SOUL.md"]).toBe("protect");
+    expect(result.value).toEqual(testConfig);
   });
 
   test("returns not_found when file missing", async () => {
@@ -47,13 +53,13 @@ describe("readConfig", () => {
 describe("ensureConfig", () => {
   test("reads existing config, created=false", async () => {
     const ops = new MockSystemOps("/workspace");
-    ops.addFile("soulguard.json", JSON.stringify({ version: 1, files: { "SOUL.md": "protect" } }));
+    ops.addFile("soulguard.json", JSON.stringify(testConfig));
 
     const result = await ensureConfig(ops);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.created).toBe(false);
-    expect(result.value.config.files["SOUL.md"]).toBe("protect");
+    expect(result.value.config).toEqual(testConfig);
   });
 
   test("writes default config when missing, created=true", async () => {
@@ -65,9 +71,11 @@ describe("ensureConfig", () => {
     expect(result.value.created).toBe(true);
     expect(result.value.config).toEqual(DEFAULT_CONFIG);
 
-    // Verify file was written
-    const exists = await ops.exists("soulguard.json");
-    expect(exists.ok && exists.value).toBe(true);
+    // Verify file contents match default config
+    const raw = await ops.readFile("soulguard.json");
+    expect(raw.ok).toBe(true);
+    if (!raw.ok) return;
+    expect(raw.value).toBe(JSON.stringify(DEFAULT_CONFIG, null, 2) + "\n");
   });
 
   test("returns error on malformed existing config", async () => {
