@@ -55,10 +55,6 @@ export class DiffCommand {
           changeCount++;
           this.out.warn(`  ⚠️ ${file.path} (protect-tier file missing — new file)`);
           break;
-        case "deleted":
-          changeCount++;
-          this.out.warn(`  🗑️ ${file.path} (staged for deletion)`);
-          break;
       }
     }
 

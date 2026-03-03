@@ -16,7 +16,7 @@ import { stagingPath } from "./staging.js";
 
 export type FileDiff = {
   path: string;
-  status: "modified" | "unchanged" | "protect_missing" | "staging_missing" | "deleted";
+  status: "modified" | "unchanged" | "protect_missing" | "staging_missing";
   /** Unified diff string (only for modified) */
   diff?: string;
   protectedHash?: string;
@@ -87,11 +87,11 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
 
     // Missing cases
     if (protectExists.value && !stagingExists.value) {
-      // Protect-tier file exists but staging copy deleted → agent wants to delete this file
+      // No staging copy — no proposal. Treat as unchanged.
       const protectHash = await ops.hashFile(path);
       fileDiffs.push({
         path,
-        status: "deleted",
+        status: "unchanged",
         protectedHash: protectHash.ok ? protectHash.value : undefined,
       });
       continue;
@@ -180,23 +180,14 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
  * This is the integrity token for hash-based apply.
  */
 export function computeApprovalHash(files: FileDiff[]): string {
-  // Include modified, new (protect_missing), and deleted files in the hash
+  // Include modified and new (protect_missing) files in the hash
   const actionable = files
-    .filter(
-      (f) =>
-        ((f.status === "modified" || f.status === "protect_missing") && f.stagedHash) ||
-        f.status === "deleted",
-    )
+    .filter((f) => (f.status === "modified" || f.status === "protect_missing") && f.stagedHash)
     .sort((a, b) => a.path.localeCompare(b.path));
 
   const hash = createHash("sha256");
   for (const f of actionable) {
-    if (f.status === "deleted") {
-      // Use a sentinel for deletions — hash includes the protect hash to prevent replay
-      hash.update(`${f.path}\0DELETED\0${f.protectedHash ?? ""}\0`);
-    } else {
-      hash.update(`${f.path}\0${f.stagedHash}\0`);
-    }
+    hash.update(`${f.path}\0${f.stagedHash}\0`);
   }
   return hash.digest("hex");
 }

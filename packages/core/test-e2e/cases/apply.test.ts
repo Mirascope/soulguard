@@ -56,38 +56,3 @@ e2e.skip("apply: blocks invalid soulguard.json changes (self-protection)", (t) =
     .exits(0)
     .outputs(/"version":\s*1/);
 });
-
-e2e.skip("apply: handles file deletion through staging", (t) => {
-  t.$(`
-    echo '# My Soul' > SOUL.md
-    echo '# Bootstrap' > BOOTSTRAP.md
-  `)
-    .expect(``)
-    .exits(0);
-
-  t.$(`SUDO_USER=agent soulguard init .`).expect(``).exits(0);
-
-  t.$(`soulguard protect SOUL.md BOOTSTRAP.md`).expect(``).exits(0);
-
-  // Agent creates staging copies, then deletes BOOTSTRAP staging
-  t.$(
-    `su - agent -c "cp $(pwd)/SOUL.md $(pwd)/.soulguard.SOUL.md && cp $(pwd)/BOOTSTRAP.md $(pwd)/.soulguard.BOOTSTRAP.md"`,
-  ).expect(``);
-
-  t.$(`su - agent -c "rm $(pwd)/.soulguard.BOOTSTRAP.md"`).expect(``);
-
-  // Changes found (deletion) → exit 1 (git diff convention)
-  t.$(`soulguard diff .`).expect(``).exits(1).outputs(/delet/);
-
-  t.$(
-    `HASH=$({ soulguard diff . || true; } 2>&1 | grep 'Apply hash:' | awk '{print $NF}') && soulguard apply . --hash "$HASH"`,
-  )
-    .expect(``)
-    .exits(0);
-
-  // BOOTSTRAP.md should be gone
-  t.$(`test -f BOOTSTRAP.md && echo "yes" || echo "no"`).expect(``).exits(0).outputs(/no/);
-
-  // SOUL.md should still exist
-  t.$(`test -f SOUL.md && echo "yes" || echo "no"`).expect(``).exits(0).outputs(/yes/);
-});

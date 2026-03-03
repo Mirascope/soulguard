@@ -40,11 +40,8 @@ export async function reset(options: ResetOptions): Promise<Result<ResetResult, 
   }
 
   // Reset staging copies to match protect-tier originals
-  // Handles modified (overwrite) and deleted (recreate staging copy)
   const resetFiles: string[] = [];
-  const resettableFiles = diffResult.value.files.filter(
-    (f) => f.status === "modified" || f.status === "deleted",
-  );
+  const resettableFiles = diffResult.value.files.filter((f) => f.status === "modified");
 
   for (const file of resettableFiles) {
     const stagePath = stagingPath(file.path);
