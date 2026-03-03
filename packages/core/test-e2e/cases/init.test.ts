@@ -134,11 +134,11 @@ JSON
     .exits(0)
     .outputs(/need protection/);
 
-  // SOUL.md should still be owned by root (the user running the test), not soulguardian
+  // SOUL.md should still be owned by agent (the user running the test), not soulguardian
   t.$(`stat -c '%U' SOUL.md`)
     .expect(`
       exit 0
-      root
+      agent
     `)
     .exits(0);
 });
@@ -214,10 +214,9 @@ e2e("init: malformed registry bails early", (t) => {
 
 // 8. No sudo — fails with clear message
 e2e("init: no sudo fails with clear message", (t) => {
-  t.$(`su - nobody -s /bin/sh -c "soulguard init $(pwd)" 2>&1`)
+  t.$(`soulguard init . 2>&1`)
     .expect(`
       exit 1
-      su: warning: cannot change directory to /nonexistent: No such file or directory
       soulguard init requires sudo. Run with: sudo soulguard init
     `)
     .exits(1)
