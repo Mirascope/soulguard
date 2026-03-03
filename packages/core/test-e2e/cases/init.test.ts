@@ -5,6 +5,8 @@ e2e("init: happy path creates dirs, config, registry, git", (t) => {
   t.$(`sudo soulguard init .`)
     .expect(`
       exit 0
+      ✓ Soulguard initialized.
+      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
     `)
     .exits(0)
     .outputs(/Soulguard initialized/);
@@ -38,7 +40,10 @@ e2e("init: happy path creates dirs, config, registry, git", (t) => {
     .expect(`
       exit 0
       {
-        "soulguard.json": "protect"
+        "version": 1,
+        "files": {
+          "soulguard.json": "protect"
+        }
       }
     `)
     .exits(0);
@@ -47,6 +52,8 @@ e2e("init: happy path creates dirs, config, registry, git", (t) => {
   t.$(`git --git-dir .soulguard/.git --work-tree . log --oneline --name-only -1`)
     .expect(`
       exit 0
+      cb5749b soulguard: initial commit
+      soulguard.json
     `)
     .exits(0)
     .outputs(/soulguard\.json/);
@@ -57,6 +64,8 @@ e2e("init: second run is idempotent", (t) => {
   t.$(`sudo soulguard init .`)
     .expect(`
       exit 0
+      ✓ Soulguard initialized.
+      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
     `)
     .exits(0)
     .outputs(/Soulguard initialized/);
@@ -64,6 +73,8 @@ e2e("init: second run is idempotent", (t) => {
   t.$(`sudo soulguard init .`)
     .expect(`
       exit 0
+      ✓ Soulguard initialized.
+      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
     `)
     .exits(0)
     .outputs(/Soulguard initialized/);
@@ -85,17 +96,20 @@ JSON
   t.$(`sudo soulguard init .`)
     .expect(`
       exit 0
+      ✓ Soulguard initialized.
+      3 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
     `)
     .exits(0)
     .outputs(/Soulguard initialized/);
 
   // Verify config still has SOUL.md
-  t.$(`cat soulguard.json | jq -r '.files["SOUL.md"]'`)
+  t.$(`grep SOUL.md soulguard.json`)
     .expect(`
       exit 0
-      protect
+      {"version":1,"files":{"SOUL.md":"protect","soulguard.json":"protect"}}
     `)
-    .exits(0);
+    .exits(0)
+    .outputs(/SOUL\.md/);
 });
 
 // 4. Does NOT enforce protection — files still owned by original user
@@ -114,6 +128,8 @@ JSON
   t.$(`sudo soulguard init .`)
     .expect(`
       exit 0
+      ✓ Soulguard initialized.
+      3 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
     `)
     .exits(0)
     .outputs(/need protection/);
@@ -132,12 +148,16 @@ e2e("init: git initial commit contains soulguard.json", (t) => {
   t.$(`sudo soulguard init .`)
     .expect(`
       exit 0
+      ✓ Soulguard initialized.
+      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
     `)
     .exits(0);
 
   t.$(`git --git-dir .soulguard/.git --work-tree . log --oneline --name-only -1`)
     .expect(`
       exit 0
+      4ba43f8 soulguard: initial commit
+      soulguard.json
     `)
     .exits(0)
     .outputs(/soulguard\.json/);
@@ -154,6 +174,8 @@ e2e("init: malformed config bails early", (t) => {
   t.$(`sudo soulguard init . 2>&1`)
     .expect(`
       exit 1
+      Invalid soulguard.json: JSON Parse error: Expected '}'
+      Fix or remove soulguard.json and re-run \`sudo soulguard init\`.
     `)
     .exits(1)
     .outputs(/Invalid soulguard\.json/)
@@ -183,6 +205,8 @@ e2e("init: malformed registry bails early", (t) => {
   t.$(`sudo soulguard init . 2>&1`)
     .expect(`
       exit 1
+      Invalid registry: JSON Parse error: Expected '}'
+      Fix or remove .soulguard/registry.json and re-run \`sudo soulguard init\`.
     `)
     .exits(1)
     .outputs(/Invalid registry/);
@@ -193,6 +217,8 @@ e2e("init: no sudo fails with clear message", (t) => {
   t.$(`su - nobody -s /bin/sh -c "soulguard init $(pwd)" 2>&1`)
     .expect(`
       exit 1
+      su: warning: cannot change directory to /nonexistent: No such file or directory
+      soulguard init requires sudo. Run with: sudo soulguard init
     `)
     .exits(1)
     .outputs(/requires sudo/);
@@ -209,6 +235,8 @@ e2e("init: custom workspace path", (t) => {
   t.$(`sudo soulguard init /tmp/custom-ws`)
     .expect(`
       exit 0
+      ✓ Soulguard initialized.
+      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
     `)
     .exits(0)
     .outputs(/Soulguard initialized/);
