@@ -1,7 +1,0 @@
-Soulguard Diff — /workspace
-
-  ✅ SOUL.md (no changes)
-  🗑️ soulguard.json (staged for deletion)
-
-1 file(s) changed
-Apply hash: fb2d3c44533ddf50b267e408512d9f4a460ede483ad229be31c274864494c57a

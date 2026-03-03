@@ -1,7 +1,0 @@
-Soulguard Diff — /workspace
-
-  ⚠️ SOUL.md (protect-tier file missing — new file)
-  🗑️ soulguard.json (staged for deletion)
-
-2 file(s) changed
-Apply hash: 689a44a4976ae01fdfe94d45f48c8d1639f831df527f9cb81435d2328b3eb5e8
