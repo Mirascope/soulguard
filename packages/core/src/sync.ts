@@ -20,6 +20,7 @@ import type { GitCommitResult } from "./git.js";
 import { resolvePatterns } from "./glob.js";
 import { protectPatterns, watchPatterns } from "./config.js";
 import { Registry } from "./registry.js";
+import { stagingPath } from "./staging.js";
 
 export type SyncError = {
   path: string;
@@ -32,6 +33,8 @@ export type SyncResult = {
   errors: SyncError[];
   /** Files released because they're no longer in config */
   released: string[];
+  /** Orphaned staging files that were cleaned up */
+  cleanedStaging: string[];
   /** Git commit result (best-effort, only when git enabled) */
   git?: GitCommitResult;
 };
@@ -150,9 +153,29 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
     });
   }
 
+  // ── Pass 3: Clean up orphaned staging files ───────────────────────────
+  // Staging siblings that exist for files no longer in protect tier should be removed.
+  const cleanedStaging: string[] = [];
+  const protectFiles = new Set<string>();
+  for (const [path, tier] of Object.entries(options.config.files)) {
+    if (tier === "protect") protectFiles.add(path);
+  }
+
+  // Check released files for orphaned staging
+  for (const path of released) {
+    const sibling = stagingPath(path);
+    const exists = await ops.exists(sibling);
+    if (exists.ok && exists.value) {
+      const delResult = await ops.deleteFile(sibling);
+      if (delResult.ok) {
+        cleanedStaging.push(sibling);
+      }
+    }
+  }
+
   // Error if we failed to fix issues
   if (errors.length > 0) {
-    return ok({ before, errors, released, git: undefined });
+    return ok({ before, errors, released, cleanedStaging, git: undefined });
   }
 
   // Best-effort git commit of all tracked files (protect + watch)
@@ -174,5 +197,5 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
     }
   }
 
-  return ok({ before, errors, released, git });
+  return ok({ before, errors, released, cleanedStaging, git });
 }

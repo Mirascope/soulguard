@@ -17,6 +17,7 @@ import { ResetCommand } from "./cli/reset-command.js";
 import { InitCommand } from "./cli/init-command.js";
 import { LogCommand } from "./cli/log-command.js";
 import { TierCommand } from "./cli/tier-command.js";
+import { StageCommand } from "./cli/stage-command.js";
 import { NodeSystemOps, writeFileAbsolute, existsAbsolute } from "./system-ops-node.js";
 import { parseConfig } from "./schema.js";
 import type { StatusOptions } from "./status.js";
@@ -225,6 +226,30 @@ program
     try {
       const opts = await makeBaseOptions(workspace);
       const cmd = new LogCommand({ ops: opts.ops, config: opts.config, file }, out);
+      process.exitCode = await cmd.execute();
+    } catch (e) {
+      out.error(e instanceof Error ? e.message : String(e));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("stage")
+  .description("Create staging copies for protect-tier files (no sudo required)")
+  .argument("<files...>", "files to stage")
+  .option("-w, --workspace <path>", "workspace path", process.cwd())
+  .action(async (files: string[], opts: { workspace: string }) => {
+    const out = new LiveConsoleOutput();
+    try {
+      const base = await makeBaseOptions(opts.workspace);
+      const cmd = new StageCommand(
+        {
+          ops: base.ops,
+          config: base.config,
+          files,
+        },
+        out,
+      );
       process.exitCode = await cmd.execute();
     } catch (e) {
       out.error(e instanceof Error ? e.message : String(e));
