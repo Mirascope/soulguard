@@ -232,6 +232,7 @@ interface TestResult {
 }
 
 /** Format a StepResult as the snapshot string: "exit N" on first line, then output. */
+/** Format a StepResult as the snapshot string. */
 function formatSnapshot(result: StepResult): string {
   if (result.output.length === 0) return `exit ${result.exitCode}`;
   return `exit ${result.exitCode}\n${result.output}`;
@@ -266,7 +267,9 @@ async function runTest(test: TestCase, update: boolean): Promise<TestResult> {
   // Normalize the random workspace path to /workspace
   const workspaceMatch = rawOutput.match(/\/tmp\/soulguard-e2e-\w+/);
   const workspacePath = workspaceMatch?.[0] ?? "/tmp/soulguard-e2e-XXXX";
-  const normalized = rawOutput.replaceAll(workspacePath, "/workspace");
+  const withWorkspace = rawOutput.replaceAll(workspacePath, "/workspace");
+  // Normalize git short hashes (7-char hex before known commit messages)
+  const normalized = withWorkspace.replace(/[0-9a-f]{7} (soulguard: )/g, "GITHASH $1");
 
   // Split by step delimiter, then extract exit code from each chunk
   const rawSteps = normalized.split(`${STEP_DELIM}\n`);
@@ -416,7 +419,7 @@ async function updateSnapshots(filePath: string, segments: SnapshotSegment[]): P
       continue;
     }
 
-    const snap = formatSnapshot(action);
+    const snap = formatSnapshot(action).replaceAll("`", "\\`");
 
     // Detect indentation of the line containing .expect(
     const lineStart = source.lastIndexOf("\n", expectCallIdx) + 1;

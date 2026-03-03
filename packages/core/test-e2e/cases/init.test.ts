@@ -52,6 +52,8 @@ e2e("init: happy path creates dirs, config, registry, git", (t) => {
   t.$(`git --git-dir .soulguard/.git --work-tree . log --oneline --name-only -1`)
     .expect(`
       exit 0
+      GITHASH soulguard: initial commit
+      soulguard.json
     `)
     .exits(0)
     .outputs(/soulguard\.json/);
@@ -154,6 +156,8 @@ e2e("init: git initial commit contains soulguard.json", (t) => {
   t.$(`git --git-dir .soulguard/.git --work-tree . log --oneline --name-only -1`)
     .expect(`
       exit 0
+      GITHASH soulguard: initial commit
+      soulguard.json
     `)
     .exits(0)
     .outputs(/soulguard\.json/);
