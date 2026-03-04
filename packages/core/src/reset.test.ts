@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { MockSystemOps } from "./system-ops-mock.js";
 import { reset } from "./reset.js";
-import { diff } from "./diff.js";
 import type { SoulguardConfig } from "./types.js";
 
 const config: SoulguardConfig = {
@@ -18,8 +17,13 @@ function setup() {
     group: "soulguard",
     mode: "444",
   });
-  ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
+  ops.addDirectory(".soulguard-staging");
   ops.addFile(".soulguard-staging/SOUL.md", "modified soul", {
+    owner: "agent",
+    group: "soulguard",
+    mode: "644",
+  });
+  ops.addFile(".soulguard-staging/skills/python.md", "python skill", {
     owner: "agent",
     group: "soulguard",
     mode: "644",
@@ -27,45 +31,86 @@ function setup() {
   return ops;
 }
 
-describe("reset (implicit proposals)", () => {
-  test("resets staging to match protect-tier", async () => {
+describe("reset", () => {
+  test("dry run lists staged files when no args", async () => {
     const ops = setup();
-
     const result = await reset({ ops, config });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.resetFiles).toEqual(["SOUL.md"]);
+    expect(result.value.deleted).toBe(false);
+    expect(result.value.stagedFiles.sort()).toEqual(["SOUL.md", "skills/python.md"]);
 
-    // Staging should now match protect tier
-    const diffResult = await diff({ ops, config });
-    expect(diffResult.ok).toBe(true);
-    if (diffResult.ok) expect(diffResult.value.hasChanges).toBe(false);
+    // Files should still exist
+    const soul = await ops.readFile(".soulguard-staging/SOUL.md");
+    expect(soul.ok).toBe(true);
   });
 
-  test("returns empty resetFiles when staging matches protect tier", async () => {
+  test("reset specific file removes only that staging copy", async () => {
+    const ops = setup();
+    const result = await reset({ ops, config, paths: ["SOUL.md"] });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.deleted).toBe(true);
+    expect(result.value.stagedFiles).toEqual(["SOUL.md"]);
+
+    // SOUL.md staging copy gone
+    const soul = await ops.readFile(".soulguard-staging/SOUL.md");
+    expect(soul.ok).toBe(false);
+
+    // Other file still exists
+    const python = await ops.readFile(".soulguard-staging/skills/python.md");
+    expect(python.ok).toBe(true);
+  });
+
+  test("reset --all removes all staging contents", async () => {
+    const ops = setup();
+    const result = await reset({ ops, config, all: true });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.deleted).toBe(true);
+    expect(result.value.stagedFiles.sort()).toEqual(["SOUL.md", "skills/python.md"]);
+
+    // Both gone
+    const soul = await ops.readFile(".soulguard-staging/SOUL.md");
+    expect(soul.ok).toBe(false);
+    const python = await ops.readFile(".soulguard-staging/skills/python.md");
+    expect(python.ok).toBe(false);
+  });
+
+  test("returns empty when nothing staged", async () => {
     const ops = new MockSystemOps("/workspace");
-    ops.addFile("SOUL.md", "same", { owner: "soulguardian", group: "soulguard", mode: "444" });
-    ops.addFile(".soulguard-staging/SOUL.md", "same", {
-      owner: "agent",
-      group: "soulguard",
-      mode: "644",
-    });
+    ops.addFile("SOUL.md", "original", { owner: "soulguardian", group: "soulguard", mode: "444" });
 
     const result = await reset({ ops, config });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.resetFiles).toEqual([]);
+    expect(result.value.stagedFiles).toEqual([]);
+    expect(result.value.deleted).toBe(false);
   });
 
-  test("applies staging ownership after reset", async () => {
+  test("reset nonexistent path is no-op", async () => {
     const ops = setup();
-
-    const result = await reset({ ops, config });
+    const result = await reset({ ops, config, paths: ["nonexistent.md"] });
     expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.stagedFiles).toEqual([]);
+    expect(result.value.deleted).toBe(true);
+  });
 
-    // Check staging content matches vault
-    const stagingContent = await ops.readFile(".soulguard-staging/SOUL.md");
-    expect(stagingContent.ok).toBe(true);
-    if (stagingContent.ok) expect(stagingContent.value).toBe("original soul");
+  test("reset directory removes all files under it", async () => {
+    const ops = setup();
+    const result = await reset({ ops, config, paths: ["skills"] });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.deleted).toBe(true);
+    expect(result.value.stagedFiles).toEqual(["skills/python.md"]);
+
+    // skills/python.md gone
+    const python = await ops.readFile(".soulguard-staging/skills/python.md");
+    expect(python.ok).toBe(false);
+
+    // SOUL.md still exists
+    const soul = await ops.readFile(".soulguard-staging/SOUL.md");
+    expect(soul.ok).toBe(true);
   });
 });
