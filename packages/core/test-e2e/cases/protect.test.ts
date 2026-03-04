@@ -77,7 +77,7 @@ e2e("protect: blocks agent writes", (t) => {
 
   // Agent tries to write to the protected file
   t.$(
-    `runuser -u agent -- sh -c "echo hacked > $(pwd)/SOUL.md" 2>&1 && echo "WRITE SUCCEEDED (BAD)" || echo "WRITE BLOCKED (GOOD)"`,
+    `sh -c "echo hacked > $(pwd)/SOUL.md" 2>&1 && echo "WRITE SUCCEEDED (BAD)" || echo "WRITE BLOCKED (GOOD)"`,
   )
     .expect(`
       exit 0
@@ -132,7 +132,7 @@ e2e("protect: directory protection blocks new file creation", (t) => {
   t.$(`stat -c '%U:%G %a' skills`)
     .expect(`
       exit 0
-      soulguardian:soulguard 444
+      soulguardian:soulguard 555
     `)
     .exits(0)
     .outputs(/soulguardian:soulguard/);
@@ -147,7 +147,7 @@ e2e("protect: directory protection blocks new file creation", (t) => {
 
   // Agent cannot create new files in the directory
   t.$(
-    `runuser -u agent -- sh -c "echo malicious > $(pwd)/skills/malicious.md" 2>&1 && echo "CREATE SUCCEEDED (BAD)" || echo "CREATE BLOCKED (GOOD)"`,
+    `sh -c "echo malicious > $(pwd)/skills/malicious.md" 2>&1 && echo "CREATE SUCCEEDED (BAD)" || echo "CREATE BLOCKED (GOOD)"`,
   )
     .expect(`
       exit 0
