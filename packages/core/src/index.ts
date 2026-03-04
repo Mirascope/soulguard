@@ -112,7 +112,7 @@ export type { ConfigError, ConfigWriteError } from "./config.js";
 
 // Registry
 export { Registry } from "./registry.js";
-export type { RegistryData, RegistryEntry, RegistryError, ProtectKind } from "./registry.js";
+export type { RegistryData, RegistryEntry, RegistryError } from "./registry.js";
 
 // Tier management
 export { setTier, release } from "./tier.js";

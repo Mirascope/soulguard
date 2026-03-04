@@ -36,6 +36,49 @@ function formatChange(action: TierAction, from?: Tier): { prefix: string; suffix
   return { prefix: arrow, suffix: `→ ${tier} (was ${from})` };
 }
 
+/** Check if a path is a directory on disk. */
+async function isDirectory(ops: SystemOperations, path: string): Promise<boolean> {
+  const stat = await ops.stat(path);
+  return stat.ok && stat.value.isDirectory;
+}
+
+/** Enforce protect-tier ownership on a path (file or directory). */
+async function enforceProtect(
+  ops: SystemOperations,
+  path: string,
+  ownership: FileOwnership,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const isDir = await isDirectory(ops, path);
+  if (isDir) {
+    const chown = await ops.chownRecursive(path, { user: ownership.user, group: ownership.group });
+    if (!chown.ok) return { ok: false, error: `chown ${path}: ${chown.error.kind}` };
+    const chmod = await ops.chmodRecursive(path, ownership.mode);
+    if (!chmod.ok) return { ok: false, error: `chmod ${path}: ${chmod.error.kind}` };
+  } else {
+    const chown = await ops.chown(path, { user: ownership.user, group: ownership.group });
+    if (!chown.ok) return { ok: false, error: `chown ${path}: ${chown.error.kind}` };
+    const chmod = await ops.chmod(path, ownership.mode);
+    if (!chmod.ok) return { ok: false, error: `chmod ${path}: ${chmod.error.kind}` };
+  }
+  return { ok: true };
+}
+
+/** Restore original ownership on a path (file or directory). */
+async function restoreOwnership(
+  ops: SystemOperations,
+  path: string,
+  ownership: FileOwnership,
+): Promise<void> {
+  const isDir = await isDirectory(ops, path);
+  if (isDir) {
+    await ops.chownRecursive(path, { user: ownership.user, group: ownership.group });
+    await ops.chmodRecursive(path, ownership.mode);
+  } else {
+    await ops.chown(path, { user: ownership.user, group: ownership.group });
+    await ops.chmod(path, ownership.mode);
+  }
+}
+
 export class TierCommand {
   constructor(
     private opts: TierCommandOptions,
@@ -119,65 +162,25 @@ export class TierCommand {
     const registry = registryResult.value;
 
     if (action.kind === "set" && action.tier === "protect") {
-      // Protect: snapshot ownership, register, then enforce
       for (const file of changedFiles) {
-        // Check if it's a directory
-        const statResult = await ops.stat(file);
-        const isDir = statResult.ok && statResult.value.isDirectory;
-
-        // Register (snapshots original ownership)
-        await registry.register(file, "protect", isDir ? "directory" : "file");
-
+        // Register (snapshots original ownership before we change it)
+        await registry.register(file, "protect");
         // Enforce ownership
-        if (isDir) {
-          const chownResult = await ops.chownRecursive(file, {
-            user: expectedProtectOwnership.user,
-            group: expectedProtectOwnership.group,
-          });
-          if (!chownResult.ok) {
-            this.out.error(`Failed to chown ${file}: ${chownResult.error.kind}`);
-            return 1;
-          }
-          const chmodResult = await ops.chmodRecursive(file, expectedProtectOwnership.mode);
-          if (!chmodResult.ok) {
-            this.out.error(`Failed to chmod ${file}: ${chmodResult.error.kind}`);
-            return 1;
-          }
-        } else {
-          const chownResult = await ops.chown(file, {
-            user: expectedProtectOwnership.user,
-            group: expectedProtectOwnership.group,
-          });
-          if (!chownResult.ok) {
-            this.out.error(`Failed to chown ${file}: ${chownResult.error.kind}`);
-            return 1;
-          }
-          const chmodResult = await ops.chmod(file, expectedProtectOwnership.mode);
-          if (!chmodResult.ok) {
-            this.out.error(`Failed to chmod ${file}: ${chmodResult.error.kind}`);
-            return 1;
-          }
+        const result = await enforceProtect(ops, file, expectedProtectOwnership);
+        if (!result.ok) {
+          this.out.error(`Failed to enforce: ${result.error}`);
+          return 1;
         }
       }
     } else if (action.kind === "set" && action.tier === "watch") {
-      // Watch: just register (no ownership enforcement)
       for (const file of changedFiles) {
         await registry.register(file, "watch");
       }
     } else if (action.kind === "release") {
-      // Release: restore original ownership for protect files, unregister
       for (const file of changedFiles) {
         const entry = registry.unregister(file);
         if (entry?.tier === "protect") {
-          const { user, group, mode } = entry.originalOwnership;
-          const isDir = entry.kind === "directory";
-          if (isDir) {
-            await ops.chownRecursive(file, { user, group });
-            await ops.chmodRecursive(file, mode);
-          } else {
-            await ops.chown(file, { user, group });
-            await ops.chmod(file, mode);
-          }
+          await restoreOwnership(ops, file, entry.originalOwnership);
         }
         // Clean up staging siblings
         const sibling = stagingPath(file);

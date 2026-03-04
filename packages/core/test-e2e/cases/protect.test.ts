@@ -71,11 +71,11 @@ e2e("protect: blocks agent writes", (t) => {
 
   // Agent tries to write to the protected file
   t.$(
-    `su - agent -c "(echo hacked > $(pwd)/SOUL.md) 2>&1" && echo "WRITE SUCCEEDED (BAD)" || echo "WRITE BLOCKED (GOOD)"`,
+    `runuser -u agent -- sh -c "echo hacked > $(pwd)/SOUL.md" 2>&1 && echo "WRITE SUCCEEDED (BAD)" || echo "WRITE BLOCKED (GOOD)"`,
   )
     .expect(`
       exit 0
-      -bash: line 1: /workspace/SOUL.md: Permission denied
+      sh: 1: cannot create /workspace/SOUL.md: Permission denied
       WRITE BLOCKED (GOOD)
     `)
     .exits(0)
@@ -141,11 +141,11 @@ e2e("protect: directory protection blocks new file creation", (t) => {
 
   // Agent cannot create new files in the directory
   t.$(
-    `su - agent -c "echo '# Malicious' > $(pwd)/skills/malicious.md 2>&1" && echo "CREATE SUCCEEDED (BAD)" || echo "CREATE BLOCKED (GOOD)"`,
+    `runuser -u agent -- sh -c "echo malicious > $(pwd)/skills/malicious.md" 2>&1 && echo "CREATE SUCCEEDED (BAD)" || echo "CREATE BLOCKED (GOOD)"`,
   )
     .expect(`
       exit 0
-      -bash: line 1: /workspace/skills/malicious.md: Permission denied
+      sh: 1: cannot create /workspace/skills/malicious.md: Permission denied
       CREATE BLOCKED (GOOD)
     `)
     .exits(0)

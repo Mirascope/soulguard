@@ -135,7 +135,6 @@ describe("Registry", () => {
     // Set up a protect entry
     reg.toData().files["SOUL.md"] = {
       tier: "protect",
-      kind: "file",
       originalOwnership: { user: "dandelion", group: "staff", mode: "644" },
     };
 
@@ -173,7 +172,6 @@ describe("Registry", () => {
 
     reg.toData().files["SOUL.md"] = {
       tier: "protect",
-      kind: "file",
       originalOwnership: { user: "dandelion", group: "staff", mode: "644" },
     };
 
@@ -202,12 +200,10 @@ describe("Registry", () => {
 
     reg.toData().files["SOUL.md"] = {
       tier: "protect",
-      kind: "file",
       originalOwnership: { user: "dandelion", group: "staff", mode: "644" },
     };
     reg.toData().files["OLD.md"] = {
       tier: "protect",
-      kind: "file",
       originalOwnership: { user: "dandelion", group: "staff", mode: "644" },
     };
 

@@ -75,7 +75,8 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
           const entry = registry.get(issue.path);
           if (entry?.tier === "protect") {
             const { user, group, mode } = entry.originalOwnership;
-            const isDir = entry.kind === "directory";
+            const stat = await ops.stat(issue.path);
+            const isDir = stat.ok && stat.value.isDirectory;
             if (isDir) {
               const chownResult = await ops.chownRecursive(issue.path, { user, group });
               const chmodResult = await ops.chmodRecursive(issue.path, mode);
@@ -103,7 +104,8 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
 
         if (entry?.tier === "protect") {
           const { user, group, mode } = entry.originalOwnership;
-          const isDir = entry.kind === "directory";
+          const stat = await ops.stat(issue.path);
+          const isDir = stat.ok && stat.value.isDirectory;
           if (isDir) {
             const chownResult = await ops.chownRecursive(issue.path, { user, group });
             const chmodResult = await ops.chmodRecursive(issue.path, mode);
@@ -114,7 +116,7 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
             } else {
               released.push(issue.path);
             }
-          } else {
+          } else if (stat.ok) {
             const chownResult = await ops.chown(issue.path, { user, group });
             const chmodResult = await ops.chmod(issue.path, mode);
             if (!chownResult.ok) {
@@ -124,6 +126,9 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
             } else {
               released.push(issue.path);
             }
+          } else {
+            // Path doesn't exist — nothing to restore, just release
+            released.push(issue.path);
           }
         } else {
           released.push(issue.path);
