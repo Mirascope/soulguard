@@ -17,7 +17,6 @@ import { status } from "./status.js";
 import type { StatusOptions, StatusResult } from "./status.js";
 import { isGitEnabled, gitCommit } from "./git.js";
 import type { GitCommitResult } from "./git.js";
-import { resolvePatterns } from "./glob.js";
 import { protectPatterns, watchPatterns } from "./config.js";
 import { Registry } from "./registry.js";
 
@@ -76,12 +75,23 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
           const entry = registry.get(issue.path);
           if (entry?.tier === "protect") {
             const { user, group, mode } = entry.originalOwnership;
-            const chownResult = await ops.chown(issue.path, { user, group });
-            const chmodResult = await ops.chmod(issue.path, mode);
-            if (!chownResult.ok) {
-              errors.push({ path: issue.path, operation: "chown", error: chownResult.error });
-            } else if (!chmodResult.ok) {
-              errors.push({ path: issue.path, operation: "chmod", error: chmodResult.error });
+            const isDir = entry.kind === "directory";
+            if (isDir) {
+              const chownResult = await ops.chownRecursive(issue.path, { user, group });
+              const chmodResult = await ops.chmodRecursive(issue.path, mode);
+              if (!chownResult.ok) {
+                errors.push({ path: issue.path, operation: "chown", error: chownResult.error });
+              } else if (!chmodResult.ok) {
+                errors.push({ path: issue.path, operation: "chmod", error: chmodResult.error });
+              }
+            } else {
+              const chownResult = await ops.chown(issue.path, { user, group });
+              const chmodResult = await ops.chmod(issue.path, mode);
+              if (!chownResult.ok) {
+                errors.push({ path: issue.path, operation: "chown", error: chownResult.error });
+              } else if (!chmodResult.ok) {
+                errors.push({ path: issue.path, operation: "chmod", error: chmodResult.error });
+              }
             }
           }
         }
@@ -93,15 +103,27 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
 
         if (entry?.tier === "protect") {
           const { user, group, mode } = entry.originalOwnership;
-          const chownResult = await ops.chown(issue.path, { user, group });
-          const chmodResult = await ops.chmod(issue.path, mode);
-
-          if (!chownResult.ok) {
-            errors.push({ path: issue.path, operation: "chown", error: chownResult.error });
-          } else if (!chmodResult.ok) {
-            errors.push({ path: issue.path, operation: "chmod", error: chmodResult.error });
+          const isDir = entry.kind === "directory";
+          if (isDir) {
+            const chownResult = await ops.chownRecursive(issue.path, { user, group });
+            const chmodResult = await ops.chmodRecursive(issue.path, mode);
+            if (!chownResult.ok) {
+              errors.push({ path: issue.path, operation: "chown", error: chownResult.error });
+            } else if (!chmodResult.ok) {
+              errors.push({ path: issue.path, operation: "chmod", error: chmodResult.error });
+            } else {
+              released.push(issue.path);
+            }
           } else {
-            released.push(issue.path);
+            const chownResult = await ops.chown(issue.path, { user, group });
+            const chmodResult = await ops.chmod(issue.path, mode);
+            if (!chownResult.ok) {
+              errors.push({ path: issue.path, operation: "chown", error: chownResult.error });
+            } else if (!chmodResult.ok) {
+              errors.push({ path: issue.path, operation: "chmod", error: chmodResult.error });
+            } else {
+              released.push(issue.path);
+            }
           }
         } else {
           released.push(issue.path);
@@ -158,14 +180,7 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
   // Best-effort git commit of all tracked files (protect + watch)
   let git: GitCommitResult | undefined;
   if (await isGitEnabled(ops, options.config)) {
-    const [protectResolved, watchResolved] = await Promise.all([
-      resolvePatterns(ops, protectPatterns(options.config)),
-      resolvePatterns(ops, watchPatterns(options.config)),
-    ]);
-    const allFiles = [
-      ...(protectResolved.ok ? protectResolved.value : []),
-      ...(watchResolved.ok ? watchResolved.value : []),
-    ];
+    const allFiles = [...protectPatterns(options.config), ...watchPatterns(options.config)];
     if (allFiles.length > 0) {
       const gitResult = await gitCommit(ops, allFiles, "soulguard: sync");
       if (gitResult.ok) {

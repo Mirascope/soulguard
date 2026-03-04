@@ -14,13 +14,15 @@ import { ok, err } from "./result.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
+export type ProtectKind = "file" | "directory";
+
 /**
  * Discriminated union: protect entries always carry the pre-soulguard ownership
  * snapshot (needed to restore on release/downgrade). Watch entries never do
  * (soulguard doesn't change ownership for watch-tier files).
  */
 export type RegistryEntry =
-  | { tier: "protect"; originalOwnership: FileOwnership }
+  | { tier: "protect"; kind: ProtectKind; originalOwnership: FileOwnership }
   | { tier: "watch" };
 
 export type RegistryData = {
@@ -43,6 +45,7 @@ const ownershipSchema = z.object({
 
 const protectEntrySchema = z.object({
   tier: z.literal("protect"),
+  kind: z.enum(["file", "directory"]).default("file"),
   originalOwnership: ownershipSchema,
 });
 
@@ -120,17 +123,21 @@ export class Registry {
    * Register a file at a given tier.
    * For protect: snapshots current ownership (required by DU).
    * For watch: no snapshot needed.
-   * No-op if already registered at the same tier.
+   * No-op if already registered at the same tier with the same kind.
    */
-  async register(path: string, tier: Tier): Promise<boolean> {
+  async register(path: string, tier: Tier, protectKind: ProtectKind = "file"): Promise<boolean> {
     const existing = this.data.files[path];
-    if (existing && existing.tier === tier) return true;
+    if (existing && existing.tier === tier) {
+      if (existing.tier === "protect" && existing.kind === protectKind) return true;
+      if (existing.tier === "watch") return true;
+    }
 
     if (tier === "protect") {
       const stat = await this.ops.stat(path);
       if (!stat.ok) return false; // can't protect what we can't stat
       this.data.files[path] = {
         tier: "protect",
+        kind: protectKind,
         originalOwnership: {
           user: stat.value.ownership.user,
           group: stat.value.ownership.group,
@@ -147,9 +154,13 @@ export class Registry {
    * Update a file's tier. Caller is responsible for ownership restore
    * before calling this (e.g. sync restores ownership on protect→watch).
    */
-  async updateTier(path: string, newTier: Tier): Promise<boolean> {
+  async updateTier(
+    path: string,
+    newTier: Tier,
+    protectKind: ProtectKind = "file",
+  ): Promise<boolean> {
     delete this.data.files[path];
-    return this.register(path, newTier);
+    return this.register(path, newTier, protectKind);
   }
 
   /**

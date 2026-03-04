@@ -64,8 +64,20 @@ export interface SystemOperations {
     owner: { user: string; group: string },
   ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
 
+  /** Change file owner and group recursively (relative path). For directories. */
+  chownRecursive(
+    path: string,
+    owner: { user: string; group: string },
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
+
   /** Change file permissions (relative path) */
   chmod(
+    path: string,
+    mode: string,
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
+
+  /** Change file permissions recursively (relative path). For directories. */
+  chmodRecursive(
     path: string,
     mode: string,
   ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
@@ -81,6 +93,9 @@ export interface SystemOperations {
 
   /** List files matching a glob pattern (relative paths, resolved within workspace) */
   glob(pattern: string): Promise<Result<string[], IOError>>;
+
+  /** List all files in a directory recursively (relative paths). */
+  listDir(path: string): Promise<Result<string[], NotFoundError | PermissionDeniedError | IOError>>;
 
   /** Execute a command in the workspace root */
   exec(command: string, args: string[]): Promise<Result<void, IOError>>;

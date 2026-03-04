@@ -1,16 +1,18 @@
 /**
  * CLI command: soulguard protect|watch|release <files...>
  *
- * Unified command for all tier operations. Modifies soulguard.json,
- * runs sync, and handles tier-specific cleanup.
+ * Unified command for all tier operations. Modifies soulguard.json
+ * and performs targeted enforcement (no full sync).
  */
 
 import type { ConsoleOutput } from "../console.js";
 import type { SystemOperations } from "../system-ops.js";
 import type { FileOwnership, Tier } from "../types.js";
-import { readConfig, writeConfig, setTier, release } from "../tier.js";
+import { readConfig, writeConfig } from "../config.js";
+import { setTier, release } from "../tier.js";
 import { stagingPath } from "../staging.js";
-import { sync } from "../sync.js";
+import { Registry } from "../registry.js";
+import { isGitEnabled, gitCommit } from "../git.js";
 
 export type TierAction = { kind: "set"; tier: Tier } | { kind: "release" };
 
@@ -51,7 +53,12 @@ export class TierCommand {
     // Read current config
     const configResult = await readConfig(ops);
     if (!configResult.ok) {
-      this.out.error(`Failed to read config: ${configResult.error.message}`);
+      const e = configResult.error;
+      if (e.kind === "not_found") {
+        this.out.error("Failed to read config: soulguard.json not found");
+      } else {
+        this.out.error(`Failed to read config: ${e.message}`);
+      }
       return 1;
     }
 
@@ -101,23 +108,98 @@ export class TierCommand {
       return 1;
     }
 
-    // Sync to enforce ownership + update registry
-    const syncResult = await sync({ config, expectedProtectOwnership, ops });
-    if (!syncResult.ok) {
-      this.out.error("Sync failed after config update.");
+    // ── Surgical enforcement (no full sync) ────────────────────────────
+
+    // Load registry
+    const registryResult = await Registry.load(ops);
+    if (!registryResult.ok) {
+      this.out.error(`Failed to load registry: ${registryResult.error.message}`);
       return 1;
     }
+    const registry = registryResult.value;
 
-    // Tier-specific post-sync cleanup
-    if (action.kind === "release") {
-      // Clean up staging siblings for released files
+    if (action.kind === "set" && action.tier === "protect") {
+      // Protect: snapshot ownership, register, then enforce
       for (const file of changedFiles) {
+        // Check if it's a directory
+        const statResult = await ops.stat(file);
+        const isDir = statResult.ok && statResult.value.isDirectory;
+
+        // Register (snapshots original ownership)
+        await registry.register(file, "protect", isDir ? "directory" : "file");
+
+        // Enforce ownership
+        if (isDir) {
+          const chownResult = await ops.chownRecursive(file, {
+            user: expectedProtectOwnership.user,
+            group: expectedProtectOwnership.group,
+          });
+          if (!chownResult.ok) {
+            this.out.error(`Failed to chown ${file}: ${chownResult.error.kind}`);
+            return 1;
+          }
+          const chmodResult = await ops.chmodRecursive(file, expectedProtectOwnership.mode);
+          if (!chmodResult.ok) {
+            this.out.error(`Failed to chmod ${file}: ${chmodResult.error.kind}`);
+            return 1;
+          }
+        } else {
+          const chownResult = await ops.chown(file, {
+            user: expectedProtectOwnership.user,
+            group: expectedProtectOwnership.group,
+          });
+          if (!chownResult.ok) {
+            this.out.error(`Failed to chown ${file}: ${chownResult.error.kind}`);
+            return 1;
+          }
+          const chmodResult = await ops.chmod(file, expectedProtectOwnership.mode);
+          if (!chmodResult.ok) {
+            this.out.error(`Failed to chmod ${file}: ${chmodResult.error.kind}`);
+            return 1;
+          }
+        }
+      }
+    } else if (action.kind === "set" && action.tier === "watch") {
+      // Watch: just register (no ownership enforcement)
+      for (const file of changedFiles) {
+        await registry.register(file, "watch");
+      }
+    } else if (action.kind === "release") {
+      // Release: restore original ownership for protect files, unregister
+      for (const file of changedFiles) {
+        const entry = registry.unregister(file);
+        if (entry?.tier === "protect") {
+          const { user, group, mode } = entry.originalOwnership;
+          const isDir = entry.kind === "directory";
+          if (isDir) {
+            await ops.chownRecursive(file, { user, group });
+            await ops.chmodRecursive(file, mode);
+          } else {
+            await ops.chown(file, { user, group });
+            await ops.chmod(file, mode);
+          }
+        }
+        // Clean up staging siblings
         const sibling = stagingPath(file);
         const siblingExists = await ops.exists(sibling);
         if (siblingExists.ok && siblingExists.value) {
           await ops.deleteFile(sibling);
         }
       }
+    }
+
+    // Persist registry
+    const regWriteResult = await registry.write();
+    if (!regWriteResult.ok) {
+      this.out.error(`Failed to write registry: ${regWriteResult.error.message}`);
+      return 1;
+    }
+
+    // Best-effort git commit
+    if (await isGitEnabled(ops, config)) {
+      const gitFiles = ["soulguard.json", ...changedFiles];
+      const verb = action.kind === "set" ? action.tier : "release";
+      await gitCommit(ops, gitFiles, `soulguard: ${verb} ${changedFiles.join(", ")}`);
     }
 
     // Summary

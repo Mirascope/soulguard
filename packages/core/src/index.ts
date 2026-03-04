@@ -91,9 +91,8 @@ export type { GitCommitResult, GitError } from "./git.js";
 // Staging
 export { stagingPath, isStagingPath, STAGING_PREFIX } from "./staging.js";
 
-// Protect check + glob
+// Protect check
 export { isProtectedFile, normalizePath } from "./protect-check.js";
-export { isGlob, matchGlob, createGlobMatcher, resolvePatterns } from "./glob.js";
 
 // CLI commands
 export { StatusCommand } from "./cli/status-command.js";
@@ -102,15 +101,22 @@ export { DiffCommand } from "./cli/diff-command.js";
 export { ApplyCommand } from "./cli/apply-command.js";
 export type { ApplyCommandOptions } from "./cli/apply-command.js";
 export { ResetCommand } from "./cli/reset-command.js";
-export { protectPatterns, watchPatterns, patternsForTier } from "./config.js";
+export {
+  protectPatterns,
+  watchPatterns,
+  patternsForTier,
+  readConfig,
+  writeConfig,
+} from "./config.js";
+export type { ConfigError, ConfigWriteError } from "./config.js";
 
 // Registry
 export { Registry } from "./registry.js";
-export type { RegistryData, RegistryEntry, RegistryError } from "./registry.js";
+export type { RegistryData, RegistryEntry, RegistryError, ProtectKind } from "./registry.js";
 
 // Tier management
-export { setTier, release, readConfig, writeConfig } from "./tier.js";
-export type { TierChangeResult, ReleaseResult, TierError } from "./tier.js";
+export { setTier, release } from "./tier.js";
+export type { TierChangeResult, ReleaseResult } from "./tier.js";
 
 // Tier CLI command
 export { TierCommand } from "./cli/tier-command.js";

@@ -102,7 +102,7 @@ describe("status", () => {
     expect(missing).toBeDefined();
   });
 
-  test("resolves glob patterns to matching files", async () => {
+  test("handles literal file paths from config", async () => {
     const ops = makeMock();
     ops.addFile("memory/day1.md", "notes", {
       owner: VAULT_OWNERSHIP.user,
@@ -116,7 +116,10 @@ describe("status", () => {
     });
 
     const result = await status(
-      await opts({ version: 1, files: { "memory/**": "protect", "skills/**": "watch" } }, ops),
+      await opts(
+        { version: 1, files: { "memory/day1.md": "protect", "skills/python.md": "watch" } },
+        ops,
+      ),
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -128,16 +131,17 @@ describe("status", () => {
     expect(fileIssues).toHaveLength(0);
   });
 
-  test("glob with no matches returns no issues", async () => {
+  test("missing files are reported", async () => {
     const ops = makeMock();
 
     const result = await status(
-      await opts({ version: 1, files: { "memory/**": "protect", "skills/**": "watch" } }, ops),
+      await opts({ version: 1, files: { "memory/day1.md": "protect" } }, ops),
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.issues).toHaveLength(0);
+    const missing = result.value.issues.filter((i) => i.status === "missing");
+    expect(missing).toHaveLength(1);
   });
 
   test("reports multiple semantic issues on same file", async () => {
