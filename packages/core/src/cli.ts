@@ -337,29 +337,4 @@ program
     }
   });
 
-program
-  .command("stage")
-  .description("Stage protect-tier files for editing or deletion")
-  .argument("<paths...>", "files to stage")
-  .option("-w, --workspace <path>", "workspace path", process.cwd())
-  .option("-d, --delete", "stage for deletion instead of editing")
-  .action(async (files: string[], opts: { workspace: string; delete?: boolean }) => {
-    const out = new LiveConsoleOutput();
-    try {
-      const base = await makeBaseOptions(opts.workspace);
-      const cmd = new StageCommand(
-        {
-          ops: base.ops,
-          config: base.config,
-          paths: files,
-          delete: opts.delete,
-        },
-        out,
-      );
-      process.exitCode = await cmd.execute();
-    } catch (e) {
-      out.error(e instanceof Error ? e.message : String(e));
-      process.exitCode = 1;
-    }
-  });
 program.parse();
