@@ -26,7 +26,7 @@ describe("self-protection", () => {
       group: "soulguard",
       mode: "444",
     });
-    ops.addFile(".soulguard.soulguard.json", "not valid json {{{", {
+    ops.addFile(".soulguard-staging/soulguard.json", "not valid json {{{", {
       owner: "agent",
       group: "soulguard",
       mode: "644",
@@ -56,7 +56,7 @@ describe("self-protection", () => {
       mode: "444",
     });
     // Missing watch field
-    ops.addFile(".soulguard.soulguard.json", '{"version":1,"protect":["soulguard.json"]}', {
+    ops.addFile(".soulguard-staging/soulguard.json", '{"version":1,"protect":["soulguard.json"]}', {
       owner: "agent",
       group: "soulguard",
       mode: "644",
@@ -86,7 +86,7 @@ describe("self-protection", () => {
       mode: "444",
     });
     ops.addFile(
-      ".soulguard.soulguard.json",
+      ".soulguard-staging/soulguard.json",
       '{"version":1,"files":{"soulguard.json":"protect","SOUL.md":"protect","memory/**":"watch"}}',
       { owner: "agent", group: "soulguard", mode: "644" },
     );
@@ -119,13 +119,13 @@ describe("self-protection", () => {
         mode: "444",
       },
     );
-    ops.addFile(".soulguard.SOUL.md", "modified", {
+    ops.addFile(".soulguard-staging/SOUL.md", "modified", {
       owner: "agent",
       group: "soulguard",
       mode: "644",
     });
     ops.addFile(
-      ".soulguard.soulguard.json",
+      ".soulguard-staging/soulguard.json",
       '{"version":1,"protect":["SOUL.md","soulguard.json"],"watch":[]}',
       { owner: "agent", group: "soulguard", mode: "644" },
     );
@@ -148,7 +148,7 @@ describe("self-protection", () => {
       group: "soulguard",
       mode: "444",
     });
-    ops.addFile(".soulguard.soulguard.json", "not json", {
+    ops.addFile(".soulguard-staging/soulguard.json", "not json", {
       owner: "agent",
       group: "soulguard",
       mode: "644",
