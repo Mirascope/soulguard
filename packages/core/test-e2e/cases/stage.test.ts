@@ -34,7 +34,6 @@ e2e("stage: stages a protected file for editing", (t) => {
     .exits(0)
     .outputs(/staged for editing/);
 
-  // Staging copy should exist with correct content
   t.$(`cat .soulguard-staging/SOUL.md`)
     .expect(`
       exit 0
@@ -77,7 +76,6 @@ e2e("stage: no-op when staging copy already exists", (t) => {
     `)
     .exits(0);
 
-  // Stage again — should be no-op
   t.$(`sudo soulguard stage SOUL.md`)
     .expect(`
       exit 0
@@ -113,6 +111,10 @@ e2e("stage: errors on watch-tier file", (t) => {
     .exits(0);
 
   t.$(`sudo soulguard stage notes.md 2>&1`)
+    .expect(`
+      exit 1
+      notes.md is not in the protect tier.
+    `)
     .exits(1)
     .outputs(/not in the protect tier/);
 });
@@ -142,11 +144,22 @@ e2e("stage: stages file for deletion with -d", (t) => {
     .exits(0);
 
   t.$(`sudo soulguard stage -d SOUL.md`)
+    .expect(`
+      exit 0
+        🗑️  SOUL.md (staged for deletion)
+
+      Staged 1 file(s).
+    `)
     .exits(0)
     .outputs(/staged for deletion/);
 
-  // Sentinel file should exist
   t.$(`cat .soulguard-staging/SOUL.md`)
+    .expect(`
+      exit 0
+      {
+        "__soulguard_delete_sentinel__": true
+      }
+    `)
     .exits(0)
     .outputs(/__soulguard_delete_sentinel__/);
 });
@@ -176,10 +189,22 @@ e2e("stage: stages subdirectory path for deletion with -d", (t) => {
     .exits(0);
 
   t.$(`sudo soulguard stage -d docs/guide.md`)
+    .expect(`
+      exit 0
+        🗑️  docs/guide.md (staged for deletion)
+
+      Staged 1 file(s).
+    `)
     .exits(0)
     .outputs(/staged for deletion/);
 
   t.$(`cat .soulguard-staging/docs/guide.md`)
+    .expect(`
+      exit 0
+      {
+        "__soulguard_delete_sentinel__": true
+      }
+    `)
     .exits(0)
     .outputs(/__soulguard_delete_sentinel__/);
 });
