@@ -194,3 +194,22 @@ e2e("protect: already protected file is no-op", (t) => {
     .exits(0)
     .outputs(/already protect/);
 });
+
+// 5. Protect a file that doesn't exist — error
+e2e("protect: nonexistent file errors", (t) => {
+  t.$(`sudo soulguard init .`)
+    .expect(`
+      exit 0
+      ✓ Soulguard initialized.
+      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+    `)
+    .exits(0);
+
+  t.$(`sudo soulguard protect nonexistent.md 2>&1`)
+    .expect(`
+      exit 1
+      nonexistent.md does not exist
+    `)
+    .exits(1)
+    .outputs(/does not exist/);
+});

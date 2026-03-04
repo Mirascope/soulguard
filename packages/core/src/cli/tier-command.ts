@@ -109,6 +109,17 @@ export class TierCommand {
     let config;
     let changedPaths: string[];
 
+    // Verify all paths exist before making changes
+    if (action.kind === "set") {
+      for (const file of files) {
+        const exists = await ops.exists(file);
+        if (!exists.ok || !exists.value) {
+          this.out.error(`${file} does not exist`);
+          return 1;
+        }
+      }
+    }
+
     if (action.kind === "set") {
       const result = setTier(configResult.value, files, action.tier);
       config = result.config;
