@@ -181,10 +181,10 @@ The OpenClaw plugin (`@soulguard/openclaw`) ships three templates that categoriz
 | `openclaw.json`, `cron/jobs.json`                                                        |  watch  | protect | protect  |
 | `workspace/SOUL.md`, `workspace/AGENTS.md`, `workspace/IDENTITY.md`, `workspace/USER.md` |  watch  | protect | protect  |
 | `workspace/TOOLS.md`, `workspace/HEARTBEAT.md`, `workspace/BOOTSTRAP.md`                 |  watch  | protect | protect  |
-| `workspace/MEMORY.md`, `workspace/memory/`                                        |  watch  |  watch  | protect  |
-| `workspace/skills/`                                                                    |  watch  |  watch  | protect  |
-| `extensions/`                                                                          |  watch  | protect | protect  |
-| `workspace/sessions/`                                                                  |    —    |    —    |  watch   |
+| `workspace/MEMORY.md`, `workspace/memory/`                                               |  watch  |  watch  | protect  |
+| `workspace/skills/`                                                                      |  watch  |  watch  | protect  |
+| `extensions/`                                                                            |  watch  | protect | protect  |
+| `workspace/sessions/`                                                                    |    —    |    —    |  watch   |
 
 - **`default`** — Core identity and config in protect, memory and skills in watch
 - **`paranoid`** — Everything possible in protect, only sessions in watch
