@@ -404,3 +404,168 @@ describe("apply (implicit proposals)", () => {
     expect(execOps.some((op) => op.kind === "exec" && op.args.includes("SOUL.md"))).toBe(true);
   });
 });
+
+describe("apply (directory support)", () => {
+  const dirConfig: SoulguardConfig = {
+    version: 1,
+    files: {
+      mydir: "protect",
+    },
+  };
+
+  function setupDir() {
+    const ops = new MockSystemOps("/workspace");
+    // Protected directory with two files
+    ops.addDirectory("mydir", { owner: "soulguardian", group: "soulguard", mode: "755" });
+    ops.addFile("mydir/file1.txt", "original file1", {
+      owner: "soulguardian",
+      group: "soulguard",
+      mode: "444",
+    });
+    ops.addFile("mydir/file2.txt", "original file2", {
+      owner: "soulguardian",
+      group: "soulguard",
+      mode: "444",
+    });
+    // Staging directory with modified file1
+    ops.addDirectory(".soulguard-staging/mydir", {
+      owner: "agent",
+      group: "soulguard",
+      mode: "755",
+    });
+    ops.addFile(".soulguard-staging/mydir/file1.txt", "modified file1", {
+      owner: "agent",
+      group: "soulguard",
+      mode: "644",
+    });
+    ops.addFile(".soulguard-staging/mydir/file2.txt", "original file2", {
+      owner: "agent",
+      group: "soulguard",
+      mode: "644",
+    });
+    return ops;
+  }
+
+  test("applies modified file inside protected directory", async () => {
+    const ops = setupDir();
+    const hash = await getApprovalHash(ops, dirConfig);
+
+    const result = await apply({ ops, config: dirConfig, hash, protectOwnership });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.appliedFiles).toEqual(["mydir/file1.txt"]);
+
+    // File should have new content
+    const content = await ops.readFile("mydir/file1.txt");
+    expect(content.ok).toBe(true);
+    if (content.ok) expect(content.value).toBe("modified file1");
+
+    // Unchanged file should remain
+    const content2 = await ops.readFile("mydir/file2.txt");
+    expect(content2.ok).toBe(true);
+    if (content2.ok) expect(content2.value).toBe("original file2");
+  });
+
+  test("applies new file added to protected directory", async () => {
+    const ops = setupDir();
+    // Add a new file in staging
+    ops.addFile(".soulguard-staging/mydir/file3.txt", "new file3", {
+      owner: "agent",
+      group: "soulguard",
+      mode: "644",
+    });
+
+    const hash = await getApprovalHash(ops, dirConfig);
+    const result = await apply({ ops, config: dirConfig, hash, protectOwnership });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.appliedFiles).toContain("mydir/file1.txt");
+    expect(result.value.appliedFiles).toContain("mydir/file3.txt");
+
+    // New file should exist with correct content
+    const content = await ops.readFile("mydir/file3.txt");
+    expect(content.ok).toBe(true);
+    if (content.ok) expect(content.value).toBe("new file3");
+  });
+
+  test("applies deletion of file inside protected directory", async () => {
+    const ops = setupDir();
+    // Remove file2 from staging (deletion)
+    ops.addFile(".soulguard-staging/mydir/file1.txt", "original file1", {
+      owner: "agent",
+      group: "soulguard",
+      mode: "644",
+    });
+    // Delete file2 from staging by not having it there
+    // But we need to remove the existing staging entry
+    // Use a different approach: staging has file1 unchanged, file2 missing → file2 deleted
+    const ops2 = new MockSystemOps("/workspace");
+    ops2.addDirectory("mydir", { owner: "soulguardian", group: "soulguard", mode: "755" });
+    ops2.addFile("mydir/file1.txt", "original file1", {
+      owner: "soulguardian",
+      group: "soulguard",
+      mode: "444",
+    });
+    ops2.addFile("mydir/file2.txt", "original file2", {
+      owner: "soulguardian",
+      group: "soulguard",
+      mode: "444",
+    });
+    ops2.addDirectory(".soulguard-staging/mydir", {
+      owner: "agent",
+      group: "soulguard",
+      mode: "755",
+    });
+    ops2.addFile(".soulguard-staging/mydir/file1.txt", "original file1", {
+      owner: "agent",
+      group: "soulguard",
+      mode: "644",
+    });
+    // file2 not in staging → deletion
+
+    const hash = await getApprovalHash(ops2, dirConfig);
+    const result = await apply({ ops: ops2, config: dirConfig, hash, protectOwnership });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.appliedFiles).toContain("mydir/file2.txt");
+
+    // file2 should be deleted
+    const exists = await ops2.exists("mydir/file2.txt");
+    expect(exists.ok).toBe(true);
+    if (exists.ok) expect(exists.value).toBe(false);
+
+    // file1 should remain unchanged
+    const content = await ops2.readFile("mydir/file1.txt");
+    expect(content.ok).toBe(true);
+    if (content.ok) expect(content.value).toBe("original file1");
+  });
+
+  test("directory + individual file in same config", async () => {
+    const mixedConfig: SoulguardConfig = {
+      version: 1,
+      files: {
+        mydir: "protect",
+        "SOUL.md": "protect",
+      },
+    };
+
+    const ops = setupDir();
+    ops.addFile("SOUL.md", "original soul", {
+      owner: "soulguardian",
+      group: "soulguard",
+      mode: "444",
+    });
+    ops.addFile(".soulguard-staging/SOUL.md", "modified soul", {
+      owner: "agent",
+      group: "soulguard",
+      mode: "644",
+    });
+
+    const hash = await getApprovalHash(ops, mixedConfig);
+    const result = await apply({ ops, config: mixedConfig, hash, protectOwnership });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.appliedFiles).toContain("SOUL.md");
+    expect(result.value.appliedFiles).toContain("mydir/file1.txt");
+  });
+});

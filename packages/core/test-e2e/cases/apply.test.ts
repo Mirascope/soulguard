@@ -93,3 +93,75 @@ e2e.skip("apply: handles file deletion through staging", (t) => {
   // SOUL.md should still exist
   t.$(`test -f SOUL.md && echo "yes" || echo "no"`).expect(``).exits(0).outputs(/yes/);
 });
+
+e2e.skip("apply: applies modified file inside protected directory", (t) => {
+  t.$(
+    `mkdir -p mydir && echo 'file1 content' > mydir/file1.txt && echo 'file2 content' > mydir/file2.txt`,
+  )
+    .expect(``)
+    .exits(0);
+
+  t.$(`SUDO_USER=agent soulguard init .`).expect(``).exits(0);
+
+  t.$(`soulguard protect mydir`).expect(``).exits(0);
+
+  // Agent stages modified file1
+  t.$(
+    `su - agent -c "mkdir -p $(pwd)/.soulguard-staging/mydir && cp $(pwd)/mydir/file1.txt $(pwd)/.soulguard-staging/mydir/file1.txt && cp $(pwd)/mydir/file2.txt $(pwd)/.soulguard-staging/mydir/file2.txt && echo 'modified file1' > $(pwd)/.soulguard-staging/mydir/file1.txt"`,
+  ).expect(``);
+
+  t.$(
+    `HASH=$({ soulguard diff . || true; } 2>&1 | grep 'Apply hash:' | awk '{print $NF}') && soulguard apply . --hash "$HASH"`,
+  )
+    .expect(``)
+    .exits(0);
+
+  // file1 should be modified
+  t.$(`cat mydir/file1.txt`)
+    .expect(``)
+    .exits(0)
+    .outputs(/modified file1/);
+
+  // file2 should be unchanged
+  t.$(`cat mydir/file2.txt`)
+    .expect(``)
+    .exits(0)
+    .outputs(/file2 content/);
+
+  // Ownership should be soulguardian
+  t.$(`stat -c '%U' mydir/file1.txt`)
+    .expect(``)
+    .exits(0)
+    .outputs(/soulguardian/);
+});
+
+e2e.skip("apply: adds new file to protected directory", (t) => {
+  t.$(`mkdir -p mydir && echo 'file1 content' > mydir/file1.txt`).expect(``).exits(0);
+
+  t.$(`SUDO_USER=agent soulguard init .`).expect(``).exits(0);
+
+  t.$(`soulguard protect mydir`).expect(``).exits(0);
+
+  // Agent stages original + new file
+  t.$(
+    `su - agent -c "mkdir -p $(pwd)/.soulguard-staging/mydir && cp $(pwd)/mydir/file1.txt $(pwd)/.soulguard-staging/mydir/file1.txt && echo 'new file2' > $(pwd)/.soulguard-staging/mydir/file2.txt"`,
+  ).expect(``);
+
+  t.$(
+    `HASH=$({ soulguard diff . || true; } 2>&1 | grep 'Apply hash:' | awk '{print $NF}') && soulguard apply . --hash "$HASH"`,
+  )
+    .expect(``)
+    .exits(0);
+
+  // New file should exist
+  t.$(`cat mydir/file2.txt`)
+    .expect(``)
+    .exits(0)
+    .outputs(/new file2/);
+
+  // Ownership should be soulguardian
+  t.$(`stat -c '%U' mydir/file2.txt`)
+    .expect(``)
+    .exits(0)
+    .outputs(/soulguardian/);
+});
