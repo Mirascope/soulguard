@@ -142,10 +142,10 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
   const releasedSet = new Set(released);
   for (const issue of before.issues) {
     if (issue.status !== "drifted" || issue.tier !== "protect") continue;
-    if (releasedSet.has(issue.file.path)) continue;
+    if (releasedSet.has(issue.path)) continue;
 
     const expectedOwnership = options.expectedProtectOwnership;
-    const path = issue.file.path;
+    const path = issue.path;
     const needsChown = issue.issues.some(
       (i: DriftIssue) => i.kind === "wrong_owner" || i.kind === "wrong_group",
     );

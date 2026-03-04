@@ -42,9 +42,13 @@ describe("status", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    // Only registry issues (unregistered), no file-level issues
     const fileIssues = result.value.issues.filter((i) => i.status !== "unregistered");
     expect(fileIssues).toHaveLength(0);
+
+    // Should have 1 ok file in files array
+    expect(result.value.files).toHaveLength(1);
+    expect(result.value.files[0]!.status).toBe("ok");
+    expect(result.value.files[0]!.path).toBe("SOUL.md");
   });
 
   test("reports drifted when protect-tier file has wrong owner", async () => {
@@ -124,7 +128,6 @@ describe("status", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    // No file-level issues (both files are correct for their tier)
     const fileIssues = result.value.issues.filter(
       (i) => !["unregistered", "tier_changed", "orphaned"].includes(i.status),
     );
@@ -173,7 +176,6 @@ describe("status", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    // SOUL.md drifted + notes.md missing = 2 file-level issues
     const fileIssues = result.value.issues.filter(
       (i) => !["unregistered", "tier_changed", "orphaned"].includes(i.status),
     );
@@ -205,5 +207,187 @@ describe("status", () => {
     ];
     expect(formatIssue(issues[0]!)).toBe("owner is agent, expected soulguardian");
     expect(formatIssue(issues[1]!)).toBe("mode is 644, expected 444");
+  });
+
+  // ── Directory-aware tests ──────────────────────────────────────────
+
+  test("directory with correct ownership reports ok", async () => {
+    const ops = makeMock();
+    ops.addDirectory("skills", {
+      owner: VAULT_OWNERSHIP.user,
+      group: VAULT_OWNERSHIP.group,
+      mode: "555",
+    });
+    ops.addFile("skills/python.md", "skill", {
+      owner: VAULT_OWNERSHIP.user,
+      group: VAULT_OWNERSHIP.group,
+      mode: "444",
+    });
+
+    const result = await status(await opts({ version: 1, files: { skills: "protect" } }, ops));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const fileIssues = result.value.issues.filter(
+      (i) => !["unregistered", "tier_changed", "orphaned"].includes(i.status),
+    );
+    expect(fileIssues).toHaveLength(0);
+    expect(result.value.files[0]!.status).toBe("ok");
+  });
+
+  test("directory with wrong child ownership reports drifted", async () => {
+    const ops = makeMock();
+    ops.addDirectory("skills", {
+      owner: VAULT_OWNERSHIP.user,
+      group: VAULT_OWNERSHIP.group,
+      mode: "555",
+    });
+    ops.addFile("skills/python.md", "skill", {
+      owner: "agent",
+      group: "staff",
+      mode: "644",
+    });
+
+    const result = await status(await opts({ version: 1, files: { skills: "protect" } }, ops));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const drifted = result.value.issues.find((i) => i.status === "drifted");
+    expect(drifted).toBeDefined();
+    if (drifted?.status !== "drifted") return;
+    expect(drifted.issues.length).toBeGreaterThan(0);
+  });
+
+  test("directory expects mode 555 not 444", async () => {
+    const ops = makeMock();
+    ops.addDirectory("skills", {
+      owner: VAULT_OWNERSHIP.user,
+      group: VAULT_OWNERSHIP.group,
+      mode: "444", // wrong — should be 555
+    });
+
+    const result = await status(await opts({ version: 1, files: { skills: "protect" } }, ops));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const drifted = result.value.issues.find((i) => i.status === "drifted");
+    expect(drifted).toBeDefined();
+    if (drifted?.status !== "drifted") return;
+    expect(drifted.issues).toContainEqual({
+      kind: "wrong_mode",
+      expected: "555",
+      actual: "444",
+    });
+  });
+
+  // ── Staged change tests ──────────────────────────────────────────
+
+  test("detects staged changes for a file", async () => {
+    const ops = makeMock();
+    ops.addFile("SOUL.md", "# Soul", {
+      owner: VAULT_OWNERSHIP.user,
+      group: VAULT_OWNERSHIP.group,
+      mode: "444",
+    });
+    // Add a staging copy
+    ops.addFile(".soulguard-staging/SOUL.md", "# Updated Soul", {
+      owner: "agent",
+      group: "staff",
+      mode: "644",
+    });
+
+    const result = await status(await opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const okFile = result.value.files.find((f) => f.path === "SOUL.md");
+    expect(okFile).toBeDefined();
+    expect(okFile!.status).toBe("ok");
+    if (okFile!.status === "ok") {
+      expect(okFile!.stagedChanges).toBe(1);
+    }
+  });
+
+  test("detects staged changes for a directory", async () => {
+    const ops = makeMock();
+    ops.addDirectory("skills", {
+      owner: VAULT_OWNERSHIP.user,
+      group: VAULT_OWNERSHIP.group,
+      mode: "555",
+    });
+    ops.addFile("skills/python.md", "skill", {
+      owner: VAULT_OWNERSHIP.user,
+      group: VAULT_OWNERSHIP.group,
+      mode: "444",
+    });
+    // Add staging copies for directory
+    ops.addDirectory(".soulguard-staging/skills", {
+      owner: "agent",
+      group: "staff",
+      mode: "755",
+    });
+    ops.addFile(".soulguard-staging/skills/python.md", "updated skill", {
+      owner: "agent",
+      group: "staff",
+      mode: "644",
+    });
+    ops.addFile(".soulguard-staging/skills/rust.md", "new skill", {
+      owner: "agent",
+      group: "staff",
+      mode: "644",
+    });
+
+    const result = await status(await opts({ version: 1, files: { skills: "protect" } }, ops));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const okFile = result.value.files.find((f) => f.path === "skills");
+    expect(okFile).toBeDefined();
+    expect(okFile!.status).toBe("ok");
+    if (okFile!.status === "ok") {
+      expect(okFile!.stagedChanges).toBe(2);
+    }
+  });
+
+  test("no staged changes when staging dir is empty", async () => {
+    const ops = makeMock();
+    ops.addFile("SOUL.md", "# Soul", {
+      owner: VAULT_OWNERSHIP.user,
+      group: VAULT_OWNERSHIP.group,
+      mode: "444",
+    });
+
+    const result = await status(await opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const okFile = result.value.files.find((f) => f.path === "SOUL.md");
+    expect(okFile).toBeDefined();
+    expect(okFile!.status).toBe("ok");
+    if (okFile!.status === "ok") {
+      expect(okFile!.stagedChanges).toBeUndefined();
+    }
+  });
+
+  test("files array includes all statuses", async () => {
+    const ops = makeMock();
+    ops.addFile("SOUL.md", "# Soul", {
+      owner: VAULT_OWNERSHIP.user,
+      group: VAULT_OWNERSHIP.group,
+      mode: "444",
+    });
+
+    const result = await status(
+      await opts({ version: 1, files: { "SOUL.md": "protect", "notes.md": "watch" } }, ops),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // files array should have both entries
+    expect(result.value.files).toHaveLength(2);
+    const soulFile = result.value.files.find((f) => f.path === "SOUL.md");
+    const notesFile = result.value.files.find((f) => f.path === "notes.md");
+    expect(soulFile!.status).toBe("ok");
+    expect(notesFile!.status).toBe("missing");
   });
 });
