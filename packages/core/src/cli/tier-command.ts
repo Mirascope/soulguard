@@ -52,7 +52,8 @@ async function enforceProtect(
   if (isDir) {
     const chown = await ops.chownRecursive(path, { user: ownership.user, group: ownership.group });
     if (!chown.ok) return { ok: false, error: `chown ${path}: ${chown.error.kind}` };
-    const chmod = await ops.chmodRecursive(path, ownership.mode);
+    // Directories need execute bit for traversal (555), files get read-only (444)
+    const chmod = await ops.chmodDirectoryTree(path, { fileMode: ownership.mode, dirMode: "555" });
     if (!chmod.ok) return { ok: false, error: `chmod ${path}: ${chmod.error.kind}` };
   } else {
     const chown = await ops.chown(path, { user: ownership.user, group: ownership.group });

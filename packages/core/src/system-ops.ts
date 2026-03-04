@@ -82,6 +82,12 @@ export interface SystemOperations {
     mode: string,
   ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
 
+  /** Set different permissions for files vs directories in a tree. */
+  chmodDirectoryTree(
+    path: string,
+    modes: { fileMode: string; dirMode: string },
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
+
   /** Read file contents (relative path) */
   readFile(path: string): Promise<Result<string, NotFoundError | PermissionDeniedError | IOError>>;
 

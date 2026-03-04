@@ -505,6 +505,23 @@ export class NodeSystemOps implements SystemOperations {
     }
   }
 
+  async chmodDirectoryTree(
+    path: string,
+    modes: { fileMode: string; dirMode: string },
+  ): Promise<Result<void, FileError>> {
+    const resolved = this.resolvePath(path);
+    if (!resolved.ok) return resolved;
+    try {
+      // Set file permissions
+      await execFileAsync("find", [resolved.value, "-type", "f", "-exec", "chmod", modes.fileMode, "{}", "+"]);
+      // Set directory permissions
+      await execFileAsync("find", [resolved.value, "-type", "d", "-exec", "chmod", modes.dirMode, "{}", "+"]);
+      return ok(undefined);
+    } catch (e) {
+      return err(mapError(e, path, "chmodDirectoryTree"));
+    }
+  }
+
   async listDir(path: string): Promise<Result<string[], FileError>> {
     const resolved = this.resolvePath(path);
     if (!resolved.ok) return resolved;

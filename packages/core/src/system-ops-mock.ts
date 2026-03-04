@@ -296,6 +296,26 @@ export class MockSystemOps implements SystemOperations {
     return ok(matches.sort());
   }
 
+  async chmodDirectoryTree(
+    path: string,
+    modes: { fileMode: string; dirMode: string },
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
+    const full = this.resolve(path);
+    const dir = this.files.get(full);
+    if (!dir) return err({ kind: "not_found", path });
+    // Set directory mode on the root
+    this.ops.push({ kind: "chmod", path, mode: modes.dirMode });
+    dir.mode = modes.dirMode;
+    // Set modes on children
+    const prefix = full + "/";
+    for (const [childPath, childFile] of this.files) {
+      if (childPath.startsWith(prefix)) {
+        childFile.mode = childFile.isDirectory ? modes.dirMode : modes.fileMode;
+      }
+    }
+    return ok(undefined);
+  }
+
   async listDir(
     path: string,
   ): Promise<Result<string[], NotFoundError | PermissionDeniedError | IOError>> {
