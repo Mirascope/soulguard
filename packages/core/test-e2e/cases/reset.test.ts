@@ -33,7 +33,7 @@ e2e("reset: dry run lists staged files", (t) => {
     `)
     .exits(0);
 
-  t.$(`soulguard reset -w .`)
+  t.$(`sudo soulguard reset -w .`)
     .expect(`
       exit 0
       Staged changes:
@@ -85,10 +85,10 @@ e2e("reset: specific file removes staging copy", (t) => {
     `)
     .exits(0);
 
-  t.$(`soulguard reset -w . SOUL.md`)
+  t.$(`sudo soulguard reset -w . SOUL.md`)
     .expect(`
       exit 0
-      ✓ Reset 1 staged file(s):
+      Reset 1 staged file(s):
         .soulguard-staging/SOUL.md
     `)
     .exits(0);
@@ -134,10 +134,10 @@ e2e("reset: --all empties staging tree", (t) => {
     `)
     .exits(0);
 
-  t.$(`soulguard reset -w . --all`)
+  t.$(`sudo soulguard reset -w . --all`)
     .expect(`
       exit 0
-      ✓ Reset 1 staged file(s):
+      Reset 1 staged file(s):
         .soulguard-staging/SOUL.md
     `)
     .exits(0);
@@ -165,7 +165,7 @@ e2e("reset: no staged changes shows clean message", (t) => {
     `)
     .exits(0);
 
-  t.$(`soulguard reset -w .`)
+  t.$(`sudo soulguard reset -w .`)
     .expect(`
       exit 0
       Nothing staged — staging tree is clean.
