@@ -82,7 +82,7 @@ e2e("protect: directory protection blocks new file creation", (t) => {
   t.$(`stat -c '%U:%G %a' skills`)
     .expect(`
       exit 0
-      agent:agent 755
+      soulguardian:soulguard 555
     `)
     .exits(0)
     .outputs(/soulguardian:soulguard/);
@@ -90,7 +90,7 @@ e2e("protect: directory protection blocks new file creation", (t) => {
   t.$(`stat -c '%U:%G %a' skills/python.md`)
     .expect(`
       exit 0
-      agent:agent 644
+      soulguardian:soulguard 444
     `)
     .exits(0)
     .outputs(/soulguardian:soulguard 444/);
@@ -100,7 +100,8 @@ e2e("protect: directory protection blocks new file creation", (t) => {
   )
     .expect(`
       exit 0
-      CREATE SUCCEEDED (BAD)
+      sh: 1: cannot create /workspace/skills/malicious.md: Permission denied
+      CREATE BLOCKED (GOOD)
     `)
     .exits(0)
     .outputs(/Permission denied/)
@@ -130,18 +131,16 @@ e2e("protect: already protected file is no-op", (t) => {
 e2e("protect: nonexistent file errors", (t) => {
   t.$(`sudo soulguard init .`)
     .expect(`
-    exit 0
-    ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
-  `)
+      exit 0
+      ✓ Soulguard initialized.
+      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+    `)
     .exits(0);
 
   t.$(`sudo soulguard protect nonexistent.md 2>&1`)
     .expect(`
-      exit 0
-        + nonexistent.md → protect
-
-      Updated. 1 file(s) now protect-tier.
+      exit 1
+      nonexistent.md does not exist
     `)
     .exits(1)
     .outputs(/does not exist/);
