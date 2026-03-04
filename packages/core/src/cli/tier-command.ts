@@ -106,12 +106,12 @@ export class TierCommand {
     }
 
     let config;
-    let changedFiles: string[];
+    let changedPaths: string[];
 
     if (action.kind === "set") {
       const result = setTier(configResult.value, files, action.tier);
       config = result.config;
-      changedFiles = [...result.added, ...result.moved];
+      changedPaths = [...result.added, ...result.moved];
 
       // Report
       for (const f of result.added) {
@@ -129,7 +129,7 @@ export class TierCommand {
     } else {
       const result = release(configResult.value, files);
       config = result.config;
-      changedFiles = result.released;
+      changedPaths = result.released;
 
       for (const f of result.released) {
         this.out.success(`  - ${f} (released)`);
@@ -139,7 +139,7 @@ export class TierCommand {
       }
     }
 
-    if (changedFiles.length === 0) {
+    if (changedPaths.length === 0) {
       this.out.info("Nothing to change.");
       return 0;
     }
@@ -162,7 +162,7 @@ export class TierCommand {
     const registry = registryResult.value;
 
     if (action.kind === "set" && action.tier === "protect") {
-      for (const file of changedFiles) {
+      for (const file of changedPaths) {
         // Register (snapshots original ownership before we change it)
         await registry.register(file, "protect");
         // Enforce ownership
@@ -173,11 +173,11 @@ export class TierCommand {
         }
       }
     } else if (action.kind === "set" && action.tier === "watch") {
-      for (const file of changedFiles) {
+      for (const file of changedPaths) {
         await registry.register(file, "watch");
       }
     } else if (action.kind === "release") {
-      for (const file of changedFiles) {
+      for (const file of changedPaths) {
         const entry = registry.unregister(file);
         if (entry?.tier === "protect") {
           await restoreOwnership(ops, file, entry.originalOwnership);
@@ -200,17 +200,17 @@ export class TierCommand {
 
     // Best-effort git commit
     if (await isGitEnabled(ops, config)) {
-      const gitFiles = ["soulguard.json", ...changedFiles];
+      const gitFiles = ["soulguard.json", ...changedPaths];
       const verb = action.kind === "set" ? action.tier : "release";
-      await gitCommit(ops, gitFiles, `soulguard: ${verb} ${changedFiles.join(", ")}`);
+      await gitCommit(ops, gitFiles, `soulguard: ${verb} ${changedPaths.join(", ")}`);
     }
 
     // Summary
     this.out.write("");
     if (action.kind === "set") {
-      this.out.success(`Updated. ${changedFiles.length} file(s) now ${action.tier}-tier.`);
+      this.out.success(`Updated. ${changedPaths.length} file(s) now ${action.tier}-tier.`);
     } else {
-      this.out.success(`Released. ${changedFiles.length} file(s) untracked.`);
+      this.out.success(`Released. ${changedPaths.length} file(s) untracked.`);
     }
     return 0;
   }

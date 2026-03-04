@@ -35,10 +35,16 @@ e2e("protect: sets correct ownership and permissions", (t) => {
     .outputs(/soulguardian:soulguard 444/);
 
   // Config should be updated
-  t.$(`grep -o '"SOUL.md"' soulguard.json`)
+  t.$(`cat soulguard.json`)
     .expect(`
       exit 0
-      "SOUL.md"
+      {
+        "version": 1,
+        "files": {
+          "soulguard.json": "protect",
+          "SOUL.md": "protect"
+        }
+      }
     `)
     .exits(0)
     .outputs(/"SOUL\.md"/);
