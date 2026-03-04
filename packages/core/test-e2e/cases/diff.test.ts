@@ -134,3 +134,61 @@ e2e.skip("diff: shows new file when protect-tier copy is missing", (t) => {
     .exits(1)
     .outputs(/missing/);
 });
+
+e2e.skip("diff: directory with modified staged file shows diff", (t) => {
+  t.$(`mkdir -p memory && echo 'day one notes' > memory/day1.md`).expect(``).exits(0);
+
+  t.$(`SUDO_USER=agent soulguard init .`).expect(``).exits(0);
+
+  t.$(`soulguard protect memory`).expect(``).exits(0);
+
+  // Create staging directory with modified file
+  t.$(
+    `su - agent -c "mkdir -p $(pwd)/.soulguard-staging/memory && echo 'modified notes' > $(pwd)/.soulguard-staging/memory/day1.md"`,
+  ).expect(``);
+
+  t.$(`soulguard diff .`)
+    .expect(``)
+    .exits(1)
+    .outputs(/📝 memory\/day1.md/);
+});
+
+e2e.skip("diff: directory with new file in staging shows addition", (t) => {
+  t.$(`mkdir -p memory && echo 'day one notes' > memory/day1.md`).expect(``).exits(0);
+
+  t.$(`SUDO_USER=agent soulguard init .`).expect(``).exits(0);
+
+  t.$(`soulguard protect memory`).expect(``).exits(0);
+
+  // Create staging directory with original + new file
+  t.$(
+    `su - agent -c "mkdir -p $(pwd)/.soulguard-staging/memory && cp $(pwd)/memory/day1.md $(pwd)/.soulguard-staging/memory/day1.md && echo 'day two notes' > $(pwd)/.soulguard-staging/memory/day2.md"`,
+  ).expect(``);
+
+  t.$(`soulguard diff .`)
+    .expect(``)
+    .exits(1)
+    .outputs(/memory\/day2.md.*new file|⚠️ memory\/day2.md/);
+});
+
+e2e.skip("diff: directory with file deleted from staging shows deletion", (t) => {
+  t.$(
+    `mkdir -p memory && echo 'day one notes' > memory/day1.md && echo 'day two notes' > memory/day2.md`,
+  )
+    .expect(``)
+    .exits(0);
+
+  t.$(`SUDO_USER=agent soulguard init .`).expect(``).exits(0);
+
+  t.$(`soulguard protect memory`).expect(``).exits(0);
+
+  // Create staging directory with only day1 (day2 missing → deletion)
+  t.$(
+    `su - agent -c "mkdir -p $(pwd)/.soulguard-staging/memory && cp $(pwd)/memory/day1.md $(pwd)/.soulguard-staging/memory/day1.md"`,
+  ).expect(``);
+
+  t.$(`soulguard diff .`)
+    .expect(``)
+    .exits(1)
+    .outputs(/🗑️ memory\/day2.md/);
+});
