@@ -48,12 +48,12 @@ export class SyncCommand {
     // Show fixed drift issues (had errors before, no errors after means fixed)
     const drifted = fileIssues.filter((f) => f.status === "drifted");
     const releasedSet = new Set(released);
-    const fixed = drifted.filter((f) => !releasedSet.has(f.file.path));
+    const fixed = drifted.filter((f) => !releasedSet.has(f.path));
 
     if (fixed.length > 0 && errors.length === 0) {
       this.out.heading("Fixed:");
       for (const f of fixed) {
-        this.out.success(`  🔧 ${f.file.path}`);
+        this.out.success(`  🔧 ${f.path}`);
         for (const issue of f.issues) {
           this.out.info(`      ${formatIssue(issue)}`);
         }

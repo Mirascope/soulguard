@@ -8,11 +8,14 @@
  * - orphaned: file in registry but no longer in config (needs release)
  * - unregistered: file in config but not yet in registry (needs registration)
  * - tier_changed: file tier in config differs from registry (needs re-registration)
+ *
+ * Directory-aware: directories are checked recursively (owner/group on all
+ * children, mode 555 for dirs, 444 for files). Staging tree is checked for
+ * staged change counts.
  */
 
 import type {
   SoulguardConfig,
-  FileInfo,
   FileOwnership,
   Tier,
   DriftIssue,
@@ -21,16 +24,16 @@ import type {
   Result,
 } from "./types.js";
 import { ok } from "./result.js";
-import type { SystemOperations } from "./system-ops.js";
-import { getFileInfo } from "./system-ops.js";
+import type { SystemOperations, FileStat } from "./system-ops.js";
 import { protectPatterns, watchPatterns } from "./config.js";
+import { stagingPath } from "./staging.js";
 import type { Registry } from "./registry.js";
 
 // ── File status ────────────────────────────────────────────────────────
 
 export type FileStatus =
-  | { tier: Tier; status: "ok"; file: FileInfo }
-  | { tier: Tier; status: "drifted"; file: FileInfo; issues: DriftIssue[] }
+  | { tier: Tier; status: "ok"; path: string; stagedChanges?: number }
+  | { tier: Tier; status: "drifted"; path: string; issues: DriftIssue[]; stagedChanges?: number }
   | { tier: Tier; status: "missing"; path: string }
   | { tier: Tier; status: "error"; path: string; error: FileSystemError }
   | { tier: Tier; status: "unregistered"; path: string }
@@ -38,7 +41,9 @@ export type FileStatus =
   | { status: "orphaned"; path: string; registryTier: Tier; originalOwnership?: FileOwnership };
 
 export type StatusResult = {
-  /** All issues (non-ok statuses from file checks + registry reconciliation) */
+  /** All file statuses (ok + issues) */
+  files: FileStatus[];
+  /** Only non-ok statuses (for backward compat) */
   issues: FileStatus[];
   /** Current registry state */
   registry: Registry;
@@ -59,26 +64,21 @@ export type StatusOptions = {
 export async function status(options: StatusOptions): Promise<Result<StatusResult, IOError>> {
   const { config, expectedProtectOwnership, ops, registry } = options;
 
-  // Get literal paths from config
   const protectPaths = protectPatterns(config);
   const watchPaths = watchPatterns(config);
 
   const [protectStatuses, watchStatuses] = await Promise.all([
-    Promise.all(
-      protectPaths.map((path) => checkPath(path, "protect", expectedProtectOwnership, ops)),
-    ),
+    Promise.all(protectPaths.map((path) => checkProtectPath(path, expectedProtectOwnership, ops))),
     Promise.all(watchPaths.map((path) => checkWatchPath(path, ops))),
   ]);
 
-  const issues: FileStatus[] = [...protectStatuses, ...watchStatuses].filter(
-    (f) => f.status !== "ok",
-  );
+  const allFiles: FileStatus[] = [...protectStatuses, ...watchStatuses];
+  const issues: FileStatus[] = allFiles.filter((f) => f.status !== "ok");
 
   // ── Registry reconciliation ──────────────────────────────────────────
   {
     const allManagedPaths = new Set([...protectPaths, ...watchPaths]);
 
-    // Check for unregistered or tier-changed files
     for (const [path, tier] of [
       ...protectPaths.map((p) => [p, "protect" as Tier] as const),
       ...watchPaths.map((p) => [p, "watch" as Tier] as const),
@@ -91,7 +91,6 @@ export async function status(options: StatusOptions): Promise<Result<StatusResul
       }
     }
 
-    // Check for orphaned files (in registry but not in config)
     for (const regPath of registry.paths()) {
       if (!allManagedPaths.has(regPath)) {
         const entry = registry.get(regPath)!;
@@ -105,65 +104,128 @@ export async function status(options: StatusOptions): Promise<Result<StatusResul
     }
   }
 
-  return ok({ issues, registry });
+  return ok({ files: allFiles, issues, registry });
 }
 
 /**
- * Check a watch-tier file — just verify it exists (no ownership checks).
+ * Check a protect-tier path — stat-only ownership check + staging detection.
+ * Handles both files and directories.
  */
-async function checkWatchPath(filePath: string, ops: SystemOperations): Promise<FileStatus> {
-  const infoResult = await getFileInfo(filePath, ops);
-  if (!infoResult.ok) {
-    if (infoResult.error.kind === "not_found") {
-      return { tier: "watch", status: "missing", path: filePath };
-    }
-    return { tier: "watch", status: "error", path: filePath, error: infoResult.error };
-  }
-  return { tier: "watch", status: "ok", file: infoResult.value };
-}
-
-async function checkPath(
+async function checkProtectPath(
   filePath: string,
-  tier: Tier,
   expectedOwnership: FileOwnership,
   ops: SystemOperations,
 ): Promise<FileStatus> {
-  const infoResult = await getFileInfo(filePath, ops);
+  const statResult = await ops.stat(filePath);
 
-  if (!infoResult.ok) {
-    if (infoResult.error.kind === "not_found") {
-      return { tier, status: "missing", path: filePath };
+  if (!statResult.ok) {
+    if (statResult.error.kind === "not_found") {
+      return { tier: "protect", status: "missing", path: filePath };
     }
-    return { tier, status: "error", path: filePath, error: infoResult.error };
+    return { tier: "protect", status: "error", path: filePath, error: statResult.error };
   }
 
-  const file = infoResult.value;
+  const fileStat = statResult.value;
   const issues: DriftIssue[] = [];
 
-  if (file.ownership.user !== expectedOwnership.user) {
+  if (fileStat.isDirectory) {
+    checkOwnership(fileStat, expectedOwnership, "555", issues);
+    await checkDirectoryChildren(filePath, expectedOwnership, ops, issues);
+  } else {
+    checkOwnership(fileStat, expectedOwnership, expectedOwnership.mode, issues);
+  }
+
+  const stagedChanges = await countStagedChanges(filePath, fileStat.isDirectory, ops);
+
+  if (issues.length === 0) {
+    return {
+      tier: "protect",
+      status: "ok",
+      path: filePath,
+      ...(stagedChanges > 0 && { stagedChanges }),
+    };
+  }
+  return {
+    tier: "protect",
+    status: "drifted",
+    path: filePath,
+    issues,
+    ...(stagedChanges > 0 && { stagedChanges }),
+  };
+}
+
+function checkOwnership(
+  fileStat: FileStat,
+  expectedOwnership: FileOwnership,
+  expectedMode: string,
+  issues: DriftIssue[],
+): void {
+  if (fileStat.ownership.user !== expectedOwnership.user) {
     issues.push({
       kind: "wrong_owner",
       expected: expectedOwnership.user,
-      actual: file.ownership.user,
+      actual: fileStat.ownership.user,
     });
   }
-  if (file.ownership.group !== expectedOwnership.group) {
+  if (fileStat.ownership.group !== expectedOwnership.group) {
     issues.push({
       kind: "wrong_group",
       expected: expectedOwnership.group,
-      actual: file.ownership.group,
+      actual: fileStat.ownership.group,
     });
   }
-  if (file.ownership.mode !== expectedOwnership.mode) {
+  if (fileStat.ownership.mode !== expectedMode) {
     issues.push({
       kind: "wrong_mode",
-      expected: expectedOwnership.mode,
-      actual: file.ownership.mode,
+      expected: expectedMode,
+      actual: fileStat.ownership.mode,
     });
   }
+}
 
-  if (issues.length === 0) {
-    return { tier, status: "ok", file };
+async function checkDirectoryChildren(
+  dirPath: string,
+  expectedOwnership: FileOwnership,
+  ops: SystemOperations,
+  issues: DriftIssue[],
+): Promise<void> {
+  const listResult = await ops.listDir(dirPath);
+  if (!listResult.ok) return;
+
+  for (const childRelPath of listResult.value) {
+    const childPath = childRelPath;
+    const childStat = await ops.stat(childPath);
+    if (!childStat.ok) continue;
+
+    const expectedMode = childStat.value.isDirectory ? "555" : "444";
+    checkOwnership(childStat.value, expectedOwnership, expectedMode, issues);
   }
-  return { tier, status: "drifted", file, issues };
+}
+
+async function countStagedChanges(
+  filePath: string,
+  isDirectory: boolean,
+  ops: SystemOperations,
+): Promise<number> {
+  const staged = stagingPath(filePath);
+
+  if (!isDirectory) {
+    const existsResult = await ops.exists(staged);
+    return existsResult.ok && existsResult.value ? 1 : 0;
+  }
+
+  const listResult = await ops.listDir(staged);
+  if (!listResult.ok) return 0;
+  return listResult.value.length;
+}
+
+async function checkWatchPath(filePath: string, ops: SystemOperations): Promise<FileStatus> {
+  const statResult = await ops.stat(filePath);
+  if (!statResult.ok) {
+    if (statResult.error.kind === "not_found") {
+      return { tier: "watch", status: "missing", path: filePath };
+    }
+    return { tier: "watch", status: "error", path: filePath, error: statResult.error };
+  }
+  return { tier: "watch", status: "ok", path: filePath };
 }
