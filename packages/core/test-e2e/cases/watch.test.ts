@@ -1,39 +1,23 @@
 import { e2e } from "../harness";
+import { watchCmd } from "../helpers";
 
-e2e.skip("watch: adds file and updates config", (t) => {
-  t.$(`
-    mkdir -p memory
-    echo '# Notes' > memory/notes.md
-  `)
+e2e("watch: adds file and updates config", (t) => {
+  t.$(watchCmd("notes.md", "# Notes")).expect(`
+    exit 0
+    ✓ Soulguard initialized.
+    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+      + notes.md → watch
+
+    Updated. 1 file(s) now watch-tier.
+  `);
+
+  t.$(`stat -c '%U:%G %a' notes.md`)
     .expect(`
       exit 0
-    `)
-    .exits(0);
-
-  t.$(`SUDO_USER=agent soulguard init .`)
-    .expect(`
-      exit 0
-      Soulguard Init — /workspace
-        Created group: soulguard
-        Created user: soulguardian
-        Wrote soulguard.json
-        Wrote /etc/sudoers.d/soulguard
-        Prepared directories for staging
-        Synced 1 protect-tier file(s)
-
-      Done.
-    `)
-    .exits(0);
-
-  t.$(`soulguard watch memory/notes.md`)
-    .expect(`
-      exit 0
-        + memory/notes.md → watch
-
-      Updated. 1 file(s) now watch-tier.
+      agent:agent 644
     `)
     .exits(0)
-    .outputs(/watch/);
+    .outputs(/agent:soulguard 644/);
 
   t.$(`cat soulguard.json`)
     .expect(`
@@ -42,67 +26,40 @@ e2e.skip("watch: adds file and updates config", (t) => {
         "version": 1,
         "files": {
           "soulguard.json": "protect",
-          "memory/notes.md": "watch"
+          "notes.md": "watch"
         }
       }
     `)
     .exits(0)
-    .outputs(/"memory\/notes\.md":\s*"watch"/);
-
-  t.$(`soulguard status`)
-    .expect(`
-      exit 0
-      Soulguard Status — /workspace
-
-      All files ok.
-    `)
-    .exits(0)
-    .outputs(/All files ok/);
+    .outputs(/"notes\.md".*"watch"/);
 });
 
-e2e.skip("watch: resolves glob patterns", (t) => {
-  t.$(`
-    mkdir -p memory
-    echo '# Day 1' > memory/2026-01-01.md
-    echo '# Day 2' > memory/2026-01-02.md
-  `)
+e2e("watch: resolves glob patterns", (t) => {
+  t.$(
+    `mkdir -p memory && echo 'day 1' > memory/day1.md && echo 'day 2' > memory/day2.md && sudo soulguard init . && sudo soulguard watch 'memory/*.md'`,
+  )
     .expect(`
       exit 0
-    `)
-    .exits(0);
-
-  t.$(`SUDO_USER=agent soulguard init .`)
-    .expect(`
-      exit 0
-      Soulguard Init — /workspace
-        Created group: soulguard
-        Created user: soulguardian
-        Wrote soulguard.json
-        Wrote /etc/sudoers.d/soulguard
-        Prepared directories for staging
-        Synced 1 protect-tier file(s)
-
-      Done.
-    `)
-    .exits(0);
-
-  t.$(`soulguard watch "memory/*.md"`)
-    .expect(`
-      exit 0
+      ✓ Soulguard initialized.
+      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
         + memory/*.md → watch
 
       Updated. 1 file(s) now watch-tier.
     `)
-    .exits(0)
-    .outputs(/watch/);
+    .exits(0);
 
-  t.$(`soulguard status`)
+  t.$(`cat soulguard.json`)
     .expect(`
       exit 0
-      Soulguard Status — /workspace
-
-      All files ok.
+      {
+        "version": 1,
+        "files": {
+          "soulguard.json": "protect",
+          "memory/*.md": "watch"
+        }
+      }
     `)
     .exits(0)
-    .outputs(/All files ok/);
+    .outputs(/"memory\/day1\.md"/)
+    .outputs(/"memory\/day2\.md"/);
 });
