@@ -20,7 +20,7 @@ describe("DiffCommand", () => {
   test("no changes → exit 0, output contains 'No changes'", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul");
-    ops.addFile(".soulguard.SOUL.md", "# Soul");
+    ops.addFile(".soulguard-staging/SOUL.md", "# Soul");
 
     const out = new MockConsoleOutput();
     const cmd = new DiffCommand({ ops, config: makeConfig() }, out);
@@ -33,7 +33,7 @@ describe("DiffCommand", () => {
   test("modified file → exit 1, output contains diff", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul\noriginal");
-    ops.addFile(".soulguard.SOUL.md", "# Soul\nmodified");
+    ops.addFile(".soulguard-staging/SOUL.md", "# Soul\nmodified");
 
     const out = new MockConsoleOutput();
     const cmd = new DiffCommand({ ops, config: makeConfig() }, out);

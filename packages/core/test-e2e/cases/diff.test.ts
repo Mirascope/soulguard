@@ -8,7 +8,7 @@ e2e.skip("diff: shows no changes for unmodified staging", (t) => {
   t.$(`soulguard protect SOUL.md`).expect(``).exits(0);
 
   // Agent creates staging (on-demand, unmodified copy)
-  t.$(`su - agent -c "cp $(pwd)/SOUL.md $(pwd)/.soulguard.SOUL.md"`).expect(``);
+  t.$(`su - agent -c "cp $(pwd)/SOUL.md $(pwd)/.soulguard-staging/SOUL.md"`).expect(``);
 
   // No changes → exit 0
   t.$(`soulguard diff .`)
@@ -49,7 +49,7 @@ e2e.skip("diff: shows unified diff for modified staging", (t) => {
     .exits(0);
 
   // Agent creates staging with modified content
-  t.$(`su - agent -c "echo '# My Modified Soul' > $(pwd)/.soulguard.SOUL.md"`).expect(`
+  t.$(`su - agent -c "echo '# My Modified Soul' > $(pwd)/.soulguard-staging/SOUL.md"`).expect(`
     exit 0
   `);
 
@@ -108,7 +108,7 @@ e2e.skip("diff: shows new file when protect-tier copy is missing", (t) => {
     .exits(0);
 
   // Agent creates staging copy
-  t.$(`su - agent -c "cp $(pwd)/SOUL.md $(pwd)/.soulguard.SOUL.md"`).expect(`
+  t.$(`su - agent -c "cp $(pwd)/SOUL.md $(pwd)/.soulguard-staging/SOUL.md"`).expect(`
     exit 0
   `);
 

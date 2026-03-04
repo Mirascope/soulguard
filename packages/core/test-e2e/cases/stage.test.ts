@@ -1,0 +1,86 @@
+import { e2e } from "../harness";
+
+e2e("stage: stages a protected file for editing", (t) => {
+  t.$(`echo '# My Soul' > SOUL.md`).expect(``).exits(0);
+
+  t.$(`sudo soulguard init .`).expect(``).exits(0);
+
+  t.$(`sudo soulguard protect SOUL.md`).expect(``).exits(0);
+
+  t.$(`sudo soulguard stage SOUL.md`)
+    .expect(``)
+    .exits(0)
+    .outputs(/staged for editing/);
+
+  // Staging copy should exist with correct content
+  t.$(`cat .soulguard-staging/SOUL.md`)
+    .expect(``)
+    .exits(0)
+    .outputs(/# My Soul/);
+});
+
+e2e("stage: no-op when staging copy already exists", (t) => {
+  t.$(`echo '# My Soul' > SOUL.md`).expect(``).exits(0);
+
+  t.$(`sudo soulguard init .`).expect(``).exits(0);
+
+  t.$(`sudo soulguard protect SOUL.md`).expect(``).exits(0);
+
+  t.$(`sudo soulguard stage SOUL.md`).expect(``).exits(0);
+
+  // Stage again — should be no-op
+  t.$(`sudo soulguard stage SOUL.md`)
+    .expect(``)
+    .exits(0)
+    .outputs(/already staged/);
+});
+
+e2e("stage: errors on watch-tier file", (t) => {
+  t.$(`echo '# Notes' > notes.md`).expect(``).exits(0);
+
+  t.$(`sudo soulguard init .`).expect(``).exits(0);
+
+  t.$(`sudo soulguard watch notes.md`).expect(``).exits(0);
+
+  t.$(`sudo soulguard stage notes.md 2>&1`)
+    .expect(``)
+    .exits(1)
+    .outputs(/not in the protect tier/);
+});
+
+e2e("stage: stages file for deletion with -d", (t) => {
+  t.$(`echo '# My Soul' > SOUL.md`).expect(``).exits(0);
+
+  t.$(`sudo soulguard init .`).expect(``).exits(0);
+
+  t.$(`sudo soulguard protect SOUL.md`).expect(``).exits(0);
+
+  t.$(`sudo soulguard stage -d SOUL.md`)
+    .expect(``)
+    .exits(0)
+    .outputs(/staged for deletion/);
+
+  // Sentinel file should exist
+  t.$(`cat .soulguard-staging/SOUL.md`)
+    .expect(``)
+    .exits(0)
+    .outputs(/__soulguard_delete_sentinel__/);
+});
+
+e2e("stage: stages subdirectory path for deletion with -d", (t) => {
+  t.$(`mkdir -p docs && echo '# Guide' > docs/guide.md`).expect(``).exits(0);
+
+  t.$(`sudo soulguard init .`).expect(``).exits(0);
+
+  t.$(`sudo soulguard protect docs/guide.md`).expect(``).exits(0);
+
+  t.$(`sudo soulguard stage -d docs/guide.md`)
+    .expect(``)
+    .exits(0)
+    .outputs(/staged for deletion/);
+
+  t.$(`cat .soulguard-staging/docs/guide.md`)
+    .expect(``)
+    .exits(0)
+    .outputs(/__soulguard_delete_sentinel__/);
+});

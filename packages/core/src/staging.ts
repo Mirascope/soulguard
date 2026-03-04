@@ -1,35 +1,46 @@
 /**
  * Staging path helpers.
  *
- * Staging copies live alongside their originals as dotfile siblings:
- *   SOUL.md → .soulguard.SOUL.md
- *   memory/notes.md → memory/.soulguard.notes.md
+ * Staging copies live in a staging tree directory:
+ *   SOUL.md → .soulguard-staging/SOUL.md
+ *   memory/notes.md → .soulguard-staging/memory/notes.md
  *
- * Benefits: preserves file extension (IDE syntax highlighting),
- * no deep path indirection, visible with ls -a.
+ * Benefits: clean separation, no dotfile pollution, preserves directory structure.
  */
 
-import { dirname, basename, join } from "node:path";
+import { join } from "node:path";
 
-/** Prefix for staging sibling files. */
-export const STAGING_PREFIX = ".soulguard.";
+/** Directory for staging tree. */
+export const STAGING_DIR = ".soulguard-staging";
 
 /**
- * Compute the staging sibling path for a given file path.
+ * Compute the staging path for a given file path.
  *
- * @example stagingPath("SOUL.md") → ".soulguard.SOUL.md"
- * @example stagingPath("memory/notes.md") → "memory/.soulguard.notes.md"
+ * @example stagingPath("SOUL.md") → ".soulguard-staging/SOUL.md"
+ * @example stagingPath("memory/notes.md") → ".soulguard-staging/memory/notes.md"
  */
 export function stagingPath(filePath: string): string {
-  const dir = dirname(filePath);
-  const name = basename(filePath);
-  const sibling = `${STAGING_PREFIX}${name}`;
-  return dir === "." ? sibling : join(dir, sibling);
+  return join(STAGING_DIR, filePath);
 }
 
 /**
- * Check if a path is a staging sibling file.
+ * Check if a path is inside the staging tree.
  */
 export function isStagingPath(filePath: string): boolean {
-  return basename(filePath).startsWith(STAGING_PREFIX);
+  return filePath === STAGING_DIR || filePath.startsWith(STAGING_DIR + "/");
+}
+
+/** Sentinel value written to staging to indicate a file should be deleted. */
+export const DELETE_SENTINEL = { __soulguard_delete_sentinel__: true } as const;
+
+/**
+ * Check if file content represents a delete sentinel.
+ */
+export function isDeleteSentinel(content: string): boolean {
+  try {
+    const parsed = JSON.parse(content);
+    return parsed != null && parsed.__soulguard_delete_sentinel__ === true;
+  } catch {
+    return false;
+  }
 }
