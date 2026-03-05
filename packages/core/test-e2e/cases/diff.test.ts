@@ -1,15 +1,25 @@
 import { e2e } from "../harness";
-import { protectCmd } from "../helpers";
 
 e2e("diff: shows no changes for unmodified staging", (t) => {
-  t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+    exit 0
+  `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
     exit 0
     ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+    exit 0
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
-  `);
+  `)
+    .exits(0);
   t.$(`sudo soulguard stage SOUL.md && sudo soulguard stage soulguard.json`)
     .expect(`
     exit 0
@@ -37,14 +47,25 @@ e2e("diff: shows no changes for unmodified staging", (t) => {
 });
 
 e2e("diff: shows unified diff for modified staging", (t) => {
-  t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+    exit 0
+  `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
     exit 0
     ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+    exit 0
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
-  `);
+  `)
+    .exits(0);
   t.$(`sudo soulguard stage SOUL.md && sudo soulguard stage soulguard.json`)
     .expect(`
     exit 0
@@ -86,14 +107,25 @@ e2e("diff: shows unified diff for modified staging", (t) => {
 });
 
 e2e("diff: shows new file when protect-tier copy is missing", (t) => {
-  t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+    exit 0
+  `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
     exit 0
     ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+    exit 0
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
-  `);
+  `)
+    .exits(0);
   t.$(`sudo soulguard stage SOUL.md && sudo soulguard stage soulguard.json`)
     .expect(`
     exit 0
@@ -126,31 +158,34 @@ e2e("diff: shows new file when protect-tier copy is missing", (t) => {
     .outputs(/missing|new file/);
 });
 
-// --- Directory-aware diff tests ---
-
 e2e("diff: directory with modified staged file shows diff", (t) => {
-  t.$(
-    `mkdir -p memory && echo 'day one notes' > memory/day1.md && sudo soulguard init . && sudo soulguard protect memory && sudo soulguard sync`,
-  )
+  t.$(`mkdir -p memory && echo 'day one notes' > memory/day1.md`)
     .expect(`
-      exit 0
-      ✓ Soulguard initialized.
-      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
-        + memory → protect
-
-      Updated. 1 file(s) now protect-tier.
-      Soulguard Sync — /workspace
-
-      Fixed:
-        🔧 soulguard.json
-            owner is root, expected soulguardian
-            group is root, expected soulguard
-            mode is 644, expected 444
-
-      All files now ok.
-    `)
+    exit 0
+  `)
     .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
+    exit 0
+    ✓ Soulguard initialized.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect memory`)
+    .expect(`
+    exit 0
+      + memory → protect
 
+    Updated. 1 file(s) now protect-tier.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard sync`)
+    .expect(`
+    exit 0
+    Soulguard Sync — /workspace
+
+    Nothing to fix — all files ok.
+  `)
+    .exits(0);
   t.$(`sudo soulguard stage soulguard.json`)
     .expect(`
     exit 0
@@ -159,7 +194,7 @@ e2e("diff: directory with modified staged file shows diff", (t) => {
     Staged 1 file(s).
   `)
     .exits(0);
-  // Manually create staging for directory file (stage command doesn't support individual files in dirs yet)
+  // Manually create staging for directory file
   t.$(
     `sudo mkdir -p .soulguard-staging/memory && sudo cp memory/day1.md .soulguard-staging/memory/day1.md && echo 'modified notes' | sudo tee .soulguard-staging/memory/day1.md > /dev/null`,
   )
@@ -191,28 +226,33 @@ e2e("diff: directory with modified staged file shows diff", (t) => {
 });
 
 e2e("diff: directory with no changes shows clean", (t) => {
-  t.$(
-    `mkdir -p memory && echo 'day one notes' > memory/day1.md && sudo soulguard init . && sudo soulguard protect memory && sudo soulguard sync`,
-  )
+  t.$(`mkdir -p memory && echo 'day one notes' > memory/day1.md`)
     .expect(`
-      exit 0
-      ✓ Soulguard initialized.
-      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
-        + memory → protect
-
-      Updated. 1 file(s) now protect-tier.
-      Soulguard Sync — /workspace
-
-      Fixed:
-        🔧 soulguard.json
-            owner is root, expected soulguardian
-            group is root, expected soulguard
-            mode is 644, expected 444
-
-      All files now ok.
-    `)
+    exit 0
+  `)
     .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
+    exit 0
+    ✓ Soulguard initialized.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect memory`)
+    .expect(`
+    exit 0
+      + memory → protect
 
+    Updated. 1 file(s) now protect-tier.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard sync`)
+    .expect(`
+    exit 0
+    Soulguard Sync — /workspace
+
+    Nothing to fix — all files ok.
+  `)
+    .exits(0);
   t.$(`sudo soulguard stage soulguard.json`)
     .expect(`
     exit 0
