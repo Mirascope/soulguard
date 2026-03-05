@@ -6,7 +6,7 @@
  * Config I/O lives in config.ts.
  */
 
-import type { SoulguardConfig, Tier } from "./types.js";
+import type { SoulguardConfig, Tier } from "../util/types.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 

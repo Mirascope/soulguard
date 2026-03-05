@@ -10,13 +10,13 @@
  * 5. Best-effort git commit
  */
 
-import type { DriftIssue, FileSystemError, IOError } from "./types.js";
-import { ok, err } from "./result.js";
-import type { Result } from "./result.js";
+import type { DriftIssue, FileSystemError, IOError } from "../util/types.js";
+import { ok, err } from "../util/result.js";
+import type { Result } from "../util/result.js";
 import { status } from "./status.js";
 import type { StatusOptions, StatusResult } from "./status.js";
-import { isGitEnabled, gitCommit } from "./git.js";
-import type { GitCommitResult } from "./git.js";
+import { isGitEnabled, gitCommit } from "../util/git.js";
+import type { GitCommitResult } from "../util/git.js";
 import { protectPatterns, watchPatterns } from "./config.js";
 import { Registry } from "./registry.js";
 

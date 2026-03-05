@@ -6,10 +6,10 @@
  * --all: delete all staging contents.
  */
 
-import type { SystemOperations } from "./system-ops.js";
-import type { SoulguardConfig, Result } from "./types.js";
+import type { SystemOperations } from "../util/system-ops.js";
+import type { SoulguardConfig, Result } from "../util/types.js";
 import { STAGING_DIR } from "./staging.js";
-import { ok } from "./result.js";
+import { ok } from "../util/result.js";
 
 export type ResetOptions = {
   ops: SystemOperations;

@@ -10,11 +10,11 @@
  * - If soulguard.json is being changed, the new content must be valid config
  */
 
-import type { Result } from "./types.js";
+import type { Result } from "../util/types.js";
 import type { ApplyError } from "./apply.js";
 import type { FileDiff } from "./diff.js";
 import { soulguardConfigSchema } from "./schema.js";
-import { ok, err } from "./result.js";
+import { ok, err } from "../util/result.js";
 
 /**
  * Validate built-in self-protection rules against pending changes.

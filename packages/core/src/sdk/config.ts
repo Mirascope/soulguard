@@ -3,7 +3,7 @@
  * plus config I/O (read/write soulguard.json).
  */
 
-import type { SoulguardConfig, Tier } from "./types.js";
+import type { SoulguardConfig, Tier } from "../util/types.js";
 
 /** Get all paths at a given tier. */
 export function patternsForTier(config: SoulguardConfig, tier: Tier): string[] {
@@ -24,11 +24,11 @@ export function watchPatterns(config: SoulguardConfig): string[] {
 
 // ── Config I/O ─────────────────────────────────────────────────────────
 
-import type { SystemOperations } from "./system-ops.js";
-import type { Result } from "./types.js";
-import { ok, err } from "./result.js";
+import type { SystemOperations } from "../util/system-ops.js";
+import type { Result } from "../util/types.js";
+import { ok, err } from "../util/result.js";
 import { parseConfig } from "./schema.js";
-import { DEFAULT_CONFIG } from "./constants.js";
+import { DEFAULT_CONFIG } from "../util/constants.js";
 
 export type ConfigError =
   | { kind: "not_found" }

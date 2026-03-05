@@ -22,9 +22,9 @@ import type {
   FileSystemError,
   IOError,
   Result,
-} from "./types.js";
-import { ok } from "./result.js";
-import type { SystemOperations, FileStat } from "./system-ops.js";
+} from "../util/types.js";
+import { ok } from "../util/result.js";
+import type { SystemOperations, FileStat } from "../util/system-ops.js";
 import { protectPatterns, watchPatterns } from "./config.js";
 import { stagingPath } from "./staging.js";
 import type { Registry } from "./registry.js";

@@ -8,7 +8,7 @@
 import type { SystemOperations } from "./system-ops.js";
 import type { SoulguardConfig, Result } from "./types.js";
 import { ok, err } from "./result.js";
-import { watchPatterns } from "./config.js";
+import { watchPatterns } from "../sdk/config.js";
 
 export type GitCommitResult =
   | { committed: true; message: string; files: string[] }

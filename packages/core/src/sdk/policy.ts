@@ -9,8 +9,8 @@
  * the approval is blocked and all violations are reported.
  */
 
-import type { Result } from "./result.js";
-import { ok, err } from "./result.js";
+import type { Result } from "../util/result.js";
+import { ok, err } from "../util/result.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 

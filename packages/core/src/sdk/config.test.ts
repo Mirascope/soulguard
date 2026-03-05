@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { MockSystemOps } from "./system-ops-mock.js";
+import { MockSystemOps } from "../util/system-ops-mock.js";
 import { readConfig, ensureConfig } from "./config.js";
-import { DEFAULT_CONFIG } from "./constants.js";
-import type { SoulguardConfig } from "./types.js";
+import { DEFAULT_CONFIG } from "../util/constants.js";
+import type { SoulguardConfig } from "../util/types.js";
 
 const testConfig: SoulguardConfig = {
   version: 1,
