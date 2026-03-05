@@ -20,7 +20,7 @@ e2e("apply: applies staged changes with hash", (t) => {
     Updated. 1 file(s) now protect-tier.
   `)
     .exits(0);
-  t.$(`sudo soulguard stage SOUL.md && sudo soulguard stage soulguard.json`)
+  t.$(`soulguard stage SOUL.md && soulguard stage soulguard.json`)
     .expect(`
     exit 0
       📝 SOUL.md (staged for editing)
@@ -79,7 +79,7 @@ e2e("apply: handles file deletion through staging", (t) => {
     Updated. 1 file(s) now protect-tier.
   `)
     .exits(0);
-  t.$(`sudo soulguard stage -d SOUL.md && sudo soulguard stage soulguard.json`)
+  t.$(`soulguard stage -d SOUL.md && soulguard stage soulguard.json`)
     .expect(`
     exit 0
       🗑️  SOUL.md (staged for deletion)
@@ -143,7 +143,7 @@ e2e("apply: applies modified file inside protected directory", (t) => {
     Nothing to fix — all files ok.
   `)
     .exits(0);
-  t.$(`sudo soulguard stage soulguard.json`)
+  t.$(`soulguard stage soulguard.json`)
     .expect(`
     exit 0
       📝 soulguard.json (staged for editing)
@@ -211,7 +211,7 @@ e2e("apply: rejects with wrong hash", (t) => {
     Updated. 1 file(s) now protect-tier.
   `)
     .exits(0);
-  t.$(`sudo soulguard stage SOUL.md && sudo soulguard stage soulguard.json`)
+  t.$(`soulguard stage SOUL.md && soulguard stage soulguard.json`)
     .expect(`
     exit 0
       📝 SOUL.md (staged for editing)
