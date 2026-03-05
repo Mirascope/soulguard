@@ -220,8 +220,8 @@ describe("apply (implicit proposals)", () => {
     const result = await apply({ ops, config, hash, protectOwnership });
     expect(result.ok).toBe(true);
 
-    // Pending files should be cleaned up
-    const pendingExists = await ops.exists(".soulguard/pending/SOUL.md");
+    // Entire pending directory should be cleaned up
+    const pendingExists = await ops.exists(".soulguard/pending");
     expect(pendingExists.ok).toBe(true);
     if (pendingExists.ok) expect(pendingExists.value).toBe(false);
   });
