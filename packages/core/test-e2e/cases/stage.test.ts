@@ -29,7 +29,7 @@ e2e("stage: stages a protected file for editing", (t) => {
     .exits(0);
 
   // Stage the file → should copy to staging
-  t.$(`sudo soulguard stage SOUL.md`)
+  t.$(`soulguard stage SOUL.md`)
     .expect(`
       exit 0
         📝 SOUL.md (staged for editing)
@@ -72,7 +72,7 @@ e2e("stage: no-op when staging copy already exists", (t) => {
     .exits(0);
 
   // Stage file once
-  t.$(`sudo soulguard stage SOUL.md`)
+  t.$(`soulguard stage SOUL.md`)
     .expect(`
     exit 0
       📝 SOUL.md (staged for editing)
@@ -82,7 +82,7 @@ e2e("stage: no-op when staging copy already exists", (t) => {
     .exits(0);
 
   // Stage again → should skip (already staged)
-  t.$(`sudo soulguard stage SOUL.md`)
+  t.$(`soulguard stage SOUL.md`)
     .expect(`
       exit 0
         · SOUL.md (already staged)
@@ -117,7 +117,7 @@ e2e("stage: errors on watch-tier file", (t) => {
     .exits(0);
 
   // Attempt to stage watch-tier file → should error
-  t.$(`sudo soulguard stage notes.md 2>&1`)
+  t.$(`soulguard stage notes.md 2>&1`)
     .expect(`
       exit 1
       notes.md is not in the protect tier.
@@ -151,7 +151,7 @@ e2e("stage: stages file for deletion with -d", (t) => {
     .exits(0);
 
   // Stage for deletion → writes DELETE_SENTINEL instead of copying content
-  t.$(`sudo soulguard stage -d SOUL.md`)
+  t.$(`soulguard stage -d SOUL.md`)
     .expect(`
       exit 0
         🗑️  SOUL.md (staged for deletion)
@@ -196,7 +196,7 @@ e2e("stage: stages subdirectory path for deletion with -d", (t) => {
     .exits(0);
 
   // Stage nested file for deletion
-  t.$(`sudo soulguard stage -d docs/guide.md`)
+  t.$(`soulguard stage -d docs/guide.md`)
     .expect(`
       exit 0
         🗑️  docs/guide.md (staged for deletion)
@@ -228,7 +228,7 @@ e2e("stage: nonexistent file fails", (t) => {
     .exits(0);
 
   // Attempt to stage file that doesn't exist and isn't protected → should error
-  t.$(`sudo soulguard stage nonexistent.md 2>&1`)
+  t.$(`soulguard stage nonexistent.md 2>&1`)
     .expect(`
       exit 1
       nonexistent.md is not in the protect tier.
@@ -247,7 +247,7 @@ e2e("stage: -d nonexistent file fails", (t) => {
     .exits(0);
 
   // Attempt to stage nonexistent file for deletion → should error
-  t.$(`sudo soulguard stage -d nonexistent.md 2>&1`)
+  t.$(`soulguard stage -d nonexistent.md 2>&1`)
     .expect(`
       exit 1
       nonexistent.md is not in the protect tier.
@@ -268,7 +268,7 @@ e2e("stage: soulguard.json succeeds (always protect-tier)", (t) => {
     .exits(0);
 
   // Stage soulguard.json (special file that's always protect-tier)
-  t.$(`sudo soulguard stage soulguard.json`)
+  t.$(`soulguard stage soulguard.json`)
     .expect(`
       exit 0
         📝 soulguard.json (staged for editing)
@@ -318,7 +318,7 @@ e2e("stage: non-existent file in protected directory succeeds", (t) => {
     .exits(0);
 
   // Stage new file that doesn't exist yet (but is in protected directory)
-  t.$(`sudo soulguard stage skills/new-skill.md`)
+  t.$(`soulguard stage skills/new-skill.md`)
     .expect(`
       exit 0
         📝 skills/new-skill.md (staged for editing)
@@ -359,7 +359,7 @@ e2e("stage: non-existent file at nested path in protected directory succeeds", (
     .exits(0);
 
   // Stage deeply nested new file (in protected directory)
-  t.$(`sudo soulguard stage skills/advanced/new-skill.md`)
+  t.$(`soulguard stage skills/advanced/new-skill.md`)
     .expect(`
       exit 0
         📝 skills/advanced/new-skill.md (staged for editing)
@@ -403,7 +403,7 @@ e2e("stage: multiple files at once", (t) => {
     .exits(0);
 
   // Stage multiple files in one command
-  t.$(`sudo soulguard stage SOUL.md GOALS.md`)
+  t.$(`soulguard stage SOUL.md GOALS.md`)
     .expect(`
       exit 0
         📝 SOUL.md (staged for editing)
@@ -453,7 +453,7 @@ e2e("stage: directory staging recursively stages all files", (t) => {
     .exits(0);
 
   // Stage entire directory → should recursively stage all files
-  t.$(`sudo soulguard stage memory`)
+  t.$(`soulguard stage memory`)
     .expect(`
       exit 0
         📝 memory/ideas.md (staged for editing)
@@ -503,7 +503,7 @@ e2e("stage: directory for deletion with -d", (t) => {
     .exits(0);
 
   // Stage directory for deletion → writes DELETE_SENTINEL as a file (not directory)
-  t.$(`sudo soulguard stage -d memory`)
+  t.$(`soulguard stage -d memory`)
     .expect(`
       exit 0
         🗑️  memory (staged for deletion)
@@ -550,7 +550,7 @@ e2e("stage: staging for edit after staging for delete overwrites sentinel", (t) 
     .exits(0);
 
   // First stage for deletion
-  t.$(`sudo soulguard stage -d SOUL.md`)
+  t.$(`soulguard stage -d SOUL.md`)
     .expect(`
       exit 0
         🗑️  SOUL.md (staged for deletion)
@@ -560,7 +560,7 @@ e2e("stage: staging for edit after staging for delete overwrites sentinel", (t) 
     .exits(0);
 
   // Then stage for editing → should overwrite DELETE_SENTINEL with file content
-  t.$(`sudo soulguard stage SOUL.md`)
+  t.$(`soulguard stage SOUL.md`)
     .expect(`
       exit 0
         📝 SOUL.md (staged for editing)
@@ -603,7 +603,7 @@ e2e("stage: staging for delete after staging for edit overwrites with sentinel",
     .exits(0);
 
   // First stage for editing
-  t.$(`sudo soulguard stage SOUL.md`)
+  t.$(`soulguard stage SOUL.md`)
     .expect(`
       exit 0
         📝 SOUL.md (staged for editing)
@@ -613,7 +613,7 @@ e2e("stage: staging for delete after staging for edit overwrites with sentinel",
     .exits(0);
 
   // Then stage for deletion → should overwrite file content with DELETE_SENTINEL
-  t.$(`sudo soulguard stage -d SOUL.md`)
+  t.$(`soulguard stage -d SOUL.md`)
     .expect(`
       exit 0
         🗑️  SOUL.md (staged for deletion)

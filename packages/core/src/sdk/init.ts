@@ -104,7 +104,7 @@ async function ensureSoulguardDir(ops: SystemOperations): Promise<Result<void, I
   return ok(undefined);
 }
 
-/** Create .soulguard-staging/ directory with default permissions. */
+/** Create .soulguard-staging/ directory with agent-writable permissions (755). */
 async function ensureStagingDir(ops: SystemOperations): Promise<Result<void, InitError>> {
   const exists = await ops.exists(".soulguard-staging");
   if (exists.ok && !exists.value) {
@@ -115,6 +115,14 @@ async function ensureStagingDir(ops: SystemOperations): Promise<Result<void, Ini
         message: `mkdir .soulguard-staging failed: ${mkResult.error.kind}`,
       });
     }
+  }
+  // Ensure world-writable permissions so agent can write staging files without sudo
+  const chmod = await ops.chmod(".soulguard-staging", "777");
+  if (!chmod.ok) {
+    return err({
+      kind: "system_error",
+      message: `chmod .soulguard-staging failed: ${chmod.error.kind}`,
+    });
   }
   return ok(undefined);
 }
