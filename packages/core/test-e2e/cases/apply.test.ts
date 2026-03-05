@@ -1,15 +1,25 @@
 import { e2e } from "../harness";
-import { protectCmd } from "../helpers";
 
 e2e("apply: applies staged changes with hash", (t) => {
-  t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+    exit 0
+  `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
     exit 0
     ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+    exit 0
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
-  `);
+  `)
+    .exits(0);
   t.$(`sudo soulguard stage SOUL.md && sudo soulguard stage soulguard.json`)
     .expect(`
     exit 0
@@ -21,15 +31,12 @@ e2e("apply: applies staged changes with hash", (t) => {
     Staged 1 file(s).
   `)
     .exits(0);
-
-  // Modify staging
   t.$(`echo '# My Updated Soul' | sudo tee .soulguard-staging/SOUL.md > /dev/null`)
     .expect(`
     exit 0
   `)
     .exits(0);
 
-  // Get hash and apply
   t.$(
     `HASH=$(sudo soulguard diff . 2>&1 | grep 'Apply hash:' | awk '{print $NF}') && sudo soulguard apply . --hash "$HASH"`,
   )
@@ -43,7 +50,6 @@ e2e("apply: applies staged changes with hash", (t) => {
     `)
     .exits(0);
 
-  // Verify protect-tier file has new content
   t.$(`cat SOUL.md`)
     .expect(`
       exit 0
@@ -54,14 +60,25 @@ e2e("apply: applies staged changes with hash", (t) => {
 });
 
 e2e("apply: handles file deletion through staging", (t) => {
-  t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+    exit 0
+  `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
     exit 0
     ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+    exit 0
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
-  `);
+  `)
+    .exits(0);
   t.$(`sudo soulguard stage -d SOUL.md && sudo soulguard stage soulguard.json`)
     .expect(`
     exit 0
@@ -87,7 +104,6 @@ e2e("apply: handles file deletion through staging", (t) => {
     `)
     .exits(0);
 
-  // SOUL.md should be gone
   t.$(`test -f SOUL.md && echo "exists" || echo "gone"`)
     .expect(`
       exit 0
@@ -99,27 +115,34 @@ e2e("apply: handles file deletion through staging", (t) => {
 
 e2e("apply: applies modified file inside protected directory", (t) => {
   t.$(
-    `mkdir -p mydir && echo 'file1 content' > mydir/file1.txt && echo 'file2 content' > mydir/file2.txt && sudo soulguard init . && sudo soulguard protect mydir && sudo soulguard sync`,
+    `mkdir -p mydir && echo 'file1 content' > mydir/file1.txt && echo 'file2 content' > mydir/file2.txt`,
   )
     .expect(`
       exit 0
-      ✓ Soulguard initialized.
-      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
-        + mydir → protect
-
-      Updated. 1 file(s) now protect-tier.
-      Soulguard Sync — /workspace
-
-      Fixed:
-        🔧 soulguard.json
-            owner is root, expected soulguardian
-            group is root, expected soulguard
-            mode is 644, expected 444
-
-      All files now ok.
     `)
     .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
+    exit 0
+    ✓ Soulguard initialized.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect mydir`)
+    .expect(`
+    exit 0
+      + mydir → protect
 
+    Updated. 1 file(s) now protect-tier.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard sync`)
+    .expect(`
+    exit 0
+    Soulguard Sync — /workspace
+
+    Nothing to fix — all files ok.
+  `)
+    .exits(0);
   t.$(`sudo soulguard stage soulguard.json`)
     .expect(`
     exit 0
@@ -151,7 +174,6 @@ e2e("apply: applies modified file inside protected directory", (t) => {
     `)
     .exits(0);
 
-  // file1 should be modified
   t.$(`cat mydir/file1.txt`)
     .expect(`
       exit 0
@@ -160,7 +182,6 @@ e2e("apply: applies modified file inside protected directory", (t) => {
     .exits(0)
     .outputs(/modified file1/);
 
-  // file2 should be unchanged
   t.$(`cat mydir/file2.txt`)
     .expect(`
       exit 0
@@ -171,14 +192,25 @@ e2e("apply: applies modified file inside protected directory", (t) => {
 });
 
 e2e("apply: rejects with wrong hash", (t) => {
-  t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+    exit 0
+  `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
     exit 0
     ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+    exit 0
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
-  `);
+  `)
+    .exits(0);
   t.$(`sudo soulguard stage SOUL.md && sudo soulguard stage soulguard.json`)
     .expect(`
     exit 0
