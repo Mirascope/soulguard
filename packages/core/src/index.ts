@@ -89,7 +89,13 @@ export {
 export type { GitCommitResult, GitError } from "./git.js";
 
 // Staging
-export { stagingPath, isStagingPath, STAGING_PREFIX } from "./staging.js";
+export {
+  stagingPath,
+  isStagingPath,
+  STAGING_DIR,
+  DELETE_SENTINEL,
+  isDeleteSentinel,
+} from "./staging.js";
 
 // Protect check
 export { isProtectedFile, normalizePath } from "./protect-check.js";
@@ -120,4 +126,6 @@ export type { TierChangeResult, ReleaseResult } from "./tier.js";
 
 // Tier CLI command
 export { TierCommand } from "./cli/tier-command.js";
+export { StageCommand } from "./cli/stage-command.js";
+export type { StageCommandOptions } from "./cli/stage-command.js";
 export type { TierAction, TierCommandOptions } from "./cli/tier-command.js";

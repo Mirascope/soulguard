@@ -19,7 +19,7 @@ function setup() {
     mode: "444",
   });
   ops.addFile(".soulguard/staging", "", { owner: "root", group: "root", mode: "755" });
-  ops.addFile(".soulguard.SOUL.md", "modified soul", {
+  ops.addFile(".soulguard-staging/SOUL.md", "modified soul", {
     owner: "agent",
     group: "soulguard",
     mode: "644",
@@ -45,7 +45,7 @@ describe("reset (implicit proposals)", () => {
   test("returns empty resetFiles when staging matches protect tier", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile("SOUL.md", "same", { owner: "soulguardian", group: "soulguard", mode: "444" });
-    ops.addFile(".soulguard.SOUL.md", "same", {
+    ops.addFile(".soulguard-staging/SOUL.md", "same", {
       owner: "agent",
       group: "soulguard",
       mode: "644",
@@ -64,7 +64,7 @@ describe("reset (implicit proposals)", () => {
     expect(result.ok).toBe(true);
 
     // Check staging content matches vault
-    const stagingContent = await ops.readFile(".soulguard.SOUL.md");
+    const stagingContent = await ops.readFile(".soulguard-staging/SOUL.md");
     expect(stagingContent.ok).toBe(true);
     if (stagingContent.ok) expect(stagingContent.value).toBe("original soul");
   });

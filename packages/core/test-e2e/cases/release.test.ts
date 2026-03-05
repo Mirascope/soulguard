@@ -11,8 +11,7 @@ e2e("release: restores default ownership and cleans staging", (t) => {
     exit 0
     ✓ Soulguard initialized.
   `)
-    .exits(0)
-    .outputs(/Soulguard initialized/);
+    .exits(0);
   t.$(`sudo soulguard protect SOUL.md`)
     .expect(`
     exit 0
@@ -48,4 +47,13 @@ e2e("release: restores default ownership and cleans staging", (t) => {
     `)
     .exits(0)
     .outputs(/0/);
+
+  // Staging file should be cleaned up
+  t.$(`test -f .soulguard-staging/SOUL.md && echo "exists" || echo "missing"`)
+    .expect(`
+      exit 0
+      missing
+    `)
+    .exits(0)
+    .outputs(/missing/);
 });
