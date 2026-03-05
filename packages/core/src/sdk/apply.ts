@@ -30,7 +30,6 @@ import type { Policy, ApprovalContext } from "./policy.js";
 import { validatePolicies, evaluatePolicies } from "./policy.js";
 import { validateSelfProtection } from "./self-protection.js";
 import { stagingPath, STAGING_DIR } from "./staging.js";
-import { protectPatterns } from "./config.js";
 import { dirname } from "node:path";
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -80,23 +79,6 @@ function collectParentDirs(prefix: string, paths: string[]): string[] {
 }
 
 /**
- * Determine which protect-tier config entries are directories based on
- * the file paths produced by diff. If any changed file path starts with
- * a protect pattern + "/", that pattern is a directory entry.
- */
-function detectDirectoryEntries(config: SoulguardConfig, filePaths: string[]): Set<string> {
-  const dirs = new Set<string>();
-  const patterns = protectPatterns(config);
-  for (const pattern of patterns) {
-    const prefix = pattern + "/";
-    if (filePaths.some((p) => p.startsWith(prefix))) {
-      dirs.add(pattern);
-    }
-  }
-  return dirs;
-}
-
-/**
  * Apply staging changes to protect.
  */
 export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, ApplyError>> {
@@ -125,12 +107,6 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
     (f) => f.status === "modified" || f.status === "protect_missing" || f.status === "deleted",
   );
 
-  // Detect which config entries are directories (for cleanup later)
-  const dirEntries = detectDirectoryEntries(
-    config,
-    changedFiles.map((f) => f.path),
-  );
-
   // ── Phase 2: Copy staging to protected working dir ─────────────────
   // Once in .soulguard/pending/ (owned by soulguardian), the agent cannot
   // modify these files. This freezes the content before we verify the hash.
@@ -152,7 +128,7 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
       `.soulguard/pending/${file.path}`,
     );
     if (!copyResult.ok) {
-      await cleanupPending(ops, changedFiles, dirEntries);
+      await cleanupPending(ops);
       return err({ kind: "apply_failed", message: `Cannot copy staging/${file.path} to pending` });
     }
   }
@@ -160,19 +136,19 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
   // Protect the pending dir so agent can't tamper during approval
   const chownPending = await ops.chown(".soulguard/pending", protectOwnership);
   if (!chownPending.ok) {
-    await cleanupPending(ops, changedFiles, dirEntries);
+    await cleanupPending(ops);
     return err({ kind: "apply_failed", message: "Cannot protect pending directory" });
   }
 
   // ── Phase 3: Hash the frozen pending copies and verify ─────────────
   const pendingHash = await computePendingHash(ops, changedFiles);
   if (!pendingHash.ok) {
-    await cleanupPending(ops, changedFiles, dirEntries);
+    await cleanupPending(ops);
     return err({ kind: "apply_failed", message: pendingHash.error });
   }
 
   if (pendingHash.value !== hash) {
-    await cleanupPending(ops, changedFiles, dirEntries);
+    await cleanupPending(ops);
     return err({
       kind: "hash_mismatch",
       message: `Expected hash ${hash} but got hash ${pendingHash.value}`,
@@ -184,7 +160,7 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
   for (const file of nonDeletedFiles) {
     const content = await ops.readFile(`.soulguard/pending/${file.path}`);
     if (!content.ok) {
-      await cleanupPending(ops, changedFiles, dirEntries);
+      await cleanupPending(ops);
       return err({
         kind: "apply_failed",
         message: `Cannot read pending/${file.path}`,
@@ -200,7 +176,7 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
       changedFiles.filter((f) => f.status === "deleted"),
     );
     if (!selfCheck.ok) {
-      await cleanupPending(ops, changedFiles, dirEntries);
+      await cleanupPending(ops);
       return err(selfCheck.error);
     }
   }
@@ -234,13 +210,12 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
 
     const policyResult = await evaluatePolicies(policies, ctx);
     if (!policyResult.ok) {
-      await cleanupPending(ops, changedFiles, dirEntries);
+      await cleanupPending(ops);
       return err(policyResult.error);
     }
   }
 
   // ── Phase 4: Backup all affected protect-tier files ───────────────────────
-  const backedUpFiles: string[] = [];
   await ops.mkdir(".soulguard/backup");
 
   // Create parent directories for nested file paths in backup
@@ -256,11 +231,10 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
   for (const file of filesToBackup) {
     const backupResult = await ops.copyFile(file.path, `.soulguard/backup/${file.path}`);
     if (!backupResult.ok) {
-      await cleanupBackup(ops, backedUpFiles, dirEntries);
-      await cleanupPending(ops, changedFiles, dirEntries);
+      await cleanupBackup(ops);
+      await cleanupPending(ops);
       return err({ kind: "apply_failed", message: `Backup of ${file.path} failed` });
     }
-    backedUpFiles.push(file.path);
   }
 
   // ── Phase 5: Apply changes ─────────────────────────────────────────
@@ -271,14 +245,7 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
       // Delete protect-tier file
       const deleteResult = await ops.deleteFile(file.path);
       if (!deleteResult.ok) {
-        await rollback(
-          ops,
-          changedFiles,
-          appliedFiles,
-          backedUpFiles,
-          protectOwnership,
-          dirEntries,
-        );
+        await rollback(ops, appliedFiles, protectOwnership);
         return err({
           kind: "apply_failed",
           message: `Cannot delete ${file.path}: ${deleteResult.error.kind}`,
@@ -296,27 +263,13 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
       // Write content from pending
       const content = await ops.readFile(`.soulguard/pending/${file.path}`);
       if (!content.ok) {
-        await rollback(
-          ops,
-          changedFiles,
-          appliedFiles,
-          backedUpFiles,
-          protectOwnership,
-          dirEntries,
-        );
+        await rollback(ops, appliedFiles, protectOwnership);
         return err({ kind: "apply_failed", message: `Cannot read pending/${file.path}` });
       }
 
       const writeResult = await ops.writeFile(file.path, content.value);
       if (!writeResult.ok) {
-        await rollback(
-          ops,
-          changedFiles,
-          appliedFiles,
-          backedUpFiles,
-          protectOwnership,
-          dirEntries,
-        );
+        await rollback(ops, appliedFiles, protectOwnership);
         return err({
           kind: "apply_failed",
           message: `Cannot write ${file.path}: ${writeResult.error.kind}`,
@@ -326,14 +279,7 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
       // Re-protect
       const chownResult = await ops.chown(file.path, protectOwnership);
       if (!chownResult.ok) {
-        await rollback(
-          ops,
-          changedFiles,
-          appliedFiles,
-          backedUpFiles,
-          protectOwnership,
-          dirEntries,
-        );
+        await rollback(ops, appliedFiles, protectOwnership);
         return err({
           kind: "apply_failed",
           message: `Cannot chown ${file.path}: ${chownResult.error.kind}`,
@@ -342,14 +288,7 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
 
       const chmodResult = await ops.chmod(file.path, protectOwnership.mode);
       if (!chmodResult.ok) {
-        await rollback(
-          ops,
-          changedFiles,
-          appliedFiles,
-          backedUpFiles,
-          protectOwnership,
-          dirEntries,
-        );
+        await rollback(ops, appliedFiles, protectOwnership);
         return err({
           kind: "apply_failed",
           message: `Cannot chmod ${file.path}: ${chmodResult.error.kind}`,
@@ -373,8 +312,8 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
   // Deleted files: staging copy is already gone (that's how we detected the deletion)
 
   // Clean up backup and pending
-  await cleanupBackup(ops, backedUpFiles, dirEntries);
-  await cleanupPending(ops, changedFiles, dirEntries);
+  await cleanupBackup(ops);
+  await cleanupPending(ops);
 
   // ── Git auto-commit (best-effort) ──────────────────────────────────
   let gitResult: GitCommitResult | undefined;
@@ -416,42 +355,18 @@ async function computePendingHash(
 
 /**
  * Clean up pending directory on early exit.
- * Also cleans up directory subtrees for directory entries.
+ * Simply removes the entire temporary working directory.
  */
-async function cleanupPending(
-  ops: SystemOperations,
-  files: FileDiff[],
-  dirEntries?: Set<string>,
-): Promise<void> {
-  for (const file of files) {
-    await ops.deleteFile(`.soulguard/pending/${file.path}`);
-  }
-  // Clean up directory entries in pending
-  if (dirEntries) {
-    for (const dir of dirEntries) {
-      await ops.deleteFile(`.soulguard/pending/${dir}`);
-    }
-  }
+async function cleanupPending(ops: SystemOperations): Promise<void> {
+  await ops.deleteFile(".soulguard/pending");
 }
 
 /**
- * Clean up backup files.
- * Also cleans up directory subtrees for directory entries.
+ * Clean up backup directory.
+ * Simply removes the entire temporary working directory.
  */
-async function cleanupBackup(
-  ops: SystemOperations,
-  backedUpFiles: string[],
-  dirEntries?: Set<string>,
-): Promise<void> {
-  for (const filePath of backedUpFiles) {
-    await ops.deleteFile(`.soulguard/backup/${filePath}`);
-  }
-  // Clean up directory entries in backup
-  if (dirEntries) {
-    for (const dir of dirEntries) {
-      await ops.deleteFile(`.soulguard/backup/${dir}`);
-    }
-  }
+async function cleanupBackup(ops: SystemOperations): Promise<void> {
+  await ops.deleteFile(".soulguard/backup");
 }
 
 /**
@@ -459,11 +374,8 @@ async function cleanupBackup(
  */
 async function rollback(
   ops: SystemOperations,
-  changedFiles: FileDiff[],
   appliedFiles: string[],
-  backedUpFiles: string[],
   protectOwnership: FileOwnership,
-  dirEntries?: Set<string>,
 ): Promise<void> {
   for (const filePath of appliedFiles) {
     const backupContent = await ops.readFile(`.soulguard/backup/${filePath}`);
@@ -473,6 +385,6 @@ async function rollback(
       await ops.chmod(filePath, protectOwnership.mode);
     }
   }
-  await cleanupBackup(ops, backedUpFiles, dirEntries);
-  await cleanupPending(ops, changedFiles, dirEntries);
+  await cleanupBackup(ops);
+  await cleanupPending(ops);
 }
