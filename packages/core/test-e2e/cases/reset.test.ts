@@ -1,16 +1,25 @@
 import { e2e } from "../harness";
-import { protectCmd } from "../helpers";
 
 e2e("reset: dry run lists staged files", (t) => {
-  t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+    exit 0
+  `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
     exit 0
     ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+    exit 0
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
-  `);
-
+  `)
+    .exits(0);
   t.$(`sudo soulguard stage SOUL.md`)
     .expect(`
     exit 0
@@ -34,22 +43,32 @@ e2e("reset: dry run lists staged files", (t) => {
   // File should still exist after dry run
   t.$(`cat .soulguard-staging/SOUL.md`)
     .expect(`
-      exit 0
-      # My Soul
-    `)
+    exit 0
+    # My Soul
+  `)
     .exits(0);
 });
 
 e2e("reset: specific file removes staging copy", (t) => {
-  t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+    exit 0
+  `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
     exit 0
     ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+    exit 0
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
-  `);
-
+  `)
+    .exits(0);
   t.$(`sudo soulguard stage SOUL.md`)
     .expect(`
     exit 0
@@ -78,15 +97,25 @@ e2e("reset: specific file removes staging copy", (t) => {
 });
 
 e2e("reset: --all empties staging tree", (t) => {
-  t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+    exit 0
+  `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
     exit 0
     ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+    exit 0
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
-  `);
-
+  `)
+    .exits(0);
   t.$(`sudo soulguard stage SOUL.md`)
     .expect(`
     exit 0
@@ -119,7 +148,6 @@ e2e("reset: no staged changes shows clean message", (t) => {
     .expect(`
     exit 0
     ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
   `)
     .exits(0);
 
@@ -132,25 +160,34 @@ e2e("reset: no staged changes shows clean message", (t) => {
     .outputs(/clean|Nothing staged/);
 });
 
-// --- New tests ---
-
 e2e("reset: selective reset keeps other staged files", (t) => {
-  t.$(
-    `echo '# Soul' > SOUL.md && echo '# Notes' > notes.md && sudo soulguard init . && sudo soulguard protect SOUL.md && sudo soulguard protect notes.md`,
-  )
+  t.$(`echo '# Soul' > SOUL.md && echo '# Notes' > notes.md`)
     .expect(`
-      exit 0
-      ✓ Soulguard initialized.
-      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
-        + SOUL.md → protect
-
-      Updated. 1 file(s) now protect-tier.
-        + notes.md → protect
-
-      Updated. 1 file(s) now protect-tier.
-    `)
+    exit 0
+  `)
     .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
+    exit 0
+    ✓ Soulguard initialized.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+    exit 0
+      + SOUL.md → protect
 
+    Updated. 1 file(s) now protect-tier.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect notes.md`)
+    .expect(`
+    exit 0
+      + notes.md → protect
+
+    Updated. 1 file(s) now protect-tier.
+  `)
+    .exits(0);
   t.$(`sudo soulguard stage SOUL.md && sudo soulguard stage notes.md`)
     .expect(`
     exit 0
@@ -163,7 +200,6 @@ e2e("reset: selective reset keeps other staged files", (t) => {
   `)
     .exits(0);
 
-  // Reset only SOUL.md
   t.$(`sudo soulguard reset -w . SOUL.md`)
     .expect(`
       exit 0
@@ -173,7 +209,6 @@ e2e("reset: selective reset keeps other staged files", (t) => {
     .exits(0)
     .outputs(/Reset/);
 
-  // notes.md staging should still exist
   t.$(`test -f .soulguard-staging/notes.md && echo exists || echo gone`)
     .expect(`
       exit 0
