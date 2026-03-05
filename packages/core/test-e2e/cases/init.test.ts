@@ -18,13 +18,14 @@ e2e("init: happy path creates dirs, config, registry, git", (t) => {
     `)
     .exits(0);
 
-  // Verify .soulguard-staging/ exists
-  t.$(`test -d .soulguard-staging && echo exists`)
+  // Verify .soulguard-staging/ exists with 777 permissions (agent-writable)
+  t.$(`stat -c '%a' .soulguard-staging`)
     .expect(`
       exit 0
-      exists
+      777
     `)
-    .exits(0);
+    .exits(0)
+    .outputs(/777/);
 
   // Verify registry.json owned by soulguardian:soulguard, mode 444
   t.$(`stat -c '%U:%G %a' .soulguard/registry.json`)
