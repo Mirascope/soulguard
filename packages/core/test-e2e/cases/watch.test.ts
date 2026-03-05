@@ -1,14 +1,27 @@
 import { e2e } from "../harness";
-import { watchCmd } from "../helpers";
 
 e2e("watch: adds file and updates config", (t) => {
-  t.$(watchCmd("notes.md", "# Notes")).expect(`
+  t.$(`echo '# Notes' > notes.md`)
+    .expect(`
+    exit 0
+  `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
     exit 0
     ✓ Soulguard initialized.
+  `)
+    .exits(0)
+    .outputs(/Soulguard initialized/);
+  t.$(`sudo soulguard watch notes.md`)
+    .expect(`
+    exit 0
       + notes.md → watch
 
     Updated. 1 file(s) now watch-tier.
-  `);
+  `)
+    .exits(0)
+    .outputs(/watch/);
 
   t.$(`stat -c '%U:%G %a' notes.md`)
     .expect(`
@@ -35,37 +48,13 @@ e2e("watch: adds file and updates config", (t) => {
 
 e2e.skip("watch: resolves glob patterns", (t) => {
   t.$(`mkdir -p memory && echo 'day 1' > memory/day1.md && echo 'day 2' > memory/day2.md`)
-    .expect(`
-      exit 0
-    `)
+    .expect(``)
     .exits(0);
-
-  t.$(`sudo soulguard init .`)
-    .expect(`
-    exit 0
-    ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
-  `)
-    .exits(0);
-
-  t.$(`sudo soulguard watch 'memory/*.md'`)
-    .expect(`
-      exit 1
-      memory/*.md does not exist
-    `)
-    .exits(0)
-    .outputs(/watch/);
+  t.$(`sudo soulguard init .`).expect(``).exits(0);
+  t.$(`sudo soulguard watch 'memory/*.md'`).expect(``).exits(0).outputs(/watch/);
 
   t.$(`cat soulguard.json`)
-    .expect(`
-      exit 0
-      {
-        "version": 1,
-        "files": {
-          "soulguard.json": "protect"
-        }
-      }
-    `)
+    .expect(``)
     .exits(0)
     .outputs(/"memory\/day1\.md"/)
     .outputs(/"memory\/day2\.md"/);
