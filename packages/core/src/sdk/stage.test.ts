@@ -304,20 +304,20 @@ describe("stage", () => {
     }
   });
 
-  test("copyFile failure → returns stage_failed", async () => {
+  test("readFile failure → returns stage_failed", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul");
 
-    // Mock copyFile to fail
-    const originalCopy = ops.copyFile.bind(ops);
-    ops.copyFile = async (src: string, dest: string) => {
-      if (src === "SOUL.md") {
+    // Mock readFile to fail
+    const originalRead = ops.readFile.bind(ops);
+    ops.readFile = async (path: string) => {
+      if (path === "SOUL.md") {
         return {
           ok: false,
-          error: { kind: "permission_denied" as const, path: src, operation: "copy" },
+          error: { kind: "permission_denied" as const, path, operation: "read" },
         };
       }
-      return originalCopy(src, dest);
+      return originalRead(path);
     };
 
     const result = await stage({ ops, config: makeConfig(), path: "SOUL.md" });
@@ -328,7 +328,7 @@ describe("stage", () => {
     expect(result.error.kind).toBe("stage_failed");
     expect(result.error.path).toBe("SOUL.md");
     if (result.error.kind === "stage_failed") {
-      expect(result.error.message).toContain("Cannot copy file");
+      expect(result.error.message).toContain("Cannot read file");
     }
   });
 
