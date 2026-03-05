@@ -1,14 +1,27 @@
 import { e2e } from "../harness";
-import { protectCmd } from "../helpers";
 
 e2e("protect: sets correct ownership and permissions", (t) => {
-  t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+    exit 0
+  `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
     exit 0
     ✓ Soulguard initialized.
+  `)
+    .exits(0)
+    .outputs(/Soulguard initialized/);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+    exit 0
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
-  `);
+  `)
+    .exits(0)
+    .outputs(/protect/);
 
   t.$(`stat -c '%U:%G %a' SOUL.md`)
     .expect(`
@@ -34,13 +47,25 @@ e2e("protect: sets correct ownership and permissions", (t) => {
 });
 
 e2e("protect: blocks agent writes", (t) => {
-  t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+    exit 0
+  `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
     exit 0
     ✓ Soulguard initialized.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+    exit 0
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
-  `);
+  `)
+    .exits(0);
 
   t.$(
     `sh -c "echo hacked > $(pwd)/SOUL.md" 2>&1 && echo "WRITE SUCCEEDED (BAD)" || echo "WRITE BLOCKED (GOOD)"`,
@@ -65,16 +90,27 @@ e2e("protect: blocks agent writes", (t) => {
 
 e2e("protect: directory protection blocks new file creation", (t) => {
   t.$(
-    `mkdir -p skills && echo '# Python' > skills/python.md && echo '# TypeScript' > skills/typescript.md && sudo soulguard init . && sudo soulguard protect skills/`,
+    `mkdir -p skills && echo '# Python' > skills/python.md && echo '# TypeScript' > skills/typescript.md`,
   )
     .expect(`
       exit 0
-      ✓ Soulguard initialized.
-        + skills/ → protect
-
-      Updated. 1 file(s) now protect-tier.
     `)
     .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
+    exit 0
+    ✓ Soulguard initialized.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect skills/`)
+    .expect(`
+    exit 0
+      + skills/ → protect
+
+    Updated. 1 file(s) now protect-tier.
+  `)
+    .exits(0)
+    .outputs(/protect/);
 
   t.$(`stat -c '%U:%G %a' skills`)
     .expect(`
@@ -106,13 +142,25 @@ e2e("protect: directory protection blocks new file creation", (t) => {
 });
 
 e2e("protect: already protected file is no-op", (t) => {
-  t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+    exit 0
+  `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
     exit 0
     ✓ Soulguard initialized.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+    exit 0
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
-  `);
+  `)
+    .exits(0);
 
   t.$(`sudo soulguard protect SOUL.md`)
     .expect(`
@@ -127,9 +175,9 @@ e2e("protect: already protected file is no-op", (t) => {
 e2e("protect: nonexistent file errors", (t) => {
   t.$(`sudo soulguard init .`)
     .expect(`
-      exit 0
-      ✓ Soulguard initialized.
-    `)
+    exit 0
+    ✓ Soulguard initialized.
+  `)
     .exits(0);
 
   t.$(`sudo soulguard protect nonexistent.md 2>&1`)

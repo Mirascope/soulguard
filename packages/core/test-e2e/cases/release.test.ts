@@ -1,14 +1,26 @@
 import { e2e } from "../harness";
-import { protectCmd } from "../helpers";
 
 e2e("release: restores default ownership and cleans staging", (t) => {
-  t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+    exit 0
+  `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
     exit 0
     ✓ Soulguard initialized.
+  `)
+    .exits(0)
+    .outputs(/Soulguard initialized/);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+    exit 0
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
-  `);
+  `)
+    .exits(0);
 
   t.$(`sudo soulguard release SOUL.md`)
     .expect(`
@@ -18,7 +30,7 @@ e2e("release: restores default ownership and cleans staging", (t) => {
       Released. 1 file(s) untracked.
     `)
     .exits(0)
-    .outputs(/release|Released/);
+    .outputs(/Released/);
 
   t.$(`stat -c '%U:%G %a' SOUL.md`)
     .expect(`
