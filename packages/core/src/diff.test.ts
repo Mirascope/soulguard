@@ -102,7 +102,7 @@ describe("diff", () => {
     expect(result.value.files[0]!.path).toBe("SOUL.md");
   });
 
-  test("globs resolve to matching files", async () => {
+  test("multiple literal files", async () => {
     const ops = makeMock();
 
     ops.addFile("SOUL.md", "# Soul");
@@ -110,7 +110,7 @@ describe("diff", () => {
     ops.addFile("memory/day1.md", "notes");
     ops.addFile("memory/.soulguard.day1.md", "notes");
 
-    const config = makeConfig(["SOUL.md", "memory/**"]);
+    const config = makeConfig(["SOUL.md", "memory/day1.md"]);
     const result = await diff({ ops, config });
 
     expect(result.ok).toBe(true);

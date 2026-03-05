@@ -1,29 +1,28 @@
 /**
- * Config helpers — extract patterns by tier from the files map.
- *
- * These replace direct access to the old `config.protect` and `config.watch` arrays.
+ * Config helpers — extract file paths by tier from the files map,
+ * plus config I/O (read/write soulguard.json).
  */
 
 import type { SoulguardConfig, Tier } from "./types.js";
 
-/** Get all patterns at a given tier. */
+/** Get all paths at a given tier. */
 export function patternsForTier(config: SoulguardConfig, tier: Tier): string[] {
   return Object.entries(config.files)
     .filter(([, t]) => t === tier)
     .map(([pattern]) => pattern);
 }
 
-/** Shorthand: get all protect-tier patterns. */
+/** Shorthand: get all protect-tier paths. */
 export function protectPatterns(config: SoulguardConfig): string[] {
   return patternsForTier(config, "protect");
 }
 
-/** Shorthand: get all watch-tier patterns. */
+/** Shorthand: get all watch-tier paths. */
 export function watchPatterns(config: SoulguardConfig): string[] {
   return patternsForTier(config, "watch");
 }
 
-// ── Config loading ─────────────────────────────────────────────────────
+// ── Config I/O ─────────────────────────────────────────────────────────
 
 import type { SystemOperations } from "./system-ops.js";
 import type { Result } from "./types.js";
@@ -35,6 +34,8 @@ export type ConfigError =
   | { kind: "not_found" }
   | { kind: "parse_failed"; message: string }
   | { kind: "io_error"; message: string };
+
+export type ConfigWriteError = { kind: "config_write_failed"; message: string };
 
 /**
  * Read and parse soulguard.json from a workspace.
@@ -64,6 +65,21 @@ export async function readConfig(
       message: e instanceof Error ? e.message : String(e),
     });
   }
+}
+
+/**
+ * Write soulguard.json to disk.
+ */
+export async function writeConfig(
+  ops: SystemOperations,
+  config: SoulguardConfig,
+): Promise<Result<void, ConfigWriteError>> {
+  const content = JSON.stringify(config, null, 2) + "\n";
+  const result = await ops.writeFile("soulguard.json", content);
+  if (!result.ok) {
+    return err({ kind: "config_write_failed", message: result.error.kind });
+  }
+  return ok(undefined);
 }
 
 /**

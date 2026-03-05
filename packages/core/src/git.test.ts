@@ -181,7 +181,7 @@ describe("commitWatchFiles", () => {
       version: 1,
       files: {
         "MEMORY.md": "watch",
-        "memory/*.md": "watch",
+        "memory/day1.md": "watch",
       },
       git: true,
     });
@@ -191,8 +191,7 @@ describe("commitWatchFiles", () => {
     expect(result.value.committed).toBe(true);
     if (result.value.committed) {
       expect(result.value.message).toBe("soulguard: watch sync");
-      // Globs are filtered out — only MEMORY.md staged
-      expect(result.value.files).toEqual(["MEMORY.md"]);
+      expect(result.value.files).toEqual(["MEMORY.md", "memory/day1.md"]);
     }
   });
 
@@ -225,19 +224,19 @@ describe("commitWatchFiles", () => {
     expect(result.value).toEqual({ committed: false, reason: "no_files" });
   });
 
-  test("returns no_files when only glob patterns", async () => {
+  test("returns nothing_staged when files unchanged", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile(".soulguard/.git", "");
     const result = await commitWatchFiles(ops, {
       version: 1,
       files: {
-        "memory/*.md": "watch",
+        "MEMORY.md": "watch",
       },
       git: true,
     });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value).toEqual({ committed: false, reason: "no_files" });
+    expect(result.value).toEqual({ committed: false, reason: "nothing_staged" });
   });
 });

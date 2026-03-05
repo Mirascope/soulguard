@@ -9,8 +9,8 @@ export type SoulguardConfig = {
   /** Schema version for forward compatibility */
   version: 1;
   /**
-   * Map from file path or glob pattern to its protection tier.
-   * When multiple patterns match a file, the highest tier wins (seal > protect > watch).
+   * Map from file path or directory path to its protection tier.
+   * Literal paths only — no globs.
    */
   files: Record<string, Tier>;
   /** Whether to initialize and track git (default: true) */

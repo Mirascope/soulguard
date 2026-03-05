@@ -36,7 +36,7 @@ sudo soulguard init
 sudo soulguard protect SOUL.md AGENTS.md
 
 # Watch operational files
-sudo soulguard watch "memory/*.md"
+sudo soulguard watch memory/
 
 # Check status
 soulguard status
@@ -74,6 +74,16 @@ echo "Well, maybe be a little evil" >> SOUL.md
 
 Once protected, the file is owned by `soulguardian:soulguard` with mode `444` — no one but root can modify it.
 
+### Protecting directories
+
+Use `sudo soulguard protect` with a directory path to lock down an entire directory. The directory and all its contents are recursively chowned to `soulguardian:soulguard` with mode `444`:
+
+```bash
+sudo soulguard protect skills/
+```
+
+This prevents the agent from creating, modifying, or deleting any files within the directory — closing the "untracked file" attack vector where an agent could write a malicious file to an unprotected directory.
+
 ### Proposing changes to protected files
 
 When an agent (or anyone) wants to modify a protected file, they edit the staging copy — a sibling file named `.soulguard.<filename>`:
@@ -107,7 +117,7 @@ The file's original ownership is restored from the registry.
 Use `sudo soulguard watch` to track files without locking them:
 
 ```bash
-sudo soulguard watch MEMORY.md "memory/*.md"
+sudo soulguard watch MEMORY.md memory/
 
 # The agent can freely edit watched files
 echo "Learned something new today" >> MEMORY.md
@@ -137,23 +147,6 @@ To discard all pending staged changes and reset to match the current protect-tie
 sudo soulguard reset
 ```
 
-## Glob Patterns
-
-Config files and CLI commands support glob patterns:
-
-```bash
-# Protect all markdown files in a directory
-sudo soulguard protect "docs/*.md"
-
-# Watch all files recursively
-sudo soulguard watch "memory/**/*.md"
-```
-
-- `*` matches a single path segment (e.g. `memory/*.md` matches `memory/notes.md` but not `memory/deep/notes.md`)
-- `**` matches any depth (e.g. `skills/**` matches `skills/tool.ts` and `skills/sub/tool.ts`)
-
-Globs are resolved to concrete file paths at runtime. All commands (`status`, `diff`, `sync`, `apply`, `reset`) resolve globs before operating, so new files matching a glob are automatically picked up.
-
 ## Configuration
 
 Soulguard is configured via `soulguard.json` in the workspace root:
@@ -166,14 +159,14 @@ Soulguard is configured via `soulguard.json` in the workspace root:
     "SOUL.md": "protect",
     "AGENTS.md": "protect",
     "MEMORY.md": "watch",
-    "memory/*.md": "watch"
+    "memory/": "watch"
   },
   "git": true
 }
 ```
 
 - **`version`** — Schema version (currently `1`)
-- **`files`** — Map from file path or glob pattern to its protection tier (`"protect"` or `"watch"`). When multiple patterns match a file, the highest tier wins.
+- **`files`** — Map from file path or directory path to its protection tier (`"protect"` or `"watch"`). Paths are literal — no glob patterns.
 - **`git`** — Enable/disable auto-commits to soulguard's internal git repo (default: `true`)
 
 `soulguard.json` is always implicitly protected — it cannot be released or corrupted.
@@ -188,10 +181,10 @@ The OpenClaw plugin (`@soulguard/openclaw`) ships three templates that categoriz
 | `openclaw.json`, `cron/jobs.json`                                                        |  watch  | protect | protect  |
 | `workspace/SOUL.md`, `workspace/AGENTS.md`, `workspace/IDENTITY.md`, `workspace/USER.md` |  watch  | protect | protect  |
 | `workspace/TOOLS.md`, `workspace/HEARTBEAT.md`, `workspace/BOOTSTRAP.md`                 |  watch  | protect | protect  |
-| `workspace/MEMORY.md`, `workspace/memory/**/*.md`                                        |  watch  |  watch  | protect  |
-| `workspace/skills/**`                                                                    |  watch  |  watch  | protect  |
-| `extensions/**`                                                                          |  watch  | protect | protect  |
-| `workspace/sessions/**`                                                                  |    —    |    —    |  watch   |
+| `workspace/MEMORY.md`, `workspace/memory/`                                               |  watch  |  watch  | protect  |
+| `workspace/skills/`                                                                      |  watch  |  watch  | protect  |
+| `extensions/`                                                                            |  watch  | protect | protect  |
+| `workspace/sessions/`                                                                    |    —    |    —    |  watch   |
 
 - **`default`** — Core identity and config in protect, memory and skills in watch
 - **`paranoid`** — Everything possible in protect, only sessions in watch
@@ -223,9 +216,9 @@ soulguard log . SOUL.md
 | Command                                      | Description                                                                        |
 | -------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `sudo soulguard init [dir]`                  | One-time setup — creates system user/group, `.soulguard/` directory, sudoers entry |
-| `sudo soulguard protect <files...>`          | Add files or globs to the protect tier                                             |
-| `sudo soulguard watch <files...>`            | Add files or globs to the watch tier                                               |
-| `sudo soulguard release <files...>`          | Remove files from all protection tiers                                             |
+| `sudo soulguard protect <paths...>`          | Add files or directories to the protect tier                                       |
+| `sudo soulguard watch <paths...>`            | Add files or directories to the watch tier                                         |
+| `sudo soulguard release <paths...>`          | Remove files or directories from all protection tiers                              |
 | `sudo soulguard apply [dir] [--hash <hash>]` | Apply staged changes to protect-tier files                                         |
 | `sudo soulguard sync [dir]`                  | Fix ownership/permission drift and commit all tracked files                        |
 | `sudo soulguard reset [dir]`                 | Reset staging to match current protect-tier state                                  |

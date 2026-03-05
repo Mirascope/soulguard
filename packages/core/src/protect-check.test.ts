@@ -12,16 +12,16 @@ describe("isProtectedFile", () => {
     expect(isProtectedFile(["./SOUL.md"], "SOUL.md")).toBe(true);
   });
 
-  test("glob * matches single segment", () => {
-    expect(isProtectedFile(["memory/*.md"], "memory/day1.md")).toBe(true);
-    expect(isProtectedFile(["memory/*.md"], "memory/archive/old.md")).toBe(false);
-    expect(isProtectedFile(["*.md"], "SOUL.md")).toBe(true);
+  test("directory protection covers files inside", () => {
+    expect(isProtectedFile(["memory"], "memory/day1.md")).toBe(true);
+    expect(isProtectedFile(["memory/"], "memory/day1.md")).toBe(true);
+    expect(isProtectedFile(["memory"], "memory/archive/old.md")).toBe(true);
+    expect(isProtectedFile(["skills"], "memory/day1.md")).toBe(false);
   });
 
-  test("glob ** matches nested paths", () => {
-    expect(isProtectedFile(["memory/**"], "memory/day1.md")).toBe(true);
-    expect(isProtectedFile(["memory/**"], "memory/archive/old.md")).toBe(true);
-    expect(isProtectedFile(["skills/**"], "memory/day1.md")).toBe(false);
+  test("directory protection normalizes trailing slash", () => {
+    expect(isProtectedFile(["skills/"], "skills/python.md")).toBe(true);
+    expect(isProtectedFile(["skills"], "skills/python.md")).toBe(true);
   });
 });
 
@@ -32,6 +32,10 @@ describe("normalizePath", () => {
 
   test("strips leading /", () => {
     expect(normalizePath("/SOUL.md")).toBe("SOUL.md");
+  });
+
+  test("strips trailing /", () => {
+    expect(normalizePath("skills/")).toBe("skills");
   });
 
   test("passes through normal paths", () => {

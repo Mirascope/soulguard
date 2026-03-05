@@ -23,7 +23,6 @@ import type {
 import { ok } from "./result.js";
 import type { SystemOperations } from "./system-ops.js";
 import { getFileInfo } from "./system-ops.js";
-import { resolvePatterns } from "./glob.js";
 import { protectPatterns, watchPatterns } from "./config.js";
 import type { Registry } from "./registry.js";
 
@@ -60,15 +59,9 @@ export type StatusOptions = {
 export async function status(options: StatusOptions): Promise<Result<StatusResult, IOError>> {
   const { config, expectedProtectOwnership, ops, registry } = options;
 
-  // Resolve glob patterns to concrete file paths
-  const [protectResult, watchResult] = await Promise.all([
-    resolvePatterns(ops, protectPatterns(config)),
-    resolvePatterns(ops, watchPatterns(config)),
-  ]);
-  if (!protectResult.ok) return protectResult;
-  if (!watchResult.ok) return watchResult;
-  const protectPaths = protectResult.value;
-  const watchPaths = watchResult.value;
+  // Get literal paths from config
+  const protectPaths = protectPatterns(config);
+  const watchPaths = watchPatterns(config);
 
   const [protectStatuses, watchStatuses] = await Promise.all([
     Promise.all(
