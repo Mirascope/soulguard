@@ -8,10 +8,10 @@
  * Requires root (sudo).
  */
 
-import type { SystemOperations } from "./system-ops.js";
-import type { SoulguardConfig, Result } from "./types.js";
-import { ok, err } from "./result.js";
-import { SOULGUARDIAN_IDENTITY, PROTECT_OWNERSHIP } from "./constants.js";
+import type { SystemOperations } from "../util/system-ops.js";
+import type { SoulguardConfig, Result } from "../util/types.js";
+import { ok, err } from "../util/result.js";
+import { SOULGUARDIAN_IDENTITY, PROTECT_OWNERSHIP } from "../util/constants.js";
 import { ensureConfig } from "./config.js";
 import type { ConfigError } from "./config.js";
 import { Registry } from "./registry.js";

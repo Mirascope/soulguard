@@ -19,13 +19,13 @@
  * copies and cleaning up directory trees after apply.
  */
 
-import type { SystemOperations } from "./system-ops.js";
-import type { FileOwnership, SoulguardConfig, Result } from "./types.js";
+import type { SystemOperations } from "../util/system-ops.js";
+import type { FileOwnership, SoulguardConfig, Result } from "../util/types.js";
 import { diff, computeApprovalHash } from "./diff.js";
 import type { FileDiff } from "./diff.js";
-import { ok, err } from "./result.js";
-import type { GitCommitResult } from "./git.js";
-import { isGitEnabled, gitCommit, protectCommitMessage } from "./git.js";
+import { ok, err } from "../util/result.js";
+import type { GitCommitResult } from "../util/git.js";
+import { isGitEnabled, gitCommit, protectCommitMessage } from "../util/git.js";
 import type { Policy, ApprovalContext } from "./policy.js";
 import { validatePolicies, evaluatePolicies } from "./policy.js";
 import { validateSelfProtection } from "./self-protection.js";

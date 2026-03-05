@@ -5,10 +5,10 @@
  * When a file is specified, shows only commits touching that file.
  */
 
-import type { ConsoleOutput } from "../console.js";
-import type { SystemOperations } from "../system-ops.js";
-import type { SoulguardConfig } from "../types.js";
-import { gitLog } from "../git.js";
+import type { ConsoleOutput } from "../util/console.js";
+import type { SystemOperations } from "../util/system-ops.js";
+import type { SoulguardConfig } from "../util/types.js";
+import { gitLog } from "../util/git.js";
 
 export type LogCommandOptions = {
   ops: SystemOperations;

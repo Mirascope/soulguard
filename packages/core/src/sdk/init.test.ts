@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { MockSystemOps } from "./system-ops-mock.js";
+import { MockSystemOps } from "../util/system-ops-mock.js";
 import { init } from "./init.js";
 import type { InitOptions } from "./init.js";
-import { DEFAULT_CONFIG } from "./constants.js";
+import { DEFAULT_CONFIG } from "../util/constants.js";
 
 function makeOptions(ops: MockSystemOps, overrides?: Partial<InitOptions>): InitOptions {
   return {

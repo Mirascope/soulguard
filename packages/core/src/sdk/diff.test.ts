@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { diff } from "./diff.js";
-import { MockSystemOps } from "./system-ops-mock.js";
-import type { SoulguardConfig, Tier } from "./types.js";
+import { MockSystemOps } from "../util/system-ops-mock.js";
+import type { SoulguardConfig, Tier } from "../util/types.js";
 import { DELETE_SENTINEL } from "./staging.js";
 
 const WORKSPACE = "/test/workspace";

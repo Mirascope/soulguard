@@ -2,9 +2,9 @@
  * DiffCommand — pretty-prints the result of `diff()`.
  */
 
-import type { ConsoleOutput } from "../console.js";
-import type { DiffOptions } from "../diff.js";
-import { diff } from "../diff.js";
+import type { ConsoleOutput } from "../util/console.js";
+import type { DiffOptions } from "../sdk/diff.js";
+import { diff } from "../sdk/diff.js";
 
 export class DiffCommand {
   constructor(

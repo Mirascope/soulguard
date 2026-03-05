@@ -24,10 +24,10 @@ RUN bun install --frozen-lockfile
 COPY . .
 
 # Make CLI executable
-RUN chmod +x packages/core/src/cli.ts
+RUN chmod +x packages/core/src/cli/cli.ts
 
 # Create soulguard command
-RUN printf '#!/bin/bash\nexec bun /app/packages/core/src/cli.ts "$@"\n' > /usr/local/bin/soulguard && \
+RUN printf '#!/bin/bash\nexec bun /app/packages/core/src/cli/cli.ts "$@"\n' > /usr/local/bin/soulguard && \
     chmod +x /usr/local/bin/soulguard
 
 # Run as unprivileged user by default — use `sudo` for privileged commands
