@@ -20,7 +20,7 @@ e2e("diff: shows no changes for unmodified staging", (t) => {
     Updated. 1 file(s) now protect-tier.
   `)
     .exits(0);
-  t.$(`sudo soulguard stage SOUL.md && sudo soulguard stage soulguard.json`)
+  t.$(`soulguard stage SOUL.md && soulguard stage soulguard.json`)
     .expect(`
     exit 0
       📝 SOUL.md (staged for editing)
@@ -66,7 +66,7 @@ e2e("diff: shows unified diff for modified staging", (t) => {
     Updated. 1 file(s) now protect-tier.
   `)
     .exits(0);
-  t.$(`sudo soulguard stage SOUL.md && sudo soulguard stage soulguard.json`)
+  t.$(`soulguard stage SOUL.md && soulguard stage soulguard.json`)
     .expect(`
     exit 0
       📝 SOUL.md (staged for editing)
@@ -126,7 +126,7 @@ e2e("diff: shows new file when protect-tier copy is missing", (t) => {
     Updated. 1 file(s) now protect-tier.
   `)
     .exits(0);
-  t.$(`sudo soulguard stage SOUL.md && sudo soulguard stage soulguard.json`)
+  t.$(`soulguard stage SOUL.md && soulguard stage soulguard.json`)
     .expect(`
     exit 0
       📝 SOUL.md (staged for editing)
@@ -186,7 +186,7 @@ e2e("diff: directory with modified staged file shows diff", (t) => {
     Nothing to fix — all files ok.
   `)
     .exits(0);
-  t.$(`sudo soulguard stage soulguard.json`)
+  t.$(`soulguard stage soulguard.json`)
     .expect(`
     exit 0
       📝 soulguard.json (staged for editing)
@@ -253,7 +253,7 @@ e2e("diff: directory with no changes shows clean", (t) => {
     Nothing to fix — all files ok.
   `)
     .exits(0);
-  t.$(`sudo soulguard stage soulguard.json`)
+  t.$(`soulguard stage soulguard.json`)
     .expect(`
     exit 0
       📝 soulguard.json (staged for editing)
