@@ -20,7 +20,7 @@ e2e("reset: dry run lists staged files", (t) => {
     Updated. 1 file(s) now protect-tier.
   `)
     .exits(0);
-  t.$(`sudo soulguard stage SOUL.md`)
+  t.$(`soulguard stage SOUL.md`)
     .expect(`
     exit 0
       📝 SOUL.md (staged for editing)
@@ -69,7 +69,7 @@ e2e("reset: specific file removes staging copy", (t) => {
     Updated. 1 file(s) now protect-tier.
   `)
     .exits(0);
-  t.$(`sudo soulguard stage SOUL.md`)
+  t.$(`soulguard stage SOUL.md`)
     .expect(`
     exit 0
       📝 SOUL.md (staged for editing)
@@ -116,7 +116,7 @@ e2e("reset: --all empties staging tree", (t) => {
     Updated. 1 file(s) now protect-tier.
   `)
     .exits(0);
-  t.$(`sudo soulguard stage SOUL.md`)
+  t.$(`soulguard stage SOUL.md`)
     .expect(`
     exit 0
       📝 SOUL.md (staged for editing)
@@ -188,7 +188,7 @@ e2e("reset: selective reset keeps other staged files", (t) => {
     Updated. 1 file(s) now protect-tier.
   `)
     .exits(0);
-  t.$(`sudo soulguard stage SOUL.md && sudo soulguard stage notes.md`)
+  t.$(`soulguard stage SOUL.md && soulguard stage notes.md`)
     .expect(`
     exit 0
       📝 SOUL.md (staged for editing)

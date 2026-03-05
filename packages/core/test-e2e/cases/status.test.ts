@@ -134,7 +134,7 @@ e2e("status: shows staged change indicators", (t) => {
   `)
     .exits(0);
 
-  t.$(`sudo soulguard stage SOUL.md`)
+  t.$(`soulguard stage SOUL.md`)
     .expect(`
     exit 0
       📝 SOUL.md (staged for editing)
