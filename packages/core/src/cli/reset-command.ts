@@ -2,10 +2,10 @@
  * ResetCommand — manage staging tree (dry run, selective, or full reset).
  */
 
-import type { ConsoleOutput } from "../console.js";
-import type { ResetOptions } from "../reset.js";
-import { reset } from "../reset.js";
-import { STAGING_DIR } from "../staging.js";
+import type { ConsoleOutput } from "../util/console.js";
+import type { ResetOptions } from "../sdk/reset.js";
+import { reset } from "../sdk/reset.js";
+import { STAGING_DIR } from "../sdk/staging.js";
 
 export class ResetCommand {
   constructor(

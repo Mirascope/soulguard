@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { setTier, release } from "./tier.js";
-import type { SoulguardConfig } from "./types.js";
+import type { SoulguardConfig } from "../util/types.js";
 
 const baseConfig: SoulguardConfig = {
   version: 1,

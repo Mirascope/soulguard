@@ -6,10 +6,10 @@
  * - No args: Interactive — shows diff, prompts for confirmation, then applies.
  */
 
-import type { ConsoleOutput } from "../console.js";
-import type { ApplyOptions } from "../apply.js";
-import { apply } from "../apply.js";
-import { diff } from "../diff.js";
+import type { ConsoleOutput } from "../util/console.js";
+import type { ApplyOptions } from "../sdk/apply.js";
+import { apply } from "../sdk/apply.js";
+import { diff } from "../sdk/diff.js";
 
 export type ApplyCommandOptions = Omit<ApplyOptions, "hash"> & {
   /** Pre-computed hash for non-interactive mode */

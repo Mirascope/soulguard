@@ -8,9 +8,9 @@
  */
 
 import { z } from "zod";
-import type { SystemOperations } from "./system-ops.js";
-import type { FileOwnership, Tier, Result } from "./types.js";
-import { ok, err } from "./result.js";
+import type { SystemOperations } from "../util/system-ops.js";
+import type { FileOwnership, Tier, Result } from "../util/types.js";
+import { ok, err } from "../util/result.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 

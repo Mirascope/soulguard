@@ -8,22 +8,22 @@ import { resolve } from "node:path";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
-import { LiveConsoleOutput } from "./console-live.js";
-import { StatusCommand } from "./cli/status-command.js";
-import { SyncCommand } from "./cli/sync-command.js";
-import { DiffCommand } from "./cli/diff-command.js";
-import { ApplyCommand } from "./cli/apply-command.js";
-import { ResetCommand } from "./cli/reset-command.js";
-import { StageCommand } from "./cli/stage-command.js";
-import { InitCommand } from "./cli/init-command.js";
-import { LogCommand } from "./cli/log-command.js";
-import { TierCommand } from "./cli/tier-command.js";
-import { NodeSystemOps } from "./system-ops-node.js";
-import { parseConfig } from "./schema.js";
-import type { StatusOptions } from "./status.js";
-import { Registry } from "./registry.js";
+import { LiveConsoleOutput } from "../util/console-live.js";
+import { StatusCommand } from "./status-command.js";
+import { SyncCommand } from "./sync-command.js";
+import { DiffCommand } from "./diff-command.js";
+import { ApplyCommand } from "./apply-command.js";
+import { ResetCommand } from "./reset-command.js";
+import { StageCommand } from "./stage-command.js";
+import { InitCommand } from "./init-command.js";
+import { LogCommand } from "./log-command.js";
+import { TierCommand } from "./tier-command.js";
+import { NodeSystemOps } from "../util/system-ops-node.js";
+import { parseConfig } from "../sdk/schema.js";
+import type { StatusOptions } from "../sdk/status.js";
+import { Registry } from "../sdk/registry.js";
 
-import { PROTECT_OWNERSHIP } from "./constants.js";
+import { PROTECT_OWNERSHIP } from "../util/constants.js";
 
 async function makeBaseOptions(workspace: string) {
   const ops = new NodeSystemOps(resolve(workspace));
@@ -54,11 +54,12 @@ async function makeStatusOptions(workspace: string): Promise<StatusOptions> {
 
 function getVersion(): string {
   try {
-    return JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version;
+    return JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf-8"))
+      .version;
   } catch {
     // Fallback for global installs where import.meta.url may not resolve correctly
     const req = createRequire(import.meta.url);
-    return req("../package.json").version ?? "0.0.0";
+    return req("../../package.json").version ?? "0.0.0";
   }
 }
 

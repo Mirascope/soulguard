@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { MockSystemOps } from "../system-ops-mock.js";
-import { MockConsoleOutput } from "../console-mock.js";
+import { MockSystemOps } from "../util/system-ops-mock.js";
+import { MockConsoleOutput } from "../util/console-mock.js";
 import { SyncCommand } from "./sync-command.js";
-import type { SyncOptions } from "../sync.js";
+import type { SyncOptions } from "../sdk/sync.js";
 
 const VAULT_OWNERSHIP = { user: "soulguardian", group: "soulguard", mode: "444" };
 const VAULT_MOCK = { owner: "soulguardian", group: "soulguard", mode: "444" };

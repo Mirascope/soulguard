@@ -5,14 +5,14 @@
  * and performs targeted enforcement (no full sync).
  */
 
-import type { ConsoleOutput } from "../console.js";
-import type { SystemOperations } from "../system-ops.js";
-import type { FileOwnership, Tier } from "../types.js";
-import { readConfig, writeConfig } from "../config.js";
-import { setTier, release } from "../tier.js";
-import { stagingPath } from "../staging.js";
-import { Registry } from "../registry.js";
-import { isGitEnabled, gitCommit } from "../git.js";
+import type { ConsoleOutput } from "../util/console.js";
+import type { SystemOperations } from "../util/system-ops.js";
+import type { FileOwnership, Tier } from "../util/types.js";
+import { readConfig, writeConfig } from "../sdk/config.js";
+import { setTier, release } from "../sdk/tier.js";
+import { stagingPath } from "../sdk/staging.js";
+import { Registry } from "../sdk/registry.js";
+import { isGitEnabled, gitCommit } from "../util/git.js";
 
 export type TierAction = { kind: "set"; tier: Tier } | { kind: "release" };
 

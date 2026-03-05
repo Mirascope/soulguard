@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { validatePolicies, evaluatePolicies } from "./policy.js";
 import type { Policy, ApprovalContext } from "./policy.js";
-import { ok, err } from "./result.js";
+import { ok, err } from "../util/result.js";
 
 function makeCtx(files: Record<string, string>): ApprovalContext {
   const ctx: ApprovalContext = new Map();
