@@ -1,27 +1,31 @@
 import { e2e } from "../harness";
-import { protectCmd } from "../helpers";
 
 e2e("status: reports all files ok when clean", (t) => {
-  t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+    exit 0
+  `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
     exit 0
     ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+    exit 0
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
-  `);
+  `)
+    .exits(0);
   t.$(`sudo soulguard sync`)
     .expect(`
     exit 0
     Soulguard Sync — /workspace
 
-    Fixed:
-      🔧 soulguard.json
-          owner is root, expected soulguardian
-          group is root, expected soulguard
-          mode is 644, expected 444
-
-    All files now ok.
+    Nothing to fix — all files ok.
   `)
     .exits(0);
 
@@ -40,30 +44,34 @@ e2e("status: reports all files ok when clean", (t) => {
 });
 
 e2e("status: reports drifted ownership and permissions", (t) => {
-  t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+    exit 0
+  `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
     exit 0
     ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+    exit 0
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
-  `);
+  `)
+    .exits(0);
   t.$(`sudo soulguard sync`)
     .expect(`
     exit 0
     Soulguard Sync — /workspace
 
-    Fixed:
-      🔧 soulguard.json
-          owner is root, expected soulguardian
-          group is root, expected soulguard
-          mode is 644, expected 444
-
-    All files now ok.
+    Nothing to fix — all files ok.
   `)
     .exits(0);
 
-  // Simulate drift
   t.$(`sudo chown root:root SOUL.md && sudo chmod 644 SOUL.md`)
     .expect(`
     exit 0
@@ -98,26 +106,31 @@ e2e("status: errors when no soulguard.json exists", (t) => {
 });
 
 e2e("status: shows staged change indicators", (t) => {
-  t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+    exit 0
+  `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
     exit 0
     ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+    exit 0
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
-  `);
+  `)
+    .exits(0);
   t.$(`sudo soulguard sync`)
     .expect(`
     exit 0
     Soulguard Sync — /workspace
 
-    Fixed:
-      🔧 soulguard.json
-          owner is root, expected soulguardian
-          group is root, expected soulguard
-          mode is 644, expected 444
-
-    All files now ok.
+    Nothing to fix — all files ok.
   `)
     .exits(0);
 
@@ -150,26 +163,32 @@ e2e("status: shows staged change indicators", (t) => {
 });
 
 e2e("status: shows directory protection", (t) => {
-  t.$(
-    `mkdir -p skills && echo '# Python' > skills/python.md && echo '# TS' > skills/ts.md && sudo soulguard init . && sudo soulguard protect skills/ && sudo soulguard sync`,
-  )
+  t.$(`mkdir -p skills && echo '# Python' > skills/python.md && echo '# TS' > skills/ts.md`)
     .expect(`
       exit 0
-      ✓ Soulguard initialized.
-      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
-        + skills/ → protect
-
-      Updated. 1 file(s) now protect-tier.
-      Soulguard Sync — /workspace
-
-      Fixed:
-        🔧 soulguard.json
-            owner is root, expected soulguardian
-            group is root, expected soulguard
-            mode is 644, expected 444
-
-      All files now ok.
     `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
+    exit 0
+    ✓ Soulguard initialized.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect skills/`)
+    .expect(`
+    exit 0
+      + skills/ → protect
+
+    Updated. 1 file(s) now protect-tier.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard sync`)
+    .expect(`
+    exit 0
+    Soulguard Sync — /workspace
+
+    Nothing to fix — all files ok.
+  `)
     .exits(0);
 
   t.$(`sudo soulguard status`)
