@@ -5,7 +5,6 @@ e2e("release: restores default ownership and cleans staging", (t) => {
   t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
     exit 0
     ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.

@@ -280,6 +280,25 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   if (!guardianResult.ok) return guardianResult;
   const { userCreated, groupCreated } = guardianResult.value;
 
+  // ── 2b. Enforce soulguard.json ownership ──────────────────────────────
+  const sgJsonChown = await ops.chown("soulguard.json", {
+    user: SOULGUARDIAN_IDENTITY.user,
+    group: SOULGUARDIAN_IDENTITY.group,
+  });
+  if (!sgJsonChown.ok) {
+    return err({
+      kind: "system_error",
+      message: `chown soulguard.json failed: ${sgJsonChown.error.kind}`,
+    });
+  }
+  const sgJsonChmod = await ops.chmod("soulguard.json", "444");
+  if (!sgJsonChmod.ok) {
+    return err({
+      kind: "system_error",
+      message: `chmod soulguard.json failed: ${sgJsonChmod.error.kind}`,
+    });
+  }
+
   // ── 3. Ensure .soulguard/ directory ──────────────────────────────────
   const sgDirResult = await ensureSoulguardDir(ops);
   if (!sgDirResult.ok) return sgDirResult;

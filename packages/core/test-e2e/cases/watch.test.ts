@@ -5,7 +5,6 @@ e2e("watch: adds file and updates config", (t) => {
   t.$(watchCmd("notes.md", "# Notes")).expect(`
     exit 0
     ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
       + notes.md → watch
 
     Updated. 1 file(s) now watch-tier.

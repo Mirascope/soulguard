@@ -5,7 +5,6 @@ e2e("protect: sets correct ownership and permissions", (t) => {
   t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
     exit 0
     ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
@@ -38,7 +37,6 @@ e2e("protect: blocks agent writes", (t) => {
   t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
     exit 0
     ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
@@ -72,7 +70,6 @@ e2e("protect: directory protection blocks new file creation", (t) => {
     .expect(`
       exit 0
       ✓ Soulguard initialized.
-      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
         + skills/ → protect
 
       Updated. 1 file(s) now protect-tier.
@@ -112,7 +109,6 @@ e2e("protect: already protected file is no-op", (t) => {
   t.$(protectCmd("SOUL.md", "# My Soul")).expect(`
     exit 0
     ✓ Soulguard initialized.
-    1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
       + SOUL.md → protect
 
     Updated. 1 file(s) now protect-tier.
@@ -133,7 +129,6 @@ e2e("protect: nonexistent file errors", (t) => {
     .expect(`
       exit 0
       ✓ Soulguard initialized.
-      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
     `)
     .exits(0);
 
