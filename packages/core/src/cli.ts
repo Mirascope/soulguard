@@ -183,17 +183,21 @@ program
 
 program
   .command("reset")
-  .description("Reset staging to match protect-tier files (discard changes)")
-  .argument("[workspace]", "workspace path", process.cwd())
-  .action(async (workspace: string) => {
+  .description("Reset staged changes (dry run, selective, or --all)")
+  .argument("[paths...]", "specific paths to reset")
+  .option("-a, --all", "reset all staged changes")
+  .option("-w, --workspace <path>", "workspace path", process.cwd())
+  .action(async (paths: string[], opts: { all?: boolean; workspace: string }) => {
     const out = new LiveConsoleOutput();
     try {
-      const statusOpts = await makeBaseOptions(workspace);
+      const statusOpts = await makeBaseOptions(opts.workspace);
 
       const cmd = new ResetCommand(
         {
           ops: statusOpts.ops,
           config: statusOpts.config,
+          paths: paths.length > 0 ? paths : undefined,
+          all: opts.all,
         },
         out,
       );
