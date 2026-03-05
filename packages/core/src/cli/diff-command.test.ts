@@ -3,6 +3,7 @@ import { DiffCommand } from "./diff-command.js";
 import { MockSystemOps } from "../util/system-ops-mock.js";
 import { MockConsoleOutput } from "../util/console-mock.js";
 import type { SoulguardConfig, Tier } from "../util/types.js";
+import { DELETE_SENTINEL } from "../sdk/staging.js";
 
 const WORKSPACE = "/test/workspace";
 
@@ -49,6 +50,7 @@ describe("DiffCommand", () => {
   test("deleted file → exit 1, output contains deletion marker", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul");
+    ops.addFile(".soulguard-staging/SOUL.md", JSON.stringify(DELETE_SENTINEL));
 
     const out = new MockConsoleOutput();
     const cmd = new DiffCommand({ ops, config: makeConfig() }, out);

@@ -5,6 +5,7 @@ import { apply } from "./apply.js";
 import type { SoulguardConfig, FileOwnership } from "../util/types.js";
 import type { Policy } from "./policy.js";
 import { ok, err } from "../util/result.js";
+import { DELETE_SENTINEL } from "./staging.js";
 
 const config: SoulguardConfig = {
   version: 1,
@@ -267,7 +268,8 @@ describe("apply (implicit proposals)", () => {
       group: "soulguard",
       mode: "444",
     });
-    // No staging/SOUL.md — agent deleted it
+    // Staging has DELETE_SENTINEL — agent wants to delete it
+    ops.addFile(".soulguard-staging/SOUL.md", JSON.stringify(DELETE_SENTINEL));
 
     const hash = await getApprovalHash(ops, config);
     const result = await apply({ ops, config, hash, protectOwnership });
@@ -295,7 +297,8 @@ describe("apply (implicit proposals)", () => {
       group: "soulguard",
       mode: "444",
     });
-    // No staging/soulguard.json — agent trying to delete config
+    // Staging has DELETE_SENTINEL — agent trying to delete config
+    ops.addFile(".soulguard-staging/soulguard.json", JSON.stringify(DELETE_SENTINEL));
 
     const hash = await getApprovalHash(ops, sgConfig);
     const result = await apply({ ops, config: sgConfig, hash, protectOwnership });
@@ -317,7 +320,8 @@ describe("apply (implicit proposals)", () => {
       group: "soulguard",
       mode: "444",
     });
-    // SOUL.md deleted from staging, AGENTS.md modified
+    // SOUL.md has DELETE_SENTINEL in staging, AGENTS.md modified
+    ops.addFile(".soulguard-staging/SOUL.md", JSON.stringify(DELETE_SENTINEL));
     ops.addFile(".soulguard-staging/AGENTS.md", "modified agents", {
       owner: "agent",
       group: "soulguard",
@@ -358,7 +362,9 @@ describe("apply (implicit proposals)", () => {
       group: "soulguard",
       mode: "444",
     });
-    // Both files deleted from staging
+    // Both files have DELETE_SENTINEL in staging
+    ops.addFile(".soulguard-staging/SOUL.md", JSON.stringify(DELETE_SENTINEL));
+    ops.addFile(".soulguard-staging/AGENTS.md", JSON.stringify(DELETE_SENTINEL));
 
     const hash = await getApprovalHash(ops, twoDeleteConfig);
 
@@ -385,7 +391,8 @@ describe("apply (implicit proposals)", () => {
       group: "soulguard",
       mode: "444",
     });
-    // No staging/SOUL.md — agent deleted it
+    // Staging has DELETE_SENTINEL — agent wants to delete it
+    ops.addFile(".soulguard-staging/SOUL.md", JSON.stringify(DELETE_SENTINEL));
     ops.execFailOnCall.set(
       "git --git-dir .soulguard/.git --work-tree . diff --cached --quiet",
       new Set([1]),
@@ -521,7 +528,8 @@ describe("apply (directory support)", () => {
       group: "soulguard",
       mode: "644",
     });
-    // file2 not in staging → deletion
+    // file2 has DELETE_SENTINEL in staging → deletion
+    ops2.addFile(".soulguard-staging/mydir/file2.txt", JSON.stringify(DELETE_SENTINEL));
 
     const hash = await getApprovalHash(ops2, dirConfig);
     const result = await apply({ ops: ops2, config: dirConfig, hash, protectOwnership });

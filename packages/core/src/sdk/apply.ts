@@ -37,8 +37,9 @@ import { dirname } from "node:path";
 export type ApplyOptions = {
   ops: SystemOperations;
   config: SoulguardConfig;
-  /** SHA-256 approval hash — must match computed hash of frozen pending copies */
-  hash: string;
+  /** SHA-256 approval hash — must match computed hash of frozen pending copies.
+   *  If omitted, hash verification is skipped (convenient but slightly less secure). */
+  hash?: string;
   /** Expected protect ownership to restore after writing */
   protectOwnership: FileOwnership;
   /** Named policy hooks — all evaluated before applying changes.
@@ -141,18 +142,22 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
   }
 
   // ── Phase 3: Hash the frozen pending copies and verify ─────────────
-  const pendingHash = await computePendingHash(ops, changedFiles);
-  if (!pendingHash.ok) {
-    await cleanupPending(ops);
-    return err({ kind: "apply_failed", message: pendingHash.error });
-  }
+  // If hash is provided, verify it matches the frozen pending state.
+  // If hash is omitted (--yes mode), skip verification for convenience.
+  if (hash) {
+    const pendingHash = await computePendingHash(ops, changedFiles);
+    if (!pendingHash.ok) {
+      await cleanupPending(ops);
+      return err({ kind: "apply_failed", message: pendingHash.error });
+    }
 
-  if (pendingHash.value !== hash) {
-    await cleanupPending(ops);
-    return err({
-      kind: "hash_mismatch",
-      message: `Expected hash ${hash} but got hash ${pendingHash.value}`,
-    });
+    if (pendingHash.value !== hash) {
+      await cleanupPending(ops);
+      return err({
+        kind: "hash_mismatch",
+        message: `Expected hash ${hash} but got hash ${pendingHash.value}`,
+      });
+    }
   }
 
   // ── Phase 3a: Read all pending file contents (used by self-protection + policies) ──

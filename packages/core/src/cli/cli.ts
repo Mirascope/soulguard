@@ -147,8 +147,9 @@ program
   .command("apply")
   .description("Apply staging changes to protect-tier files")
   .argument("[workspace]", "workspace path", process.cwd())
-  .option("--hash <hash>", "approval hash for non-interactive mode")
-  .action(async (workspace: string, opts: { hash?: string }) => {
+  .option("--hash <hash>", "approval hash for cryptographic verification")
+  .option("-y, --yes", "skip hash verification (convenient but slightly less secure)")
+  .action(async (workspace: string, opts: { hash?: string; yes?: boolean }) => {
     const out = new LiveConsoleOutput();
     try {
       const statusOpts = await makeBaseOptions(workspace);
@@ -159,19 +160,24 @@ program
           config: statusOpts.config,
           protectOwnership: PROTECT_OWNERSHIP,
           hash: opts.hash,
-          prompt: opts.hash
-            ? undefined
-            : async () => {
-                // Interactive prompt via stdin
-                const rl = await import("node:readline");
-                const iface = rl.createInterface({ input: process.stdin, output: process.stdout });
-                return new Promise<boolean>((resolve) => {
-                  iface.question("Apply these changes? [y/N] ", (answer) => {
-                    iface.close();
-                    resolve(answer.toLowerCase() === "y");
+          skipHashVerification: opts.yes,
+          prompt:
+            opts.hash || opts.yes
+              ? undefined
+              : async () => {
+                  // Interactive prompt via stdin
+                  const rl = await import("node:readline");
+                  const iface = rl.createInterface({
+                    input: process.stdin,
+                    output: process.stdout,
                   });
-                });
-              },
+                  return new Promise<boolean>((resolve) => {
+                    iface.question("Apply these changes? [y/N] ", (answer) => {
+                      iface.close();
+                      resolve(answer.toLowerCase() === "y");
+                    });
+                  });
+                },
         },
         out,
       );
