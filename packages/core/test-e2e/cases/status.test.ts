@@ -29,7 +29,7 @@ e2e("status: reports all files ok when clean", (t) => {
   `)
     .exits(0);
 
-  t.$(`sudo soulguard status`)
+  t.$(`soulguard status`)
     .expect(`
       exit 0
       Soulguard Status — /workspace
@@ -78,7 +78,7 @@ e2e("status: reports drifted ownership and permissions", (t) => {
   `)
     .exits(0);
 
-  t.$(`sudo soulguard status`)
+  t.$(`soulguard status`)
     .expect(`
       exit 1
       Soulguard Status — /workspace
@@ -96,7 +96,7 @@ e2e("status: reports drifted ownership and permissions", (t) => {
 });
 
 e2e("status: errors when no soulguard.json exists", (t) => {
-  t.$(`sudo soulguard status . 2>&1`)
+  t.$(`soulguard status . 2>&1`)
     .expect(`
       exit 1
       No soulguard.json found in .
@@ -142,13 +142,13 @@ e2e("status: shows staged change indicators", (t) => {
     Staged 1 file(s).
   `)
     .exits(0);
-  t.$(`echo '# Modified Soul' | sudo tee .soulguard-staging/SOUL.md > /dev/null`)
+  t.$(`echo '# Modified Soul' > .soulguard-staging/SOUL.md`)
     .expect(`
     exit 0
   `)
     .exits(0);
 
-  t.$(`sudo soulguard status`)
+  t.$(`soulguard status`)
     .expect(`
       exit 0
       Soulguard Status — /workspace
@@ -191,7 +191,7 @@ e2e("status: shows directory protection", (t) => {
   `)
     .exits(0);
 
-  t.$(`sudo soulguard status`)
+  t.$(`soulguard status`)
     .expect(`
       exit 0
       Soulguard Status — /workspace
