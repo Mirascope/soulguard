@@ -221,7 +221,7 @@ e2e("apply: verifies hash with --hash flag", (t) => {
       Staged 1 file(s).
     `)
     .exits(0);
-  t.$(`echo '# Modified' | sudo tee .soulguard-staging/SOUL.md > /dev/null`)
+  t.$(`echo '# Modified' > .soulguard-staging/SOUL.md`)
     .expect(`
       exit 0
     `)
@@ -230,7 +230,7 @@ e2e("apply: verifies hash with --hash flag", (t) => {
   // Extract hash from diff output and apply with cryptographic verification
   // This ensures the frozen pending state matches what was reviewed
   t.$(
-    `HASH=$(sudo soulguard diff . 2>&1 | grep 'Apply hash:' | awk '{print $NF}') && sudo soulguard apply . --hash "$HASH"`,
+    `HASH=$(soulguard diff . 2>&1 | grep 'Apply hash:' | awk '{print $NF}') && sudo soulguard apply . --hash "$HASH"`,
   )
     .expect(`
       exit 0
@@ -274,7 +274,7 @@ e2e("apply: rejects with wrong hash", (t) => {
       Staged 1 file(s).
     `)
     .exits(0);
-  t.$(`echo '# Modified' | sudo tee .soulguard-staging/SOUL.md > /dev/null`)
+  t.$(`echo '# Modified' > .soulguard-staging/SOUL.md`)
     .expect(`
       exit 0
     `)
