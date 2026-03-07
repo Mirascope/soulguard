@@ -1,8 +1,10 @@
 /**
  * soulguard apply — apply staging changes to protect-tier files.
  *
+ * Built on top of StateTree: one walk, one snapshot, pure derivations.
+ *
  * Implicit proposal model: staging IS the proposal. At approval time:
- * 1. Compute diff to find modified files
+ * 1. Build StateTree and find changed files
  * 2. Copy modified staging files to protected .soulguard/pending/
  * 3. Hash the frozen pending copies and verify against reviewer's hash
  * 4. Backup current protect-tier files
@@ -12,16 +14,13 @@
  * The protected copy step eliminates timing attacks — once files are in
  * .soulguard/pending/ (owned by soulguardian), the agent cannot modify them.
  * The hash is verified against these frozen copies, not the live staging dir.
- *
- * Directory support: when a protect entry is a directory, diff produces
- * individual FileDiff entries for each file within. Apply handles these
- * transparently — creating parent directories as needed for pending/backup
- * copies and cleaning up directory trees after apply.
  */
 
 import type { SystemOperations } from "../util/system-ops.js";
 import type { FileOwnership, SoulguardConfig, Result } from "../util/types.js";
-import { diff, computeApprovalHash } from "./diff.js";
+import { StateTree } from "./state.js";
+import type { StateFile } from "./state.js";
+import { computeApprovalHash } from "./diff.js";
 import type { FileDiff } from "./diff.js";
 import { ok, err } from "../util/result.js";
 import type { GitCommitResult } from "../util/git.js";
@@ -31,6 +30,7 @@ import { validatePolicies, evaluatePolicies } from "./policy.js";
 import { validateSelfProtection } from "./self-protection.js";
 import { stagingPath, STAGING_DIR } from "./staging.js";
 import { dirname } from "node:path";
+import { createTwoFilesPatch } from "diff";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -80,6 +80,35 @@ function collectParentDirs(prefix: string, paths: string[]): string[] {
 }
 
 /**
+ * Convert a StateFile to a FileDiff for approval hash computation.
+ */
+function stateFileToFileDiff(sf: StateFile): FileDiff {
+  switch (sf.status) {
+    case "modified":
+      return {
+        path: sf.path,
+        status: "modified",
+        protectedHash: sf.canonicalHash ?? undefined,
+        stagedHash: sf.stagedHash ?? undefined,
+      };
+    case "created":
+      return {
+        path: sf.path,
+        status: "protect_missing",
+        stagedHash: sf.stagedHash ?? undefined,
+      };
+    case "deleted":
+      return {
+        path: sf.path,
+        status: "deleted",
+        protectedHash: sf.canonicalHash ?? undefined,
+      };
+    default:
+      return { path: sf.path, status: "unchanged" };
+  }
+}
+
+/**
  * Apply staging changes to protect.
  */
 export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, ApplyError>> {
@@ -93,27 +122,25 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
     }
   }
 
-  // ── Phase 1: Compute diff to find changed files ────────────────────
-  const diffResult = await diff({ ops, config });
-  if (!diffResult.ok) {
-    return err({ kind: "diff_failed", message: diffResult.error.kind });
+  // ── Phase 1: Build StateTree and find changed files ────────────────
+  const treeResult = await StateTree.build({ ops, config });
+  if (!treeResult.ok) {
+    return err({ kind: "diff_failed", message: treeResult.error.message });
   }
 
-  if (!diffResult.value.hasChanges) {
+  const tree = treeResult.value;
+  const changedStateFiles = tree.changedFiles();
+
+  if (changedStateFiles.length === 0) {
     return err({ kind: "no_changes" });
   }
 
-  // Files that need to be applied (modified, new, or deleted)
-  const changedFiles = diffResult.value.files.filter(
-    (f) => f.status === "modified" || f.status === "protect_missing" || f.status === "deleted",
-  );
+  // Convert to FileDiff for approval hash compatibility
+  const changedFiles = changedStateFiles.map(stateFileToFileDiff);
 
   // ── Phase 2: Copy staging to protected working dir ─────────────────
-  // Once in .soulguard/pending/ (owned by soulguardian), the agent cannot
-  // modify these files. This freezes the content before we verify the hash.
   await ops.mkdir(".soulguard/pending");
 
-  // Create parent directories for nested file paths in pending
   const nonDeletedFiles = changedFiles.filter((f) => f.status !== "deleted");
   const pendingParents = collectParentDirs(
     ".soulguard/pending",
@@ -134,7 +161,6 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
     }
   }
 
-  // Protect the pending dir so agent can't tamper during approval
   const chownPending = await ops.chown(".soulguard/pending", protectOwnership);
   if (!chownPending.ok) {
     await cleanupPending(ops);
@@ -142,8 +168,6 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
   }
 
   // ── Phase 3: Hash the frozen pending copies and verify ─────────────
-  // If hash is provided, verify it matches the frozen pending state.
-  // If hash is omitted (--yes mode), skip verification for convenience.
   if (hash) {
     const pendingHash = await computePendingHash(ops, changedFiles);
     if (!pendingHash.ok) {
@@ -160,7 +184,7 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
     }
   }
 
-  // ── Phase 3a: Read all pending file contents (used by self-protection + policies) ──
+  // ── Phase 3a: Read all pending file contents ──────────────────────
   const pendingContents = new Map<string, string>();
   for (const file of nonDeletedFiles) {
     const content = await ops.readFile(`.soulguard/pending/${file.path}`);
@@ -174,7 +198,7 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
     pendingContents.set(file.path, content.value);
   }
 
-  // ── Phase 3b: Built-in self-protection (hardcoded, cannot be bypassed) ──
+  // ── Phase 3b: Built-in self-protection ────────────────────────────
   {
     const selfCheck = validateSelfProtection(
       pendingContents,
@@ -186,7 +210,7 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
     }
   }
 
-  // ── Phase 3c: Run user-provided policy hooks against frozen content ──
+  // ── Phase 3c: Run user-provided policy hooks ─────────────────────
   if (policies && policies.length > 0) {
     const ctx: ApprovalContext = new Map();
     for (const file of changedFiles) {
@@ -205,11 +229,13 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
             previous = protectContent.value;
           }
         }
-        ctx.set(file.path, {
-          final: pendingContents.get(file.path)!,
-          diff: file.diff ?? "",
-          previous,
-        });
+        // Generate diff text for policies
+        const final = pendingContents.get(file.path)!;
+        const diffText =
+          file.status === "modified"
+            ? createTwoFilesPatch(`a/${file.path}`, `b/${file.path}`, previous, final)
+            : "";
+        ctx.set(file.path, { final, diff: diffText, previous });
       }
     }
 
@@ -220,10 +246,9 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
     }
   }
 
-  // ── Phase 4: Backup all affected protect-tier files ───────────────────────
+  // ── Phase 4: Backup all affected protect-tier files ──────────────
   await ops.mkdir(".soulguard/backup");
 
-  // Create parent directories for nested file paths in backup
   const filesToBackup = changedFiles.filter((f) => f.status !== "protect_missing");
   const backupParents = collectParentDirs(
     ".soulguard/backup",
@@ -247,7 +272,6 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
 
   for (const file of changedFiles) {
     if (file.status === "deleted") {
-      // Delete protect-tier file
       const deleteResult = await ops.deleteFile(file.path);
       if (!deleteResult.ok) {
         await rollback(ops, appliedFiles, protectOwnership);
@@ -257,7 +281,6 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
         });
       }
     } else {
-      // For new files in directories, ensure parent dirs exist
       if (file.status === "protect_missing") {
         const parentDir = dirname(file.path);
         if (parentDir !== ".") {
@@ -265,7 +288,6 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
         }
       }
 
-      // Write content from pending
       const content = await ops.readFile(`.soulguard/pending/${file.path}`);
       if (!content.ok) {
         await rollback(ops, appliedFiles, protectOwnership);
@@ -281,7 +303,6 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
         });
       }
 
-      // Re-protect
       const chownResult = await ops.chown(file.path, protectOwnership);
       if (!chownResult.ok) {
         await rollback(ops, appliedFiles, protectOwnership);
@@ -306,17 +327,13 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
   // ── Phase 6: Sync staging copies + cleanup ─────────────────────────
   for (const file of nonDeletedFiles) {
     const stagePath = stagingPath(file.path);
-    // Ensure parent dirs exist in staging for directory entries
     const stageParent = dirname(stagePath);
     if (stageParent !== STAGING_DIR) {
       await ops.mkdir(stageParent);
     }
     await ops.copyFile(file.path, stagePath);
-    // Staging siblings inherit default ownership — no special chown needed
   }
-  // Deleted files: staging copy is already gone (that's how we detected the deletion)
 
-  // Clean up backup and pending
   await cleanupBackup(ops);
   await cleanupPending(ops);
 
@@ -328,7 +345,6 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
     if (result.ok) {
       gitResult = result.value;
     }
-    // Git failures are swallowed — protect update already succeeded
   }
 
   return ok({ appliedFiles, gitResult });
@@ -336,7 +352,6 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
 
 /**
  * Compute approval hash from frozen pending copies.
- * Reuses computeApprovalHash from diff.ts for a single hash algorithm.
  */
 async function computePendingHash(
   ops: SystemOperations,
@@ -345,7 +360,6 @@ async function computePendingHash(
   const withHashes: FileDiff[] = [];
   for (const f of changedFiles) {
     if (f.status === "deleted") {
-      // Deleted files pass through — they use protectedHash from the protect-tier file
       withHashes.push(f);
     } else {
       const fileHash = await ops.hashFile(`.soulguard/pending/${f.path}`);
@@ -358,25 +372,14 @@ async function computePendingHash(
   return ok(computeApprovalHash(withHashes));
 }
 
-/**
- * Clean up pending directory on early exit.
- * Simply removes the entire temporary working directory.
- */
 async function cleanupPending(ops: SystemOperations): Promise<void> {
   await ops.deleteFile(".soulguard/pending");
 }
 
-/**
- * Clean up backup directory.
- * Simply removes the entire temporary working directory.
- */
 async function cleanupBackup(ops: SystemOperations): Promise<void> {
   await ops.deleteFile(".soulguard/backup");
 }
 
-/**
- * Rollback: restore protect-tier files from backups after a partial apply failure.
- */
 async function rollback(
   ops: SystemOperations,
   appliedFiles: string[],
