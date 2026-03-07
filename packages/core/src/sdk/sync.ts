@@ -1,11 +1,11 @@
 /**
- * soulguard sync — fix all issues found by status.
+ * soulguard sync — fix all ownership drift in the workspace.
  *
- * Status detects, sync fixes. That's the contract.
+ * Built on top of StateTree: one walk, one snapshot, pure derivations.
  *
- * 1. Load registry
- * 2. Run status (with registry) to get all issues
- * 3. Fix each issue (two passes: registry first, enforcement second)
+ * 1. Build StateTree
+ * 2. Detect drifted entities
+ * 3. Fix ownership (registry pass first, then enforcement)
  * 4. Persist registry
  * 5. Best-effort git commit
  */
@@ -13,8 +13,7 @@
 import type { DriftIssue, FileSystemError, IOError } from "../util/types.js";
 import { ok, err } from "../util/result.js";
 import type { Result } from "../util/result.js";
-import { status } from "./status.js";
-import type { StatusOptions, StatusResult } from "./status.js";
+import { StateTree } from "./state.js";
 import { isGitEnabled, gitCommit } from "../util/git.js";
 import type { GitCommitResult } from "../util/git.js";
 import { protectPatterns, watchPatterns } from "./config.js";
@@ -26,8 +25,16 @@ export type SyncError = {
   error: FileSystemError;
 };
 
+export type SyncIssue = {
+  path: string;
+  status: "drifted" | "missing";
+  tier: "protect" | "watch";
+  issues?: DriftIssue[];
+};
+
 export type SyncResult = {
-  before: StatusResult;
+  /** Issues detected before fixing */
+  beforeIssues: SyncIssue[];
   errors: SyncError[];
   /** Files released because they're no longer in config */
   released: string[];
@@ -35,13 +42,30 @@ export type SyncResult = {
   git?: GitCommitResult;
 };
 
-export type SyncOptions = Omit<StatusOptions, "registry">;
+export type SyncOptions = {
+  config: { version: 1; files: Record<string, "protect" | "watch">; git?: boolean };
+  expectedProtectOwnership: { user: string; group: string; mode: string };
+  ops: import("../util/system-ops.js").SystemOperations;
+};
 
 /**
- * Run status, fix all issues.
+ * Build StateTree, detect drift, fix ownership.
  */
 export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOError>> {
-  const { ops } = options;
+  const { ops, config } = options;
+
+  // Build the unified state tree
+  const treeResult = await StateTree.build({ ops, config });
+  if (!treeResult.ok) {
+    return err({
+      kind: "io_error",
+      path: "",
+      message: treeResult.error.message,
+    });
+  }
+
+  const tree = treeResult.value;
+  const drifts = tree.driftedEntities();
 
   // Load registry
   const registryResult = await Registry.load(ops);
@@ -54,102 +78,125 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
   }
   const registry = registryResult.value;
 
-  // Status with registry — detects everything
-  const beforeResult = await status({ ...options, registry });
-  if (!beforeResult.ok) return beforeResult;
-  const before = beforeResult.value;
+  // Build before-issues from tree state
+  const beforeIssues: SyncIssue[] = [];
+  for (const drift of drifts) {
+    beforeIssues.push({
+      path: drift.entity.path,
+      status: "drifted",
+      tier: drift.entity.configTier as "protect" | "watch",
+      issues: drift.details as DriftIssue[],
+    });
+  }
+
+  // Check for missing config entries (not on disk, not in staging)
+  const entityPaths = new Set(tree.entities.map((e) => e.path));
+  for (const [key, tier] of Object.entries(config.files)) {
+    const path = key.endsWith("/") ? key.slice(0, -1) : key;
+    if (!entityPaths.has(path)) {
+      beforeIssues.push({ path, status: "missing", tier: tier as "protect" | "watch" });
+    }
+  }
 
   const errors: SyncError[] = [];
   const released: string[] = [];
 
-  // ── Pass 1: Registry updates (snapshot ownership BEFORE enforcement) ───────
-  for (const issue of before.issues) {
-    switch (issue.status) {
-      case "unregistered": {
-        await registry.register(issue.path, issue.tier);
-        break;
-      }
-      case "tier_changed": {
-        // Downgrading from protect→watch: restore original ownership
-        if (issue.registryTier === "protect" && issue.tier === "watch") {
-          const entry = registry.get(issue.path);
-          if (entry?.tier === "protect") {
-            const { user, group, mode } = entry.originalOwnership;
-            const stat = await ops.stat(issue.path);
-            const isDir = stat.ok && stat.value.isDirectory;
-            if (isDir) {
-              const chownResult = await ops.chownRecursive(issue.path, { user, group });
-              const chmodResult = await ops.chmodRecursive(issue.path, mode);
-              if (!chownResult.ok) {
-                errors.push({ path: issue.path, operation: "chown", error: chownResult.error });
-              } else if (!chmodResult.ok) {
-                errors.push({ path: issue.path, operation: "chmod", error: chmodResult.error });
-              }
-            } else {
-              const chownResult = await ops.chown(issue.path, { user, group });
-              const chmodResult = await ops.chmod(issue.path, mode);
-              if (!chownResult.ok) {
-                errors.push({ path: issue.path, operation: "chown", error: chownResult.error });
-              } else if (!chmodResult.ok) {
-                errors.push({ path: issue.path, operation: "chmod", error: chmodResult.error });
-              }
-            }
-          }
-        }
-        await registry.updateTier(issue.path, issue.tier);
-        break;
-      }
-      case "orphaned": {
-        const entry = registry.unregister(issue.path);
+  // ── Pass 1: Registry updates ─────────────────────────────────────────
+  {
+    const configKeys = Object.keys(config.files);
+    const managedPaths = new Set(configKeys.map((k) => (k.endsWith("/") ? k.slice(0, -1) : k)));
 
-        if (entry?.tier === "protect") {
+    // Register new entries
+    for (const key of configKeys) {
+      const path = key.endsWith("/") ? key.slice(0, -1) : key;
+      const tier = config.files[key]!;
+      // Registry may store paths with or without trailing slash
+      const entry = registry.get(key) ?? registry.get(path);
+      if (!entry) {
+        await registry.register(path, tier);
+      } else if (entry.tier !== tier) {
+        // Tier changed: restore ownership if downgrading from protect→watch
+        if (entry.tier === "protect" && tier === "watch") {
           const { user, group, mode } = entry.originalOwnership;
-          const stat = await ops.stat(issue.path);
+          const stat = await ops.stat(path);
           const isDir = stat.ok && stat.value.isDirectory;
           if (isDir) {
-            const chownResult = await ops.chownRecursive(issue.path, { user, group });
-            const chmodResult = await ops.chmodRecursive(issue.path, mode);
+            const chownResult = await ops.chownRecursive(path, { user, group });
+            const chmodResult = await ops.chmodRecursive(path, mode);
             if (!chownResult.ok) {
-              errors.push({ path: issue.path, operation: "chown", error: chownResult.error });
+              errors.push({ path, operation: "chown", error: chownResult.error });
             } else if (!chmodResult.ok) {
-              errors.push({ path: issue.path, operation: "chmod", error: chmodResult.error });
-            } else {
-              released.push(issue.path);
-            }
-          } else if (stat.ok) {
-            const chownResult = await ops.chown(issue.path, { user, group });
-            const chmodResult = await ops.chmod(issue.path, mode);
-            if (!chownResult.ok) {
-              errors.push({ path: issue.path, operation: "chown", error: chownResult.error });
-            } else if (!chmodResult.ok) {
-              errors.push({ path: issue.path, operation: "chmod", error: chmodResult.error });
-            } else {
-              released.push(issue.path);
+              errors.push({ path, operation: "chmod", error: chmodResult.error });
             }
           } else {
-            // Path doesn't exist — nothing to restore, just release
-            released.push(issue.path);
+            const chownResult = await ops.chown(path, { user, group });
+            const chmodResult = await ops.chmod(path, mode);
+            if (!chownResult.ok) {
+              errors.push({ path, operation: "chown", error: chownResult.error });
+            } else if (!chmodResult.ok) {
+              errors.push({ path, operation: "chmod", error: chmodResult.error });
+            }
+          }
+        }
+        await registry.updateTier(path, tier);
+      }
+    }
+
+    // Release orphaned entries — check both with and without trailing slash
+    for (const regPath of registry.paths()) {
+      const regNorm = regPath.endsWith("/") ? regPath.slice(0, -1) : regPath;
+      if (
+        !managedPaths.has(regPath) &&
+        !managedPaths.has(regNorm) &&
+        !managedPaths.has(regPath + "/")
+      ) {
+        const entry = registry.unregister(regPath);
+        if (entry?.tier === "protect") {
+          const { user, group, mode } = entry.originalOwnership;
+          const stat = await ops.stat(regPath);
+          const isDir = stat.ok && stat.value.isDirectory;
+          if (isDir) {
+            const chownResult = await ops.chownRecursive(regPath, { user, group });
+            const chmodResult = await ops.chmodRecursive(regPath, mode);
+            if (!chownResult.ok) {
+              errors.push({ path: regPath, operation: "chown", error: chownResult.error });
+            } else if (!chmodResult.ok) {
+              errors.push({ path: regPath, operation: "chmod", error: chmodResult.error });
+            } else {
+              released.push(regPath);
+            }
+          } else if (stat.ok) {
+            const chownResult = await ops.chown(regPath, { user, group });
+            const chmodResult = await ops.chmod(regPath, mode);
+            if (!chownResult.ok) {
+              errors.push({ path: regPath, operation: "chown", error: chownResult.error });
+            } else if (!chmodResult.ok) {
+              errors.push({ path: regPath, operation: "chmod", error: chmodResult.error });
+            } else {
+              released.push(regPath);
+            }
+          } else {
+            released.push(regPath);
           }
         } else {
-          released.push(issue.path);
+          released.push(regPath);
         }
-        break;
       }
     }
   }
 
-  // ── Pass 2: Enforce ownership (AFTER registry snapshots) ─────────────────
+  // ── Pass 2: Enforce ownership using tree drift data ──────────────────
   const releasedSet = new Set(released);
-  for (const issue of before.issues) {
-    if (issue.status !== "drifted" || issue.tier !== "protect") continue;
-    if (releasedSet.has(issue.path)) continue;
+  for (const drift of drifts) {
+    if (drift.entity.configTier !== "protect") continue;
+    if (releasedSet.has(drift.entity.path)) continue;
 
     const expectedOwnership = options.expectedProtectOwnership;
-    const path = issue.path;
-    const needsChown = issue.issues.some(
-      (i: DriftIssue) => i.kind === "wrong_owner" || i.kind === "wrong_group",
+    const path = drift.entity.path;
+    const needsChown = drift.details.some(
+      (i) => i.kind === "wrong_owner" || i.kind === "wrong_group",
     );
-    const needsChmod = issue.issues.some((i: DriftIssue) => i.kind === "wrong_mode");
+    const needsChmod = drift.details.some((i) => i.kind === "wrong_mode");
 
     if (needsChown) {
       const { user, group } = expectedOwnership;
@@ -177,15 +224,14 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
     });
   }
 
-  // Error if we failed to fix issues
   if (errors.length > 0) {
-    return ok({ before, errors, released, git: undefined });
+    return ok({ beforeIssues, errors, released, git: undefined });
   }
 
-  // Best-effort git commit of all tracked files (protect + watch)
+  // Best-effort git commit
   let git: GitCommitResult | undefined;
-  if (await isGitEnabled(ops, options.config)) {
-    const allFiles = [...protectPatterns(options.config), ...watchPatterns(options.config)];
+  if (await isGitEnabled(ops, config)) {
+    const allFiles = [...protectPatterns(config), ...watchPatterns(config)];
     if (allFiles.length > 0) {
       const gitResult = await gitCommit(ops, allFiles, "soulguard: sync");
       if (gitResult.ok) {
@@ -194,5 +240,5 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
     }
   }
 
-  return ok({ before, errors, released, git });
+  return ok({ beforeIssues, errors, released, git });
 }
