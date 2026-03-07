@@ -11,7 +11,6 @@ import type { FileOwnership, Tier } from "../util/types.js";
 import { readConfig, writeConfig } from "../sdk/config.js";
 import { setTier, release } from "../sdk/tier.js";
 import { stagingPath } from "../sdk/staging.js";
-import { Registry } from "../sdk/registry.js";
 import { isGitEnabled, gitCommit } from "../util/git.js";
 
 export type TierAction = { kind: "set"; tier: Tier } | { kind: "release" };
@@ -165,34 +164,21 @@ export class TierCommand {
 
     // ── Surgical enforcement (no full sync) ────────────────────────────
 
-    // Load registry
-    const registryResult = await Registry.load(ops);
-    if (!registryResult.ok) {
-      this.out.error(`Failed to load registry: ${registryResult.error.message}`);
-      return 1;
-    }
-    const registry = registryResult.value;
-
     if (action.kind === "set" && action.tier === "protect") {
       for (const file of changedPaths) {
-        // Register (snapshots original ownership before we change it)
-        await registry.register(file, "protect");
-        // Enforce ownership
         const result = await enforceProtect(ops, file, expectedProtectOwnership);
         if (!result.ok) {
           this.out.error(`Failed to enforce: ${result.error}`);
           return 1;
         }
       }
-    } else if (action.kind === "set" && action.tier === "watch") {
-      for (const file of changedPaths) {
-        await registry.register(file, "watch");
-      }
     } else if (action.kind === "release") {
+      const defaultOwnership = configResult.value.defaultOwnership;
       for (const file of changedPaths) {
-        const entry = registry.unregister(file);
-        if (entry?.tier === "protect") {
-          await restoreOwnership(ops, file, entry.originalOwnership);
+        // Restore ownership if we have a default and the file was protect-tier
+        const wasTier = configResult.value.files[file];
+        if (wasTier === "protect" && defaultOwnership) {
+          await restoreOwnership(ops, file, defaultOwnership);
         }
         // Clean up staging siblings
         const sibling = stagingPath(file);
@@ -201,13 +187,6 @@ export class TierCommand {
           await ops.deleteFile(sibling);
         }
       }
-    }
-
-    // Persist registry
-    const regWriteResult = await registry.write();
-    if (!regWriteResult.ok) {
-      this.out.error(`Failed to write registry: ${regWriteResult.error.message}`);
-      return 1;
     }
 
     // Best-effort git commit
