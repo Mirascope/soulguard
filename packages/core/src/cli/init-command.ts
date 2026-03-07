@@ -2,10 +2,10 @@
  * CLI command: soulguard init
  */
 
-import type { ConsoleOutput } from "../console.js";
-import type { InitOptions, InitResult, InitError } from "../init.js";
-import type { Result } from "../types.js";
-import { init } from "../init.js";
+import type { ConsoleOutput } from "../util/console.js";
+import type { InitOptions, InitResult, InitError } from "../sdk/init.js";
+import type { Result } from "../util/types.js";
+import { init } from "../sdk/init.js";
 
 export class InitCommand {
   constructor(

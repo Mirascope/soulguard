@@ -36,7 +36,7 @@ sudo soulguard init
 sudo soulguard protect SOUL.md AGENTS.md
 
 # Watch operational files
-sudo soulguard watch "memory/*.md"
+sudo soulguard watch memory/
 
 # Check status
 soulguard status
@@ -74,22 +74,45 @@ echo "Well, maybe be a little evil" >> SOUL.md
 
 Once protected, the file is owned by `soulguardian:soulguard` with mode `444` — no one but root can modify it.
 
-### Proposing changes to protected files
+### Protecting directories
 
-When an agent (or anyone) wants to modify a protected file, they edit the staging copy — a sibling file named `.soulguard.<filename>`:
+Use `sudo soulguard protect` with a directory path to lock down an entire directory. The directory and all its contents are recursively chowned to `soulguardian:soulguard` with mode `444`:
 
 ```bash
-# Edit the staging copy (no sudo required)
-echo "Don't be evil, even if it would get great quarterly numbers." > .soulguard.SOUL.md
+sudo soulguard protect skills/
+```
 
-# Review the diff and get an approval hash
+This prevents the agent from creating, modifying, or deleting any files within the directory — closing the "untracked file" attack vector where an agent could write a malicious file to an unprotected directory.
+
+### Proposing changes to protected files
+
+When an agent (or anyone) wants to modify a protected file, they use the staging workflow:
+
+```bash
+# Stage the file for editing (no sudo required)
+soulguard stage SOUL.md
+
+# Edit the staging copy
+echo "Don't be evil, even if it would get great quarterly numbers." > .soulguard-staging/SOUL.md
+
+# Review the diff
 soulguard diff
 
-# Apply the changes (requires sudo + approval hash)
+# Apply the changes (requires sudo)
+sudo soulguard apply -y
+```
+
+For maximum security, use the approval hash to ensure that what you reviewed is exactly what gets applied — preventing race conditions between review and apply:
+
+```bash
+# Get the approval hash
+soulguard diff  # Shows hash at bottom
+
+# Apply with hash verification
 sudo soulguard apply --hash <hash>
 ```
 
-The approval hash ensures that what the human reviewed is exactly what gets applied — no race conditions.
+**Security Note**: The `-y` / `--yes` flag is convenient for trusted environments and provides the same security model as interactive mode. Use `--hash` for cryptographic verification when security is paramount or for automation.
 
 ### Releasing files
 
@@ -107,7 +130,7 @@ The file's original ownership is restored from the registry.
 Use `sudo soulguard watch` to track files without locking them:
 
 ```bash
-sudo soulguard watch MEMORY.md "memory/*.md"
+sudo soulguard watch MEMORY.md memory/
 
 # The agent can freely edit watched files
 echo "Learned something new today" >> MEMORY.md
@@ -137,23 +160,6 @@ To discard all pending staged changes and reset to match the current protect-tie
 sudo soulguard reset
 ```
 
-## Glob Patterns
-
-Config files and CLI commands support glob patterns:
-
-```bash
-# Protect all markdown files in a directory
-sudo soulguard protect "docs/*.md"
-
-# Watch all files recursively
-sudo soulguard watch "memory/**/*.md"
-```
-
-- `*` matches a single path segment (e.g. `memory/*.md` matches `memory/notes.md` but not `memory/deep/notes.md`)
-- `**` matches any depth (e.g. `skills/**` matches `skills/tool.ts` and `skills/sub/tool.ts`)
-
-Globs are resolved to concrete file paths at runtime. All commands (`status`, `diff`, `sync`, `apply`, `reset`) resolve globs before operating, so new files matching a glob are automatically picked up.
-
 ## Configuration
 
 Soulguard is configured via `soulguard.json` in the workspace root:
@@ -166,14 +172,14 @@ Soulguard is configured via `soulguard.json` in the workspace root:
     "SOUL.md": "protect",
     "AGENTS.md": "protect",
     "MEMORY.md": "watch",
-    "memory/*.md": "watch"
+    "memory/": "watch"
   },
   "git": true
 }
 ```
 
 - **`version`** — Schema version (currently `1`)
-- **`files`** — Map from file path or glob pattern to its protection tier (`"protect"` or `"watch"`). When multiple patterns match a file, the highest tier wins.
+- **`files`** — Map from file path or directory path to its protection tier (`"protect"` or `"watch"`). Paths are literal — no glob patterns.
 - **`git`** — Enable/disable auto-commits to soulguard's internal git repo (default: `true`)
 
 `soulguard.json` is always implicitly protected — it cannot be released or corrupted.
@@ -188,10 +194,10 @@ The OpenClaw plugin (`@soulguard/openclaw`) ships three templates that categoriz
 | `openclaw.json`, `cron/jobs.json`                                                        |  watch  | protect | protect  |
 | `workspace/SOUL.md`, `workspace/AGENTS.md`, `workspace/IDENTITY.md`, `workspace/USER.md` |  watch  | protect | protect  |
 | `workspace/TOOLS.md`, `workspace/HEARTBEAT.md`, `workspace/BOOTSTRAP.md`                 |  watch  | protect | protect  |
-| `workspace/MEMORY.md`, `workspace/memory/**/*.md`                                        |  watch  |  watch  | protect  |
-| `workspace/skills/**`                                                                    |  watch  |  watch  | protect  |
-| `extensions/**`                                                                          |  watch  | protect | protect  |
-| `workspace/sessions/**`                                                                  |    —    |    —    |  watch   |
+| `workspace/MEMORY.md`, `workspace/memory/`                                               |  watch  |  watch  | protect  |
+| `workspace/skills/`                                                                      |  watch  |  watch  | protect  |
+| `extensions/`                                                                            |  watch  | protect | protect  |
+| `workspace/sessions/`                                                                    |    —    |    —    |  watch   |
 
 - **`default`** — Core identity and config in protect, memory and skills in watch
 - **`paranoid`** — Everything possible in protect, only sessions in watch
@@ -220,21 +226,28 @@ soulguard log . SOUL.md
 
 ### Requires sudo
 
-| Command                                      | Description                                                                        |
-| -------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `sudo soulguard init [dir]`                  | One-time setup — creates system user/group, `.soulguard/` directory, sudoers entry |
-| `sudo soulguard protect <files...>`          | Add files or globs to the protect tier                                             |
-| `sudo soulguard watch <files...>`            | Add files or globs to the watch tier                                               |
-| `sudo soulguard release <files...>`          | Remove files from all protection tiers                                             |
-| `sudo soulguard apply [dir] [--hash <hash>]` | Apply staged changes to protect-tier files                                         |
-| `sudo soulguard sync [dir]`                  | Fix ownership/permission drift and commit all tracked files                        |
-| `sudo soulguard reset [dir]`                 | Reset staging to match current protect-tier state                                  |
+| Command                                          | Description                                                                        |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `sudo soulguard init [dir]`                      | One-time setup — creates system user/group, `.soulguard/` directory, sudoers entry |
+| `sudo soulguard protect <paths...>`              | Add files or directories to the protect tier                                       |
+| `sudo soulguard watch <paths...>`                | Add files or directories to the watch tier                                         |
+| `sudo soulguard release <paths...>`              | Remove files or directories from all protection tiers                              |
+| `sudo soulguard apply [dir] [-y\|--hash <hash>]` | Apply staged changes to protect-tier files                                         |
+| `sudo soulguard sync [dir]`                      | Fix ownership/permission drift and commit all tracked files                        |
+| `sudo soulguard reset [dir]`                     | Reset staging to match current protect-tier state                                  |
+
+**Apply modes:**
+
+- No flags: Interactive mode — shows diff, prompts for confirmation
+- `-y` / `--yes`: Apply current staging state without hash verification (convenient)
+- `--hash <hash>`: Apply with cryptographic verification (maximum security)
 
 ### No sudo required
 
 | Command                           | Description                                                                  |
 | --------------------------------- | ---------------------------------------------------------------------------- |
 | `soulguard status [dir]`          | Report protect and watch file health (ownership, permissions, missing files) |
+| `soulguard stage <paths...>`      | Stage protect-tier files for editing or deletion (use -d flag for deletion)  |
 | `soulguard diff [dir] [files...]` | Show pending changes as unified diff + approval hash                         |
 | `soulguard log [dir] [file]`      | Show git history for tracked files                                           |
 
@@ -255,13 +268,19 @@ Soulguard uses two independent security layers:
 The staging model uses an implicit proposal pattern:
 
 ```text
-1. Agent edits staging copy   →  .soulguard.SOUL.md  (agent-writable)
-2. Human reviews              →  soulguard diff       (shows unified diff + hash)
-3. Human approves             →  sudo soulguard apply --hash <hash>
-4. Changes applied            →  staging → protect, re-locked to 444
+1. Agent stages file          →  soulguard stage SOUL.md
+2. Agent edits staging copy   →  .soulguard-staging/SOUL.md  (agent-writable)
+3. Human reviews              →  soulguard diff       (shows unified diff + hash)
+4. Human approves             →  sudo soulguard apply -y  (convenient)
+                              or sudo soulguard apply --hash <hash>  (maximum security)
+5. Changes applied            →  staging → protect, re-locked to 444
 ```
 
-The approval hash is computed over frozen copies in `.soulguard/pending/` (owned by soulguardian), preventing the agent from modifying the staging copy between review and apply.
+**Apply Security Options:**
+
+- **`apply -y`** — Applies the current staging state. Convenient for trusted environments. Same security model as interactive mode: the human reviews changes, then immediately applies them. Small TOCTOU window where agent could theoretically modify staging between review and apply.
+
+- **`apply --hash <hash>`** — Cryptographic verification mode. The approval hash is computed over frozen copies in `.soulguard/pending/` (owned by soulguardian), preventing the agent from modifying staging between review and apply. Use for maximum security or automation.
 
 ### Directory Layout
 
@@ -269,9 +288,10 @@ The approval hash is computed over frozen copies in `.soulguard/pending/` (owned
 workspace/
 ├── soulguard.json                 # Config (always protected)
 ├── SOUL.md                        # Protected file (444, soulguardian:soulguard)
-├── .soulguard.SOUL.md             # Staging sibling (644, agent-writable)
 ├── memory/
 │   └── notes.md                   # Watched file (644, tracked in git)
+├── .soulguard-staging/
+│   └── SOUL.md                    # Staging copy (777, agent-writable)
 └── .soulguard/
     ├── registry.json              # Tracks file tiers + original ownership
     ├── pending/                   # Frozen copies during apply

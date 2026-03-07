@@ -1,16 +1,18 @@
 /**
  * CLI command: soulguard protect|watch|release <files...>
  *
- * Unified command for all tier operations. Modifies soulguard.json,
- * runs sync, and handles tier-specific cleanup.
+ * Unified command for all tier operations. Modifies soulguard.json
+ * and performs targeted enforcement (no full sync).
  */
 
-import type { ConsoleOutput } from "../console.js";
-import type { SystemOperations } from "../system-ops.js";
-import type { FileOwnership, Tier } from "../types.js";
-import { readConfig, writeConfig, setTier, release } from "../tier.js";
-import { stagingPath } from "../staging.js";
-import { sync } from "../sync.js";
+import type { ConsoleOutput } from "../util/console.js";
+import type { SystemOperations } from "../util/system-ops.js";
+import type { FileOwnership, Tier } from "../util/types.js";
+import { readConfig, writeConfig } from "../sdk/config.js";
+import { setTier, release } from "../sdk/tier.js";
+import { stagingPath } from "../sdk/staging.js";
+import { Registry } from "../sdk/registry.js";
+import { isGitEnabled, gitCommit } from "../util/git.js";
 
 export type TierAction = { kind: "set"; tier: Tier } | { kind: "release" };
 
@@ -34,6 +36,50 @@ function formatChange(action: TierAction, from?: Tier): { prefix: string; suffix
   return { prefix: arrow, suffix: `→ ${tier} (was ${from})` };
 }
 
+/** Check if a path is a directory on disk. */
+async function isDirectory(ops: SystemOperations, path: string): Promise<boolean> {
+  const stat = await ops.stat(path);
+  return stat.ok && stat.value.isDirectory;
+}
+
+/** Enforce protect-tier ownership on a path (file or directory). */
+async function enforceProtect(
+  ops: SystemOperations,
+  path: string,
+  ownership: FileOwnership,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const isDir = await isDirectory(ops, path);
+  if (isDir) {
+    const chown = await ops.chownRecursive(path, { user: ownership.user, group: ownership.group });
+    if (!chown.ok) return { ok: false, error: `chown ${path}: ${chown.error.kind}` };
+    // Directories need execute bit for traversal (555), files get read-only (444)
+    const chmod = await ops.chmodDirectoryTree(path, { fileMode: ownership.mode, dirMode: "555" });
+    if (!chmod.ok) return { ok: false, error: `chmod ${path}: ${chmod.error.kind}` };
+  } else {
+    const chown = await ops.chown(path, { user: ownership.user, group: ownership.group });
+    if (!chown.ok) return { ok: false, error: `chown ${path}: ${chown.error.kind}` };
+    const chmod = await ops.chmod(path, ownership.mode);
+    if (!chmod.ok) return { ok: false, error: `chmod ${path}: ${chmod.error.kind}` };
+  }
+  return { ok: true };
+}
+
+/** Restore original ownership on a path (file or directory). */
+async function restoreOwnership(
+  ops: SystemOperations,
+  path: string,
+  ownership: FileOwnership,
+): Promise<void> {
+  const isDir = await isDirectory(ops, path);
+  if (isDir) {
+    await ops.chownRecursive(path, { user: ownership.user, group: ownership.group });
+    await ops.chmodRecursive(path, ownership.mode);
+  } else {
+    await ops.chown(path, { user: ownership.user, group: ownership.group });
+    await ops.chmod(path, ownership.mode);
+  }
+}
+
 export class TierCommand {
   constructor(
     private opts: TierCommandOptions,
@@ -51,17 +97,33 @@ export class TierCommand {
     // Read current config
     const configResult = await readConfig(ops);
     if (!configResult.ok) {
-      this.out.error(`Failed to read config: ${configResult.error.message}`);
+      const e = configResult.error;
+      if (e.kind === "not_found") {
+        this.out.error("Failed to read config: soulguard.json not found");
+      } else {
+        this.out.error(`Failed to read config: ${e.message}`);
+      }
       return 1;
     }
 
     let config;
-    let changedFiles: string[];
+    let changedPaths: string[];
+
+    // Verify all paths exist before making changes
+    if (action.kind === "set") {
+      for (const file of files) {
+        const exists = await ops.exists(file);
+        if (!exists.ok || !exists.value) {
+          this.out.error(`${file} does not exist`);
+          return 1;
+        }
+      }
+    }
 
     if (action.kind === "set") {
       const result = setTier(configResult.value, files, action.tier);
       config = result.config;
-      changedFiles = [...result.added, ...result.moved];
+      changedPaths = [...result.added, ...result.moved];
 
       // Report
       for (const f of result.added) {
@@ -79,7 +141,7 @@ export class TierCommand {
     } else {
       const result = release(configResult.value, files);
       config = result.config;
-      changedFiles = result.released;
+      changedPaths = result.released;
 
       for (const f of result.released) {
         this.out.success(`  - ${f} (released)`);
@@ -89,7 +151,7 @@ export class TierCommand {
       }
     }
 
-    if (changedFiles.length === 0) {
+    if (changedPaths.length === 0) {
       this.out.info("Nothing to change.");
       return 0;
     }
@@ -101,17 +163,38 @@ export class TierCommand {
       return 1;
     }
 
-    // Sync to enforce ownership + update registry
-    const syncResult = await sync({ config, expectedProtectOwnership, ops });
-    if (!syncResult.ok) {
-      this.out.error("Sync failed after config update.");
+    // ── Surgical enforcement (no full sync) ────────────────────────────
+
+    // Load registry
+    const registryResult = await Registry.load(ops);
+    if (!registryResult.ok) {
+      this.out.error(`Failed to load registry: ${registryResult.error.message}`);
       return 1;
     }
+    const registry = registryResult.value;
 
-    // Tier-specific post-sync cleanup
-    if (action.kind === "release") {
-      // Clean up staging siblings for released files
-      for (const file of changedFiles) {
+    if (action.kind === "set" && action.tier === "protect") {
+      for (const file of changedPaths) {
+        // Register (snapshots original ownership before we change it)
+        await registry.register(file, "protect");
+        // Enforce ownership
+        const result = await enforceProtect(ops, file, expectedProtectOwnership);
+        if (!result.ok) {
+          this.out.error(`Failed to enforce: ${result.error}`);
+          return 1;
+        }
+      }
+    } else if (action.kind === "set" && action.tier === "watch") {
+      for (const file of changedPaths) {
+        await registry.register(file, "watch");
+      }
+    } else if (action.kind === "release") {
+      for (const file of changedPaths) {
+        const entry = registry.unregister(file);
+        if (entry?.tier === "protect") {
+          await restoreOwnership(ops, file, entry.originalOwnership);
+        }
+        // Clean up staging siblings
         const sibling = stagingPath(file);
         const siblingExists = await ops.exists(sibling);
         if (siblingExists.ok && siblingExists.value) {
@@ -120,12 +203,26 @@ export class TierCommand {
       }
     }
 
+    // Persist registry
+    const regWriteResult = await registry.write();
+    if (!regWriteResult.ok) {
+      this.out.error(`Failed to write registry: ${regWriteResult.error.message}`);
+      return 1;
+    }
+
+    // Best-effort git commit
+    if (await isGitEnabled(ops, config)) {
+      const gitFiles = ["soulguard.json", ...changedPaths];
+      const verb = action.kind === "set" ? action.tier : "release";
+      await gitCommit(ops, gitFiles, `soulguard: ${verb} ${changedPaths.join(", ")}`);
+    }
+
     // Summary
     this.out.write("");
     if (action.kind === "set") {
-      this.out.success(`Updated. ${changedFiles.length} file(s) now ${action.tier}-tier.`);
+      this.out.success(`Updated. ${changedPaths.length} file(s) now ${action.tier}-tier.`);
     } else {
-      this.out.success(`Released. ${changedFiles.length} file(s) untracked.`);
+      this.out.success(`Released. ${changedPaths.length} file(s) untracked.`);
     }
     return 0;
   }

@@ -1,93 +1,327 @@
 import { e2e } from "../harness";
 
-e2e.skip("apply: applies staged changes with hash", (t) => {
-  t.$(`echo '# My Soul' > SOUL.md`).expect(``).exits(0);
+// ── Basic apply with -y flag ─────────────────────────────────────────
 
-  t.$(`SUDO_USER=agent soulguard init .`).expect(``).exits(0);
-
-  t.$(`soulguard protect SOUL.md`).expect(``).exits(0);
-
-  // Agent creates staging and modifies it
-  t.$(
-    `su - agent -c "cp $(pwd)/SOUL.md $(pwd)/.soulguard.SOUL.md && echo '# My Updated Soul' > $(pwd)/.soulguard.SOUL.md"`,
-  ).expect(``);
-
-  t.$(
-    `HASH=$({ soulguard diff . || true; } 2>&1 | grep 'Apply hash:' | awk '{print $NF}') && echo "HASH: $HASH"`,
-  )
-    .expect(``)
-    .exits(0)
-    .outputs(/HASH: [0-9a-f]+/);
-
-  t.$(
-    `HASH=$({ soulguard diff . || true; } 2>&1 | grep 'Apply hash:' | awk '{print $NF}') && soulguard apply . --hash "$HASH"`,
-  )
-    .expect(``)
+e2e("apply: applies staged changes with -y", (t) => {
+  // Setup: create a file
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+      exit 0
+    `)
     .exits(0);
 
-  // Verify protect-tier file has new content
+  // Initialize soulguard
+  t.$(`sudo soulguard init .`)
+    .expect(`
+      exit 0
+      ✓ Soulguard initialized.
+    `)
+    .exits(0);
+
+  // Mark file as protect-tier
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+      exit 0
+        + SOUL.md → protect
+
+      Updated. 1 file(s) now protect-tier.
+    `)
+    .exits(0);
+
+  // Stage files for editing
+  t.$(`soulguard stage SOUL.md`)
+    .expect(`
+      exit 0
+        📝 SOUL.md (staged for editing)
+
+      Staged 1 file(s).
+    `)
+    .exits(0);
+
+  // Modify staging copy
+  t.$(`echo '# My Updated Soul' > .soulguard-staging/SOUL.md`)
+    .expect(`
+      exit 0
+    `)
+    .exits(0);
+
+  // Apply with -y flag (no hash verification required)
+  t.$(`sudo soulguard apply . -y`)
+    .expect(`
+      exit 0
+
+      Applied 1 file(s):
+        ✅ SOUL.md
+
+      Protect-tier files updated. Staging synced.
+    `)
+    .exits(0)
+    .outputs(/Applied 1 file/);
+
+  // Verify protected file was updated with staged content
   t.$(`cat SOUL.md`)
-    .expect(``)
+    .expect(`
+      exit 0
+      # My Updated Soul
+    `)
     .exits(0)
     .outputs(/My Updated Soul/);
 });
 
-e2e.skip("apply: blocks invalid soulguard.json changes (self-protection)", (t) => {
-  t.$(`echo '# My Soul' > SOUL.md`).expect(``).exits(0);
+e2e("apply: handles file deletion through staging", (t) => {
+  // Setup: create and protect a file
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+      exit 0
+    `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
+      exit 0
+      ✓ Soulguard initialized.
+    `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+      exit 0
+        + SOUL.md → protect
 
-  t.$(`SUDO_USER=agent soulguard init .`).expect(``).exits(0);
+      Updated. 1 file(s) now protect-tier.
+    `)
+    .exits(0);
 
-  t.$(`soulguard protect SOUL.md`).expect(``).exits(0);
+  // Stage file for deletion (using DELETE_SENTINEL)
+  t.$(`soulguard stage -d SOUL.md`)
+    .expect(`
+      exit 0
+        🗑️  SOUL.md (staged for deletion)
 
-  // Agent writes invalid config to staging
-  t.$(`su - agent -c "echo '{"vault":["SOUL.md"]}' > $(pwd)/.soulguard.soulguard.json"`).expect(``);
+      Staged 1 file(s).
+    `)
+    .exits(0);
 
-  // Apply should be blocked by self-protection
-  t.$(
-    `HASH=$({ soulguard diff . || true; } 2>&1 | grep 'Apply hash:' | awk '{print $NF}') && soulguard apply . --hash "$HASH" 2>&1`,
-  )
-    .expect(``)
+  // Apply deletion with -y flag
+  t.$(`sudo soulguard apply . -y`)
+    .expect(`
+      exit 0
+
+      Applied 1 file(s):
+        ✅ SOUL.md
+
+      Protect-tier files updated. Staging synced.
+    `)
     .exits(0)
-    .outputs(/Self-protection.*invalid/);
+    .outputs(/Applied 1 file/);
 
-  // soulguard.json is unchanged
-  t.$(`cat soulguard.json`)
-    .expect(``)
+  // Verify file was actually deleted from workspace
+  t.$(`test -f SOUL.md && echo "exists" || echo "gone"`)
+    .expect(`
+      exit 0
+      gone
+    `)
     .exits(0)
-    .outputs(/"version":\s*1/);
+    .outputs(/gone/);
 });
 
-e2e.skip("apply: handles file deletion through staging", (t) => {
-  t.$(`
-    echo '# My Soul' > SOUL.md
-    echo '# Bootstrap' > BOOTSTRAP.md
-  `)
-    .expect(``)
+e2e("apply: applies modified file inside protected directory", (t) => {
+  // Setup: create directory with multiple files
+  t.$(`mkdir memories && echo 'what a day' > memories/today.md`)
+    .expect(`
+      exit 0
+    `)
     .exits(0);
 
-  t.$(`SUDO_USER=agent soulguard init .`).expect(``).exits(0);
+  // Initialize and protect entire directory
+  t.$(`sudo soulguard init .`)
+    .expect(`
+      exit 0
+      ✓ Soulguard initialized.
+    `)
+    .exits(0);
+  t.$(`sudo soulguard protect memories`)
+    .expect(`
+      exit 0
+        + memories → protect
 
-  t.$(`soulguard protect SOUL.md BOOTSTRAP.md`).expect(``).exits(0);
+      Updated. 1 file(s) now protect-tier.
+    `)
+    .exits(0);
 
-  // Agent creates staging copies, then deletes BOOTSTRAP staging
+  // Stage file within protected dir for modification
+  t.$(`soulguard stage memories/today.md`)
+    .expect(`
+      exit 0
+        📝 memories/today.md (staged for editing)
+
+      Staged 1 file(s).
+    `)
+    .exits(0)
+    .outputs(/Staged 1 file/);
+
+  // Modify staging copy
+  t.$(`echo 'It was great' >> .soulguard-staging/memories/today.md`)
+    .expect(`
+      exit 0
+    `)
+    .exits(0);
+
+  // Apply changes with -y flag
+  t.$(`sudo soulguard apply . -y`)
+    .expect(`
+      exit 0
+
+      Applied 1 file(s):
+        ✅ memories/today.md
+
+      Protect-tier files updated. Staging synced.
+    `)
+    .exits(0);
+
+  // Verify only modified file was updated
+  t.$(`cat memories/today.md`)
+    .expect(`
+      exit 0
+      what a day
+      It was great
+    `)
+    .exits(0)
+    .outputs(/It was great/);
+});
+
+// ── Hash verification mode (--hash) ──────────────────────────────────
+
+e2e("apply: verifies hash with --hash flag", (t) => {
+  // Setup: create and protect a file
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+      exit 0
+    `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
+      exit 0
+      ✓ Soulguard initialized.
+    `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+      exit 0
+        + SOUL.md → protect
+
+      Updated. 1 file(s) now protect-tier.
+    `)
+    .exits(0);
+
+  // Stage files and modify staging copy
+  t.$(`soulguard stage SOUL.md`)
+    .expect(`
+      exit 0
+        📝 SOUL.md (staged for editing)
+
+      Staged 1 file(s).
+    `)
+    .exits(0);
+  t.$(`echo '# Modified' > .soulguard-staging/SOUL.md`)
+    .expect(`
+      exit 0
+    `)
+    .exits(0);
+
+  // Extract hash from diff output and apply with cryptographic verification
+  // This ensures the frozen pending state matches what was reviewed
   t.$(
-    `su - agent -c "cp $(pwd)/SOUL.md $(pwd)/.soulguard.SOUL.md && cp $(pwd)/BOOTSTRAP.md $(pwd)/.soulguard.BOOTSTRAP.md"`,
-  ).expect(``);
-
-  t.$(`su - agent -c "rm $(pwd)/.soulguard.BOOTSTRAP.md"`).expect(``);
-
-  // Changes found (deletion) → exit 1 (git diff convention)
-  t.$(`soulguard diff .`).expect(``).exits(1).outputs(/delet/);
-
-  t.$(
-    `HASH=$({ soulguard diff . || true; } 2>&1 | grep 'Apply hash:' | awk '{print $NF}') && soulguard apply . --hash "$HASH"`,
+    `HASH=$(soulguard diff . 2>&1 | grep 'Apply hash:' | awk '{print $NF}') && sudo soulguard apply . --hash "$HASH"`,
   )
-    .expect(``)
+    .expect(`
+      exit 0
+
+      Applied 1 file(s):
+        ✅ SOUL.md
+
+      Protect-tier files updated. Staging synced.
+    `)
+    .exits(0);
+});
+
+e2e("apply: rejects with wrong hash", (t) => {
+  // Setup: create and protect a file
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+      exit 0
+    `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
+      exit 0
+      ✓ Soulguard initialized.
+    `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+      exit 0
+        + SOUL.md → protect
+
+      Updated. 1 file(s) now protect-tier.
+    `)
     .exits(0);
 
-  // BOOTSTRAP.md should be gone
-  t.$(`test -f BOOTSTRAP.md && echo "yes" || echo "no"`).expect(``).exits(0).outputs(/no/);
+  // Stage and modify files
+  t.$(`soulguard stage SOUL.md`)
+    .expect(`
+      exit 0
+        📝 SOUL.md (staged for editing)
 
-  // SOUL.md should still exist
-  t.$(`test -f SOUL.md && echo "yes" || echo "no"`).expect(``).exits(0).outputs(/yes/);
+      Staged 1 file(s).
+    `)
+    .exits(0);
+  t.$(`echo '# Modified' > .soulguard-staging/SOUL.md`)
+    .expect(`
+      exit 0
+    `)
+    .exits(0);
+
+  // Attempt to apply with incorrect hash → should fail with hash mismatch error
+  t.$(`sudo soulguard apply . --hash "deadbeef" 2>&1`)
+    .expect(`
+      exit 1
+      Expected hash deadbeef but got hash 80b0f1ea5e2b6e9896224a89c8025ff309de616b83345c8b3f34f20e2acddd98
+      Please run \`soulguard diff\` again and re-review.
+    `)
+    .exits(1)
+    .outputs(/hash|mismatch|invalid/i);
+});
+
+// ── Error cases ──────────────────────────────────────────────────────
+
+e2e("apply: rejects using both --yes and --hash", (t) => {
+  // Setup: create and protect a file
+  t.$(`echo '# My Soul' > SOUL.md`)
+    .expect(`
+    exit 0
+  `)
+    .exits(0);
+  t.$(`sudo soulguard init .`)
+    .expect(`
+    exit 0
+    ✓ Soulguard initialized.
+  `)
+    .exits(0);
+  t.$(`sudo soulguard protect SOUL.md`)
+    .expect(`
+    exit 0
+      + SOUL.md → protect
+
+    Updated. 1 file(s) now protect-tier.
+  `)
+    .exits(0);
+
+  // Attempt to use both --yes and --hash flags → should fail
+  // (these flags are mutually exclusive)
+  t.$(`sudo soulguard apply . --yes --hash "abc123" 2>&1`)
+    .expect(`
+      exit 1
+      Cannot use both --yes and --hash flags
+    `)
+    .exits(1)
+    .outputs(/cannot/i);
 });

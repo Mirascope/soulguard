@@ -19,81 +19,93 @@ export type {
   HashFailedIssue,
   // System identity
   SystemIdentity,
-} from "./types.js";
-export { formatIssue } from "./types.js";
+} from "./util/types.js";
+export { formatIssue } from "./util/types.js";
 
 // Result (generic pattern)
-export type { Result } from "./result.js";
-export { ok, err } from "./result.js";
+export type { Result } from "./util/result.js";
+export { ok, err } from "./util/result.js";
 
-// Config
-export { soulguardConfigSchema, parseConfig } from "./schema.js";
+// Config schema
+export { soulguardConfigSchema, parseConfig } from "./sdk/schema.js";
 
 // System operations
-export type { SystemOperations, FileStat } from "./system-ops.js";
-export { getFileInfo } from "./system-ops.js";
-export { MockSystemOps } from "./system-ops-mock.js";
-export type { RecordedOp } from "./system-ops-mock.js";
-export { NodeSystemOps } from "./system-ops-node.js";
+export type { SystemOperations, FileStat } from "./util/system-ops.js";
+export { getFileInfo } from "./util/system-ops.js";
+export { MockSystemOps } from "./util/system-ops-mock.js";
+export type { RecordedOp } from "./util/system-ops-mock.js";
+export { NodeSystemOps } from "./util/system-ops-node.js";
 
 // Status
-export { status } from "./status.js";
-export type { FileStatus, StatusResult, StatusOptions } from "./status.js";
+export { status } from "./sdk/status.js";
+export type { FileStatus, StatusResult, StatusOptions } from "./sdk/status.js";
 
 // Diff
-export { diff } from "./diff.js";
-export type { FileDiff, DiffResult, DiffError, DiffOptions } from "./diff.js";
+export { diff } from "./sdk/diff.js";
+export type { FileDiff, DiffResult, DiffError, DiffOptions } from "./sdk/diff.js";
 
 // Sync
-export { sync } from "./sync.js";
-export type { SyncError, SyncResult, SyncOptions } from "./sync.js";
+export { sync } from "./sdk/sync.js";
+export type { SyncError, SyncResult, SyncOptions } from "./sdk/sync.js";
 
 // Init
-export type { InitResult, InitError, InitOptions } from "./init.js";
-export { DEFAULT_CONFIG } from "./constants.js";
+export type { InitResult, InitError, InitOptions } from "./sdk/init.js";
+export { DEFAULT_CONFIG } from "./util/constants.js";
 
 // Console output
-export type { ConsoleOutput } from "./console.js";
-export { LiveConsoleOutput } from "./console-live.js";
+export type { ConsoleOutput } from "./util/console.js";
+export { LiveConsoleOutput } from "./util/console-live.js";
 
 // Policy
-export { validatePolicies, evaluatePolicies } from "./policy.js";
+export { validatePolicies, evaluatePolicies } from "./sdk/policy.js";
 export type {
   Policy,
   PolicyViolation,
   PolicyError,
   PolicyCollisionError,
   ApprovalContext,
-} from "./policy.js";
+} from "./sdk/policy.js";
 
 // Self-protection (hardcoded, cannot be bypassed)
-export { validateSelfProtection } from "./self-protection.js";
+export { validateSelfProtection } from "./sdk/self-protection.js";
 
 // Apply
-export { apply } from "./apply.js";
-export type { ApplyOptions, ApplyResult, ApplyError } from "./apply.js";
+export { apply } from "./sdk/apply.js";
+export type { ApplyOptions, ApplyResult, ApplyError } from "./sdk/apply.js";
 
 // Reset
-export { reset } from "./reset.js";
-export type { ResetOptions, ResetResult, ResetError } from "./reset.js";
-
-// Git integration
-export {
-  isGitEnabled,
-  gitCommit,
-  gitLog,
-  protectCommitMessage,
-  watchCommitMessage,
-  commitWatchFiles,
-} from "./git.js";
-export type { GitCommitResult, GitError } from "./git.js";
+export { reset } from "./sdk/reset.js";
+export type { ResetOptions, ResetResult, ResetError } from "./sdk/reset.js";
 
 // Staging
-export { stagingPath, isStagingPath, STAGING_PREFIX } from "./staging.js";
+export {
+  stagingPath,
+  isStagingPath,
+  STAGING_DIR,
+  DELETE_SENTINEL,
+  isDeleteSentinel,
+} from "./sdk/staging.js";
 
-// Protect check + glob
-export { isProtectedFile, normalizePath } from "./protect-check.js";
-export { isGlob, matchGlob, createGlobMatcher, resolvePatterns } from "./glob.js";
+// Protect check
+export { isProtectedFile, normalizePath } from "./sdk/protect-check.js";
+
+// Config helpers
+export {
+  protectPatterns,
+  watchPatterns,
+  patternsForTier,
+  readConfig,
+  writeConfig,
+} from "./sdk/config.js";
+export type { ConfigError, ConfigWriteError } from "./sdk/config.js";
+
+// Registry
+export { Registry } from "./sdk/registry.js";
+export type { RegistryData, RegistryEntry, RegistryError } from "./sdk/registry.js";
+
+// Tier management
+export { setTier, release } from "./sdk/tier.js";
+export type { TierChangeResult, ReleaseResult } from "./sdk/tier.js";
 
 // CLI commands
 export { StatusCommand } from "./cli/status-command.js";
@@ -102,16 +114,7 @@ export { DiffCommand } from "./cli/diff-command.js";
 export { ApplyCommand } from "./cli/apply-command.js";
 export type { ApplyCommandOptions } from "./cli/apply-command.js";
 export { ResetCommand } from "./cli/reset-command.js";
-export { protectPatterns, watchPatterns, patternsForTier } from "./config.js";
-
-// Registry
-export { Registry } from "./registry.js";
-export type { RegistryData, RegistryEntry, RegistryError } from "./registry.js";
-
-// Tier management
-export { setTier, release, readConfig, writeConfig } from "./tier.js";
-export type { TierChangeResult, ReleaseResult, TierError } from "./tier.js";
-
-// Tier CLI command
 export { TierCommand } from "./cli/tier-command.js";
 export type { TierAction, TierCommandOptions } from "./cli/tier-command.js";
+export { StageCommand } from "./cli/stage-command.js";
+export type { StageCommandOptions } from "./cli/stage-command.js";

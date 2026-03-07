@@ -1,19 +1,22 @@
 /**
  * ApplyCommand — approve and apply staging changes to protect-tier.
  *
- * Two modes:
- * - `--hash <hash>`: Non-interactive, verifies hash and applies.
+ * Three modes:
  * - No args: Interactive — shows diff, prompts for confirmation, then applies.
+ * - `-y` / `--yes`: Non-interactive — applies current staging state without hash verification.
+ * - `--hash <hash>`: Cryptographic verification — verifies hash and applies.
  */
 
-import type { ConsoleOutput } from "../console.js";
-import type { ApplyOptions } from "../apply.js";
-import { apply } from "../apply.js";
-import { diff } from "../diff.js";
+import type { ConsoleOutput } from "../util/console.js";
+import type { ApplyOptions } from "../sdk/apply.js";
+import { apply } from "../sdk/apply.js";
+import { diff } from "../sdk/diff.js";
 
 export type ApplyCommandOptions = Omit<ApplyOptions, "hash"> & {
-  /** Pre-computed hash for non-interactive mode */
+  /** Pre-computed hash for cryptographic verification mode */
   hash?: string;
+  /** Skip hash verification (--yes mode) */
+  skipHashVerification?: boolean;
   /** Prompt function for interactive mode (returns true if user confirms) */
   prompt?: () => Promise<boolean>;
 };
@@ -27,8 +30,16 @@ export class ApplyCommand {
   async execute(): Promise<number> {
     let hash = this.opts.hash;
 
-    // Interactive mode: show diff, compute hash, prompt
-    if (!hash) {
+    // --yes mode: skip hash verification entirely
+    if (this.opts.skipHashVerification) {
+      if (hash) {
+        this.out.error("Cannot use both --yes and --hash flags");
+        return 1;
+      }
+      // Apply without hash verification
+      hash = undefined;
+    } else if (!hash) {
+      // Interactive mode: show diff, compute hash, prompt
       const diffResult = await diff({ ops: this.opts.ops, config: this.opts.config });
       if (!diffResult.ok) {
         this.out.error(`Diff failed: ${diffResult.error.kind}`);

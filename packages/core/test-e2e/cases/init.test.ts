@@ -6,7 +6,6 @@ e2e("init: happy path creates dirs, config, registry, git", (t) => {
     .expect(`
       exit 0
       ✓ Soulguard initialized.
-      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
     `)
     .exits(0)
     .outputs(/Soulguard initialized/);
@@ -19,13 +18,14 @@ e2e("init: happy path creates dirs, config, registry, git", (t) => {
     `)
     .exits(0);
 
-  // Verify .soulguard-staging/ exists
-  t.$(`test -d .soulguard-staging && echo exists`)
+  // Verify .soulguard-staging/ exists with 777 permissions (agent-writable)
+  t.$(`stat -c '%a' .soulguard-staging`)
     .expect(`
       exit 0
-      exists
+      777
     `)
-    .exits(0);
+    .exits(0)
+    .outputs(/777/);
 
   // Verify registry.json owned by soulguardian:soulguard, mode 444
   t.$(`stat -c '%U:%G %a' .soulguard/registry.json`)
@@ -34,6 +34,15 @@ e2e("init: happy path creates dirs, config, registry, git", (t) => {
       soulguardian:soulguard 444
     `)
     .exits(0);
+
+  // Verify soulguard.json owned by soulguardian:soulguard, mode 444
+  t.$(`stat -c '%U:%G %a' soulguard.json`)
+    .expect(`
+      exit 0
+      soulguardian:soulguard 444
+    `)
+    .exits(0)
+    .outputs(/soulguardian:soulguard 444/);
 
   // Verify soulguard.json was written with default config
   t.$(`cat soulguard.json`)
@@ -65,7 +74,6 @@ e2e("init: second run is idempotent", (t) => {
     .expect(`
       exit 0
       ✓ Soulguard initialized.
-      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
     `)
     .exits(0)
     .outputs(/Soulguard initialized/);
@@ -74,7 +82,6 @@ e2e("init: second run is idempotent", (t) => {
     .expect(`
       exit 0
       ✓ Soulguard initialized.
-      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
     `)
     .exits(0)
     .outputs(/Soulguard initialized/);
@@ -97,7 +104,7 @@ JSON
     .expect(`
       exit 0
       ✓ Soulguard initialized.
-      3 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+      2 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
     `)
     .exits(0)
     .outputs(/Soulguard initialized/);
@@ -129,7 +136,7 @@ JSON
     .expect(`
       exit 0
       ✓ Soulguard initialized.
-      3 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+      2 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
     `)
     .exits(0)
     .outputs(/need protection/);
@@ -149,7 +156,6 @@ e2e("init: git initial commit contains soulguard.json", (t) => {
     .expect(`
       exit 0
       ✓ Soulguard initialized.
-      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
     `)
     .exits(0);
 
@@ -235,7 +241,6 @@ e2e("init: custom workspace path", (t) => {
     .expect(`
       exit 0
       ✓ Soulguard initialized.
-      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
     `)
     .exits(0)
     .outputs(/Soulguard initialized/);

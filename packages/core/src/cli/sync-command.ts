@@ -2,12 +2,12 @@
  * SyncCommand — runs sync and pretty-prints results.
  */
 
-import type { ConsoleOutput } from "../console.js";
-import type { SyncOptions } from "../sync.js";
-import { sync } from "../sync.js";
-import { formatIssue } from "../types.js";
-import type { FileStatus } from "../status.js";
-import type { GitCommitResult } from "../git.js";
+import type { ConsoleOutput } from "../util/console.js";
+import type { SyncOptions } from "../sdk/sync.js";
+import { sync } from "../sdk/sync.js";
+import { formatIssue } from "../util/types.js";
+import type { FileStatus } from "../sdk/status.js";
+import type { GitCommitResult } from "../util/git.js";
 
 export class SyncCommand {
   constructor(
@@ -48,12 +48,12 @@ export class SyncCommand {
     // Show fixed drift issues (had errors before, no errors after means fixed)
     const drifted = fileIssues.filter((f) => f.status === "drifted");
     const releasedSet = new Set(released);
-    const fixed = drifted.filter((f) => !releasedSet.has(f.file.path));
+    const fixed = drifted.filter((f) => !releasedSet.has(f.path));
 
     if (fixed.length > 0 && errors.length === 0) {
       this.out.heading("Fixed:");
       for (const f of fixed) {
-        this.out.success(`  🔧 ${f.file.path}`);
+        this.out.success(`  🔧 ${f.path}`);
         for (const issue of f.issues) {
           this.out.info(`      ${formatIssue(issue)}`);
         }

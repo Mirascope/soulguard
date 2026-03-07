@@ -1,10 +1,11 @@
 /**
- * ResetCommand — reset staging to match protect-tier (discard changes).
+ * ResetCommand — manage staging tree (dry run, selective, or full reset).
  */
 
-import type { ConsoleOutput } from "../console.js";
-import type { ResetOptions } from "../reset.js";
-import { reset } from "../reset.js";
+import type { ConsoleOutput } from "../util/console.js";
+import type { ResetOptions } from "../sdk/reset.js";
+import { reset } from "../sdk/reset.js";
+import { STAGING_DIR } from "../sdk/staging.js";
 
 export class ResetCommand {
   constructor(
@@ -20,16 +21,28 @@ export class ResetCommand {
       return 1;
     }
 
-    if (result.value.resetFiles.length === 0) {
-      this.out.info("No changes to reset — staging already matches protect-tier.");
+    const { stagedFiles, deleted } = result.value;
+
+    if (stagedFiles.length === 0) {
+      this.out.info("Nothing staged — staging tree is clean.");
       return 0;
     }
 
-    this.out.heading(`Soulguard Reset — ${this.opts.ops.workspace}`);
-    this.out.write("");
-    this.out.success(`Reset ${result.value.resetFiles.length} staging file(s):`);
-    for (const file of result.value.resetFiles) {
-      this.out.info(`  ↩️  ${file}`);
+    if (!deleted) {
+      // Dry run
+      this.out.write("Staged changes:");
+      for (const f of stagedFiles) {
+        this.out.write(`  ${STAGING_DIR}/${f}`);
+      }
+      this.out.write("");
+      this.out.write("Use --all to reset everything, or specify paths to reset.");
+      return 0;
+    }
+
+    // Actual deletion happened
+    this.out.success(`Reset ${stagedFiles.length} staged file(s):`);
+    for (const f of stagedFiles) {
+      this.out.write(`  ${STAGING_DIR}/${f}`);
     }
     return 0;
   }
