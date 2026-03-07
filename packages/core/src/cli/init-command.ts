@@ -26,12 +26,6 @@ export class InitCommand {
           this.out.error(`Invalid soulguard.json: ${e.message}`);
           this.out.error("Fix or remove soulguard.json and re-run `sudo soulguard init`.");
           break;
-        case "registry_invalid":
-          this.out.error(`Invalid registry: ${e.message}`);
-          this.out.error(
-            "Fix or remove .soulguard/registry.json and re-run `sudo soulguard init`.",
-          );
-          break;
         case "system_error":
           this.out.error(`Init failed: ${e.message}`);
           break;

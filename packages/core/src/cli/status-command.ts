@@ -28,12 +28,6 @@ export class StatusCommand {
       this.printFile(f);
     }
 
-    // Show registry issues (orphaned)
-    const orphaned = issues.filter((f) => f.status === "orphaned");
-    for (const f of orphaned) {
-      this.printFile(f);
-    }
-
     this.out.write("");
 
     // Exit code: only file-level issues (drifted/missing/error) cause failure
@@ -75,15 +69,6 @@ export class StatusCommand {
         break;
       case "error":
         this.out.error(`  ❌ ${f.path} (${f.error.kind})`);
-        break;
-      case "unregistered":
-        this.out.info(`  📋 ${f.path} (not yet registered)`);
-        break;
-      case "tier_changed":
-        this.out.info(`  🔄 ${f.path} (tier changed: ${f.registryTier} → ${f.tier})`);
-        break;
-      case "orphaned":
-        this.out.warn(`  🔓 ${f.path} (orphaned, was ${f.registryTier})`);
         break;
     }
   }

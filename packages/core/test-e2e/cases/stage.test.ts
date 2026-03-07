@@ -286,6 +286,11 @@ e2e("stage: soulguard.json succeeds (always protect-tier)", (t) => {
         "version": 1,
         "files": {
           "soulguard.json": "protect"
+        },
+        "defaultOwnership": {
+          "user": "agent",
+          "group": "agent",
+          "mode": "644"
         }
       }
     `)
