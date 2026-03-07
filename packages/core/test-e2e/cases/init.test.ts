@@ -1,7 +1,7 @@
 import { e2e } from "../harness";
 
 // 1. Happy path — fresh init, verify side effects
-e2e("init: happy path creates dirs, config, registry, git", (t) => {
+e2e("init: happy path creates dirs, config, git", (t) => {
   t.$(`sudo soulguard init .`)
     .expect(`
       exit 0
@@ -27,14 +27,6 @@ e2e("init: happy path creates dirs, config, registry, git", (t) => {
     .exits(0)
     .outputs(/777/);
 
-  // Verify registry.json owned by soulguardian:soulguard, mode 444
-  t.$(`stat -c '%U:%G %a' .soulguard/registry.json`)
-    .expect(`
-      exit 0
-      soulguardian:soulguard 444
-    `)
-    .exits(0);
-
   // Verify soulguard.json owned by soulguardian:soulguard, mode 444
   t.$(`stat -c '%U:%G %a' soulguard.json`)
     .expect(`
@@ -52,6 +44,11 @@ e2e("init: happy path creates dirs, config, registry, git", (t) => {
         "version": 1,
         "files": {
           "soulguard.json": "protect"
+        },
+        "defaultOwnership": {
+          "user": "agent",
+          "group": "agent",
+          "mode": "644"
         }
       }
     `)
@@ -104,16 +101,27 @@ JSON
     .expect(`
       exit 0
       ✓ Soulguard initialized.
-      2 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
     `)
     .exits(0)
     .outputs(/Soulguard initialized/);
 
-  // Verify config still has SOUL.md
-  t.$(`grep SOUL.md soulguard.json`)
+  // Verify config still has SOUL.md and got defaultOwnership added
+  t.$(`cat soulguard.json`)
     .expect(`
       exit 0
-      {"version":1,"files":{"SOUL.md":"protect","soulguard.json":"protect"}}
+      {
+        "version": 1,
+        "files": {
+          "SOUL.md": "protect",
+          "soulguard.json": "protect"
+        },
+        "defaultOwnership": {
+          "user": "agent",
+          "group": "agent",
+          "mode": "644"
+        }
+      }
     `)
     .exits(0)
     .outputs(/SOUL\.md/);
@@ -136,7 +144,7 @@ JSON
     .expect(`
       exit 0
       ✓ Soulguard initialized.
-      2 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
+      1 file(s) need protection. Run \`sudo soulguard sync\` to enforce.
     `)
     .exits(0)
     .outputs(/need protection/);
@@ -195,27 +203,6 @@ e2e("init: malformed config bails early", (t) => {
     `)
     .exits(0)
     .outputs(/missing/);
-});
-
-// 7. Malformed registry — bails early with helpful error
-e2e("init: malformed registry bails early", (t) => {
-  t.$(`
-    mkdir -p .soulguard
-    echo '{not valid json' > .soulguard/registry.json
-  `)
-    .expect(`
-      exit 0
-    `)
-    .exits(0);
-
-  t.$(`sudo soulguard init . 2>&1`)
-    .expect(`
-      exit 1
-      Invalid registry: JSON Parse error: Expected '}'
-      Fix or remove .soulguard/registry.json and re-run \`sudo soulguard init\`.
-    `)
-    .exits(1)
-    .outputs(/Invalid registry/);
 });
 
 // 8. No sudo — fails with clear message

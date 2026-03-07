@@ -99,10 +99,6 @@ export {
 } from "./sdk/config.js";
 export type { ConfigError, ConfigWriteError } from "./sdk/config.js";
 
-// Registry
-export { Registry } from "./sdk/registry.js";
-export type { RegistryData, RegistryEntry, RegistryError } from "./sdk/registry.js";
-
 // Tier management
 export { setTier, release } from "./sdk/tier.js";
 export type { TierChangeResult, ReleaseResult } from "./sdk/tier.js";

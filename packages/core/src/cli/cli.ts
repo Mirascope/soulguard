@@ -20,8 +20,6 @@ import { LogCommand } from "./log-command.js";
 import { TierCommand } from "./tier-command.js";
 import { NodeSystemOps } from "../util/system-ops-node.js";
 import { parseConfig } from "../sdk/schema.js";
-import type { StatusOptions } from "../sdk/status.js";
-import { Registry } from "../sdk/registry.js";
 
 import { PROTECT_OWNERSHIP } from "../util/constants.js";
 
@@ -43,13 +41,6 @@ async function makeBaseOptions(workspace: string) {
     expectedProtectOwnership: PROTECT_OWNERSHIP,
     ops,
   };
-}
-
-async function makeStatusOptions(workspace: string): Promise<StatusOptions> {
-  const base = await makeBaseOptions(workspace);
-  const registryResult = await Registry.load(base.ops);
-  if (!registryResult.ok) throw new Error("Failed to load registry");
-  return { ...base, registry: registryResult.value };
 }
 
 function getVersion(): string {
@@ -75,8 +66,8 @@ program
   .action(async (workspace: string) => {
     const out = new LiveConsoleOutput();
     try {
-      const statusOpts = await makeStatusOptions(workspace);
-      const cmd = new StatusCommand(statusOpts, out);
+      const opts = await makeBaseOptions(workspace);
+      const cmd = new StatusCommand(opts, out);
       process.exitCode = await cmd.execute();
     } catch (e) {
       out.error(e instanceof Error ? e.message : String(e));

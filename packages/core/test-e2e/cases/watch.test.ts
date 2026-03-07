@@ -39,6 +39,11 @@ e2e("watch: adds file and updates config", (t) => {
         "files": {
           "soulguard.json": "protect",
           "notes.md": "watch"
+        },
+        "defaultOwnership": {
+          "user": "agent",
+          "group": "agent",
+          "mode": "644"
         }
       }
     `)

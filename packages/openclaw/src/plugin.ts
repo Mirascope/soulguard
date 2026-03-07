@@ -6,7 +6,6 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   status,
-  Registry,
   diff,
   parseConfig,
   NodeSystemOps,
@@ -79,15 +78,10 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
           parameters: { type: "object", properties: {}, required: [] },
           async execute(_id, _params) {
             const ops = createOps();
-            const registryResult = await Registry.load(ops);
-            if (!registryResult.ok) {
-              return { content: [{ type: "text" as const, text: "Failed to load registry" }] };
-            }
             const result = await status({
               config,
               expectedProtectOwnership: { user: "soulguardian", group: "soulguard", mode: "444" },
               ops,
-              registry: registryResult.value,
             });
             if (!result.ok) {
               return { content: [{ type: "text" as const, text: "Status check failed" }] };
@@ -105,7 +99,6 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
                 else if (f.status === "missing") lines.push(`  ❌ ${f.path} — missing`);
                 else if (f.status === "error")
                   lines.push(`  ❌ ${f.path} — error: ${f.error.kind}`);
-                else if (f.status === "orphaned") lines.push(`  🔓 ${f.path} — orphaned`);
               }
               lines.push("", `${issues.length} issue(s) found.`);
             }

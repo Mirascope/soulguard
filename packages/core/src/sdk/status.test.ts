@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { status } from "./status.js";
 import { MockSystemOps } from "../util/system-ops-mock.js";
-import { Registry } from "./registry.js";
 import { formatIssue } from "../util/types.js";
 import type { DriftIssue } from "../util/types.js";
 
@@ -15,17 +14,14 @@ function makeMock() {
   return ops;
 }
 
-async function opts(
+function opts(
   config: { version: 1; files: Record<string, "protect" | "watch"> },
   ops: MockSystemOps,
 ) {
-  const registryResult = await Registry.load(ops);
-  if (!registryResult.ok) throw new Error("Failed to load registry");
   return {
     config,
     expectedProtectOwnership: VAULT_OWNERSHIP,
     ops,
-    registry: registryResult.value,
   };
 }
 
@@ -38,14 +34,11 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(await opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
+    const result = await status(opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const fileIssues = result.value.issues.filter((i) => i.status !== "unregistered");
-    expect(fileIssues).toHaveLength(0);
-
-    // Should have 1 ok file in files array
+    expect(result.value.issues).toHaveLength(0);
     expect(result.value.files).toHaveLength(1);
     expect(result.value.files[0]!.status).toBe("ok");
     expect(result.value.files[0]!.path).toBe("SOUL.md");
@@ -59,7 +52,7 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(await opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
+    const result = await status(opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -81,7 +74,7 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(await opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
+    const result = await status(opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -98,7 +91,7 @@ describe("status", () => {
   test("reports missing protect-tier files", async () => {
     const ops = makeMock();
 
-    const result = await status(await opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
+    const result = await status(opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -120,7 +113,7 @@ describe("status", () => {
     });
 
     const result = await status(
-      await opts(
+      opts(
         { version: 1, files: { "memory/day1.md": "protect", "skills/python.md": "watch" } },
         ops,
       ),
@@ -128,18 +121,13 @@ describe("status", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const fileIssues = result.value.issues.filter(
-      (i) => !["unregistered", "tier_changed", "orphaned"].includes(i.status),
-    );
-    expect(fileIssues).toHaveLength(0);
+    expect(result.value.issues).toHaveLength(0);
   });
 
   test("missing files are reported", async () => {
     const ops = makeMock();
 
-    const result = await status(
-      await opts({ version: 1, files: { "memory/day1.md": "protect" } }, ops),
-    );
+    const result = await status(opts({ version: 1, files: { "memory/day1.md": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -151,7 +139,7 @@ describe("status", () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", { owner: "agent", group: "staff", mode: "777" });
 
-    const result = await status(await opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
+    const result = await status(opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -171,15 +159,13 @@ describe("status", () => {
     });
 
     const result = await status(
-      await opts({ version: 1, files: { "SOUL.md": "protect", "notes.md": "watch" } }, ops),
+      opts({ version: 1, files: { "SOUL.md": "protect", "notes.md": "watch" } }, ops),
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const fileIssues = result.value.issues.filter(
-      (i) => !["unregistered", "tier_changed", "orphaned"].includes(i.status),
-    );
-    expect(fileIssues).toHaveLength(2);
+    // SOUL.md drifted + notes.md missing
+    expect(result.value.issues).toHaveLength(2);
   });
 
   test("watch-tier files with any ownership report no issues", async () => {
@@ -190,14 +176,11 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(await opts({ version: 1, files: { "notes.md": "watch" } }, ops));
+    const result = await status(opts({ version: 1, files: { "notes.md": "watch" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const fileIssues = result.value.issues.filter(
-      (i) => !["unregistered", "tier_changed", "orphaned"].includes(i.status),
-    );
-    expect(fileIssues).toHaveLength(0);
+    expect(result.value.issues).toHaveLength(0);
   });
 
   test("formatIssue produces readable strings", () => {
@@ -224,14 +207,11 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(await opts({ version: 1, files: { "skills/": "protect" } }, ops));
+    const result = await status(opts({ version: 1, files: { "skills/": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const fileIssues = result.value.issues.filter(
-      (i) => !["unregistered", "tier_changed", "orphaned"].includes(i.status),
-    );
-    expect(fileIssues).toHaveLength(0);
+    expect(result.value.issues).toHaveLength(0);
     expect(result.value.files[0]!.status).toBe("ok");
   });
 
@@ -248,7 +228,7 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(await opts({ version: 1, files: { "skills/": "protect" } }, ops));
+    const result = await status(opts({ version: 1, files: { "skills/": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -266,7 +246,7 @@ describe("status", () => {
       mode: "444", // wrong — should be 555
     });
 
-    const result = await status(await opts({ version: 1, files: { "skills/": "protect" } }, ops));
+    const result = await status(opts({ version: 1, files: { "skills/": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -289,14 +269,13 @@ describe("status", () => {
       group: VAULT_OWNERSHIP.group,
       mode: "444",
     });
-    // Add a staging copy
     ops.addFile(".soulguard-staging/SOUL.md", "# Updated Soul", {
       owner: "agent",
       group: "staff",
       mode: "644",
     });
 
-    const result = await status(await opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
+    const result = await status(opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -320,7 +299,6 @@ describe("status", () => {
       group: VAULT_OWNERSHIP.group,
       mode: "444",
     });
-    // Add staging copies for directory
     ops.addDirectory(".soulguard-staging/skills", {
       owner: "agent",
       group: "staff",
@@ -337,7 +315,7 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(await opts({ version: 1, files: { "skills/": "protect" } }, ops));
+    const result = await status(opts({ version: 1, files: { "skills/": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -357,7 +335,7 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(await opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
+    const result = await status(opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -378,12 +356,11 @@ describe("status", () => {
     });
 
     const result = await status(
-      await opts({ version: 1, files: { "SOUL.md": "protect", "notes.md": "watch" } }, ops),
+      opts({ version: 1, files: { "SOUL.md": "protect", "notes.md": "watch" } }, ops),
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    // files array should have both entries
     expect(result.value.files).toHaveLength(2);
     const soulFile = result.value.files.find((f) => f.path === "SOUL.md");
     const notesFile = result.value.files.find((f) => f.path === "notes.md");

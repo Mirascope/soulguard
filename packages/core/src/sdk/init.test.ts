@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { MockSystemOps } from "../util/system-ops-mock.js";
 import { init } from "./init.js";
 import type { InitOptions } from "./init.js";
-import { DEFAULT_CONFIG } from "../util/constants.js";
 
 function makeOptions(ops: MockSystemOps, overrides?: Partial<InitOptions>): InitOptions {
   return {
@@ -13,7 +12,7 @@ function makeOptions(ops: MockSystemOps, overrides?: Partial<InitOptions>): Init
 }
 
 describe("init", () => {
-  test("creates user, group, config, registry on fresh workspace", async () => {
+  test("creates user, group, config on fresh workspace", async () => {
     const ops = new MockSystemOps("/workspace");
 
     const result = await init(makeOptions(ops));
@@ -23,7 +22,6 @@ describe("init", () => {
     expect(result.value.groupCreated).toBe(true);
     expect(result.value.userCreated).toBe(true);
     expect(result.value.configCreated).toBe(true);
-    expect(result.value.registryCreated).toBe(true);
   });
 
   test("skips existing user and group", async () => {
@@ -60,16 +58,6 @@ describe("init", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("config_invalid");
-  });
-
-  test("fails on malformed registry", async () => {
-    const ops = new MockSystemOps("/workspace");
-    ops.addFile(".soulguard/registry.json", "{not valid json");
-
-    const result = await init(makeOptions(ops));
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.kind).toBe("registry_invalid");
   });
 
   test("does not enforce protection — files remain unprotected with issueCount > 0", async () => {
