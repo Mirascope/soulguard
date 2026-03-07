@@ -132,18 +132,29 @@ export class StateTree {
    * snapshot. One walk, one tree, no registry needed.
    *
    * Config entries where nothing exists on disk or in staging are
-   * skipped — no ghost entities. Config convention: trailing slash →
-   * directory, no slash → file.
+   * skipped — no ghost entities. Config: trailing slash explicitly marks a
+   * directory; paths without trailing slash are auto-detected via stat.
    */
   static async build(options: BuildStateOptions): Promise<Result<StateTree, StateError>> {
     const { ops, config } = options;
     const entities: StateEntity[] = [];
 
     for (const [key, tier] of Object.entries(config.files)) {
-      const isDir = key.endsWith("/");
+      // Determine if this entry is a directory:
+      // 1. Trailing slash in config key is explicit directory marker
+      // 2. Otherwise, stat the path to auto-detect
+      let isDir = key.endsWith("/");
+      const path = isDir ? key.slice(0, -1) : key;
+
+      if (!isDir) {
+        const statResult = await ops.stat(path);
+        if (statResult.ok && statResult.value.isDirectory) {
+          isDir = true;
+        }
+      }
+
       if (isDir) {
-        const dirPath = key.slice(0, -1); // strip trailing /
-        const result = await buildDirectory(ops, dirPath, tier);
+        const result = await buildDirectory(ops, path, tier);
         if (!result.ok) return result;
         if (result.value) entities.push(result.value);
       } else {
