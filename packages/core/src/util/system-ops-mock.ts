@@ -36,6 +36,14 @@ export class MockSystemOps implements SystemOperations {
   /** Commands that should fail (for testing error paths). Key: "command arg1 arg2" */
   public failingExecs: Set<string> = new Set();
   public failingDeletes: Set<string> = new Set();
+  /** Paths where stat() should return permission_denied instead of the real result */
+  public failingStats: Set<string> = new Set();
+  /** Paths where hashFile() should return io_error instead of the real result */
+  public failingHashes: Set<string> = new Set();
+  /** Paths where listDir() should return permission_denied instead of the real result */
+  public failingListDirs: Set<string> = new Set();
+  /** Paths where readFile() should return permission_denied instead of the real result */
+  public failingReads: Set<string> = new Set();
   /** Per-command call counters for execFailAfter/execFailBefore */
   private execCallCounts: Map<string, number> = new Map();
   /**
@@ -106,6 +114,9 @@ export class MockSystemOps implements SystemOperations {
   async stat(
     path: string,
   ): Promise<Result<FileStat, NotFoundError | PermissionDeniedError | IOError>> {
+    if (this.failingStats.has(path)) {
+      return err({ kind: "permission_denied", path, operation: "stat" });
+    }
     const full = this.resolve(path);
     const file = this.files.get(full);
     if (!file) return err({ kind: "not_found", path });
@@ -184,6 +195,9 @@ export class MockSystemOps implements SystemOperations {
   async readFile(
     path: string,
   ): Promise<Result<string, NotFoundError | PermissionDeniedError | IOError>> {
+    if (this.failingReads.has(path)) {
+      return err({ kind: "permission_denied", path, operation: "read" });
+    }
     const full = this.resolve(path);
     const file = this.files.get(full);
     if (!file) return err({ kind: "not_found", path });
@@ -273,6 +287,9 @@ export class MockSystemOps implements SystemOperations {
   async hashFile(
     path: string,
   ): Promise<Result<string, NotFoundError | PermissionDeniedError | IOError>> {
+    if (this.failingHashes.has(path)) {
+      return err({ kind: "io_error", path, message: "simulated hash failure" });
+    }
     const full = this.resolve(path);
     const file = this.files.get(full);
     if (!file) return err({ kind: "not_found", path });
@@ -319,6 +336,9 @@ export class MockSystemOps implements SystemOperations {
   async listDir(
     path: string,
   ): Promise<Result<string[], NotFoundError | PermissionDeniedError | IOError>> {
+    if (this.failingListDirs.has(path)) {
+      return err({ kind: "permission_denied", path, operation: "listDir" });
+    }
     const full = this.resolve(path);
     const dir = this.files.get(full);
     if (!dir) return err({ kind: "not_found", path });
