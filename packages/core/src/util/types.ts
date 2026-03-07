@@ -44,15 +44,6 @@ export type FileOwnership = {
   mode: string;
 };
 
-/** Snapshot of a file's state on disk */
-export type FileInfo = {
-  /** Relative path from workspace root */
-  path: string;
-  ownership: FileOwnership;
-  /** SHA-256 hash of current contents */
-  hash: string;
-};
-
 // ── Errors ─────────────────────────────────────────────────────────────
 
 export type NotFoundError = { kind: "not_found"; path: string };
