@@ -3,7 +3,6 @@ export type {
   SoulguardConfig,
   Tier,
   FileOwnership,
-  FileInfo,
   // Errors
   FileSystemError,
   NotFoundError,
@@ -31,7 +30,6 @@ export { soulguardConfigSchema, parseConfig } from "./sdk/schema.js";
 
 // System operations
 export type { SystemOperations, FileStat } from "./util/system-ops.js";
-export { getFileInfo } from "./util/system-ops.js";
 export { MockSystemOps } from "./util/system-ops-mock.js";
 export type { RecordedOp } from "./util/system-ops-mock.js";
 export { NodeSystemOps } from "./util/system-ops-node.js";

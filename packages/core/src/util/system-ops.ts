@@ -8,12 +8,10 @@
 import type {
   Result,
   FileOwnership,
-  FileInfo,
   NotFoundError,
   PermissionDeniedError,
   IOError,
 } from "./types.js";
-import { ok } from "./result.js";
 
 export type FileStat = {
   path: string;
@@ -97,9 +95,6 @@ export interface SystemOperations {
   /** Delete a file (relative path) */
   deleteFile(path: string): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>>;
 
-  /** List files matching a glob pattern (relative paths, resolved within workspace) */
-  glob(pattern: string): Promise<Result<string[], IOError>>;
-
   /** List all files in a directory recursively (relative paths). */
   listDir(path: string): Promise<Result<string[], NotFoundError | PermissionDeniedError | IOError>>;
 
@@ -108,27 +103,4 @@ export interface SystemOperations {
 
   /** Execute command and capture stdout. */
   execCapture(command: string, args: string[]): Promise<Result<string, IOError>>;
-}
-
-/** Common error type for stat/hash operations */
-type FileInfoError = NotFoundError | PermissionDeniedError | IOError;
-
-/**
- * Get FileInfo for a relative path (stat + hash combined). DRY helper.
- */
-export async function getFileInfo(
-  path: string,
-  ops: SystemOperations,
-): Promise<Result<FileInfo, FileInfoError>> {
-  const statResult = await ops.stat(path);
-  if (!statResult.ok) return statResult;
-
-  const hashResult = await ops.hashFile(path);
-  if (!hashResult.ok) return hashResult;
-
-  return ok({
-    path,
-    ownership: statResult.value.ownership,
-    hash: hashResult.value,
-  });
 }
