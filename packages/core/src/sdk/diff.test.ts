@@ -200,10 +200,10 @@ describe("diff", () => {
   test("directory: no staging → no changes", async () => {
     const ops = makeMock();
 
-    ops.addDirectory("memory");
+    ops.addDirectory("memory/");
     ops.addFile("memory/day1.md", "notes");
 
-    const config = makeConfig(["memory"]);
+    const config = makeConfig(["memory/"]);
     const result = await diff({ ops, config });
 
     expect(result.ok).toBe(true);
@@ -215,12 +215,12 @@ describe("diff", () => {
   test("directory: modified file in staging → shows diff", async () => {
     const ops = makeMock();
 
-    ops.addDirectory("memory");
+    ops.addDirectory("memory/");
     ops.addFile("memory/day1.md", "original notes");
     ops.addDirectory(".soulguard-staging/memory");
     ops.addFile(".soulguard-staging/memory/day1.md", "modified notes");
 
-    const config = makeConfig(["memory"]);
+    const config = makeConfig(["memory/"]);
     const result = await diff({ ops, config });
 
     expect(result.ok).toBe(true);
@@ -236,12 +236,12 @@ describe("diff", () => {
   test("directory: unchanged files are skipped", async () => {
     const ops = makeMock();
 
-    ops.addDirectory("memory");
+    ops.addDirectory("memory/");
     ops.addFile("memory/day1.md", "same notes");
     ops.addDirectory(".soulguard-staging/memory");
     ops.addFile(".soulguard-staging/memory/day1.md", "same notes");
 
-    const config = makeConfig(["memory"]);
+    const config = makeConfig(["memory/"]);
     const result = await diff({ ops, config });
 
     expect(result.ok).toBe(true);
@@ -253,13 +253,13 @@ describe("diff", () => {
   test("directory: new file in staging → protect_missing", async () => {
     const ops = makeMock();
 
-    ops.addDirectory("memory");
+    ops.addDirectory("memory/");
     ops.addFile("memory/day1.md", "notes");
     ops.addDirectory(".soulguard-staging/memory");
     ops.addFile(".soulguard-staging/memory/day1.md", "notes");
     ops.addFile(".soulguard-staging/memory/day2.md", "new notes");
 
-    const config = makeConfig(["memory"]);
+    const config = makeConfig(["memory/"]);
     const result = await diff({ ops, config });
 
     expect(result.ok).toBe(true);
@@ -273,7 +273,7 @@ describe("diff", () => {
   test("directory: file has DELETE_SENTINEL in staging → deleted status", async () => {
     const ops = makeMock();
 
-    ops.addDirectory("memory");
+    ops.addDirectory("memory/");
     ops.addFile("memory/day1.md", "notes");
     ops.addFile("memory/day2.md", "more notes");
     ops.addDirectory(".soulguard-staging/memory");
@@ -281,7 +281,7 @@ describe("diff", () => {
     // day2.md has DELETE_SENTINEL in staging → deletion
     ops.addFile(".soulguard-staging/memory/day2.md", JSON.stringify(DELETE_SENTINEL));
 
-    const config = makeConfig(["memory"]);
+    const config = makeConfig(["memory/"]);
     const result = await diff({ ops, config });
 
     expect(result.ok).toBe(true);
@@ -295,13 +295,13 @@ describe("diff", () => {
   test("directory: delete sentinel on staging dir → deletes all files", async () => {
     const ops = makeMock();
 
-    ops.addDirectory("memory");
+    ops.addDirectory("memory/");
     ops.addFile("memory/day1.md", "notes");
     ops.addFile("memory/day2.md", "more notes");
     // Staging path is a file with delete sentinel (not a directory)
     ops.addFile(".soulguard-staging/memory", JSON.stringify(DELETE_SENTINEL));
 
-    const config = makeConfig(["memory"]);
+    const config = makeConfig(["memory/"]);
     const result = await diff({ ops, config });
 
     expect(result.ok).toBe(true);
@@ -314,14 +314,14 @@ describe("diff", () => {
   test("directory: delete sentinel on individual file within dir", async () => {
     const ops = makeMock();
 
-    ops.addDirectory("memory");
+    ops.addDirectory("memory/");
     ops.addFile("memory/day1.md", "notes");
     ops.addFile("memory/day2.md", "more notes");
     ops.addDirectory(".soulguard-staging/memory");
     ops.addFile(".soulguard-staging/memory/day1.md", "notes");
     ops.addFile(".soulguard-staging/memory/day2.md", JSON.stringify(DELETE_SENTINEL));
 
-    const config = makeConfig(["memory"]);
+    const config = makeConfig(["memory/"]);
     const result = await diff({ ops, config });
 
     expect(result.ok).toBe(true);
@@ -337,12 +337,12 @@ describe("diff", () => {
   test("directory: approval hash includes individual file paths", async () => {
     const ops = makeMock();
 
-    ops.addDirectory("memory");
+    ops.addDirectory("memory/");
     ops.addFile("memory/day1.md", "original");
     ops.addDirectory(".soulguard-staging/memory");
     ops.addFile(".soulguard-staging/memory/day1.md", "modified");
 
-    const config = makeConfig(["memory"]);
+    const config = makeConfig(["memory/"]);
     const result = await diff({ ops, config });
 
     expect(result.ok).toBe(true);
@@ -356,12 +356,12 @@ describe("diff", () => {
 
     ops.addFile("SOUL.md", "# Soul");
     ops.addFile(".soulguard-staging/SOUL.md", "# Soul modified");
-    ops.addDirectory("memory");
+    ops.addDirectory("memory/");
     ops.addFile("memory/day1.md", "notes");
     ops.addDirectory(".soulguard-staging/memory");
     ops.addFile(".soulguard-staging/memory/day1.md", "modified notes");
 
-    const config = makeConfig(["SOUL.md", "memory"]);
+    const config = makeConfig(["SOUL.md", "memory/"]);
     const result = await diff({ ops, config });
 
     expect(result.ok).toBe(true);

@@ -1,5 +1,9 @@
 /**
  * soulguard diff — compare protect-tier files/directories against their staging copies.
+ *
+ * Built on top of StateTree: one walk, one snapshot, pure derivations.
+ * The unified diff text for modified files is generated on demand from
+ * the state tree's file entries.
  */
 
 import { createHash } from "node:crypto";
@@ -8,8 +12,9 @@ import type { Result } from "../util/result.js";
 import { ok, err } from "../util/result.js";
 import type { SoulguardConfig } from "../util/types.js";
 import type { SystemOperations } from "../util/system-ops.js";
-import { protectPatterns } from "./config.js";
-import { stagingPath, isDeleteSentinel } from "./staging.js";
+import { StateTree } from "./state.js";
+import type { StateFile } from "./state.js";
+import { stagingPath } from "./staging.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -47,324 +52,71 @@ export type DiffOptions = {
 // ── Implementation ─────────────────────────────────────────────────────
 
 /**
- * Diff a single file (not directory) against its staging copy.
- */
-async function diffFile(
-  ops: SystemOperations,
-  path: string,
-  stagePath: string,
-): Promise<Result<FileDiff[], DiffError>> {
-  const [protectExists, stagingExists] = await Promise.all([
-    ops.exists(path),
-    ops.exists(stagePath),
-  ]);
-
-  if (!protectExists.ok) {
-    return err({ kind: "read_failed", path, message: protectExists.error.message });
-  }
-  if (!stagingExists.ok) {
-    return err({ kind: "read_failed", path: stagePath, message: stagingExists.error.message });
-  }
-
-  // Neither exists
-  if (!protectExists.value && !stagingExists.value) {
-    return ok([{ path, status: "staging_missing" }]);
-  }
-
-  // Staging exists but protect doesn't → new file
-  if (!protectExists.value && stagingExists.value) {
-    // Check for delete sentinel
-    const content = await ops.readFile(stagePath);
-    if (content.ok && isDeleteSentinel(content.value)) {
-      return ok([{ path, status: "staging_missing" }]);
-    }
-    const newHash = await ops.hashFile(stagePath);
-    return ok([
-      {
-        path,
-        status: "protect_missing",
-        stagedHash: newHash.ok ? newHash.value : undefined,
-      },
-    ]);
-  }
-
-  // Protect exists but staging doesn't → not staged, no pending changes
-  if (protectExists.value && !stagingExists.value) {
-    return ok([{ path, status: "staging_missing" }]);
-  }
-
-  // Both exist — check for delete sentinel
-  const stagingContent = await ops.readFile(stagePath);
-  if (!stagingContent.ok) {
-    return err({ kind: "read_failed", path: stagePath, message: "read failed" });
-  }
-
-  if (isDeleteSentinel(stagingContent.value)) {
-    const protectHash = await ops.hashFile(path);
-    return ok([
-      {
-        path,
-        status: "deleted",
-        protectedHash: protectHash.ok ? protectHash.value : undefined,
-      },
-    ]);
-  }
-
-  // Both exist, not a sentinel — compare hashes
-  const [protectHash, stagingHash] = await Promise.all([
-    ops.hashFile(path),
-    ops.hashFile(stagePath),
-  ]);
-
-  if (!protectHash.ok) {
-    return err({ kind: "read_failed", path, message: "hash failed" });
-  }
-  if (!stagingHash.ok) {
-    return err({ kind: "read_failed", path: stagePath, message: "hash failed" });
-  }
-
-  if (protectHash.value === stagingHash.value) {
-    return ok([
-      {
-        path,
-        status: "unchanged",
-        protectedHash: protectHash.value,
-        stagedHash: stagingHash.value,
-      },
-    ]);
-  }
-
-  // Modified — generate unified diff
-  const protectContent = await ops.readFile(path);
-  if (!protectContent.ok) {
-    return err({ kind: "read_failed", path, message: "read failed" });
-  }
-
-  const unifiedDiff = createTwoFilesPatch(
-    `a/${path}`,
-    `b/${path}`,
-    protectContent.value,
-    stagingContent.value,
-  );
-
-  return ok([
-    {
-      path,
-      status: "modified",
-      diff: unifiedDiff,
-      protectedHash: protectHash.value,
-      stagedHash: stagingHash.value,
-    },
-  ]);
-}
-
-/**
- * Diff a directory against its staging copy.
- */
-async function diffDirectory(
-  ops: SystemOperations,
-  dirPath: string,
-  stageDirPath: string,
-): Promise<Result<FileDiff[], DiffError>> {
-  const stagingExists = await ops.exists(stageDirPath);
-  if (!stagingExists.ok) {
-    return err({ kind: "read_failed", path: stageDirPath, message: stagingExists.error.message });
-  }
-
-  // No staging directory at all → no changes
-  if (!stagingExists.value) {
-    return ok([]);
-  }
-
-  // Check if staging path is a file (not directory) containing delete sentinel
-  const stageStat = await ops.stat(stageDirPath);
-  if (!stageStat.ok) {
-    return err({ kind: "read_failed", path: stageDirPath, message: "stat failed" });
-  }
-
-  if (!stageStat.value.isDirectory) {
-    // It's a file — check if it's a delete sentinel for the whole directory
-    const content = await ops.readFile(stageDirPath);
-    if (content.ok && isDeleteSentinel(content.value)) {
-      // Delete entire directory — list all files in protected dir
-      const protectedFiles = await ops.listDir(dirPath);
-      if (!protectedFiles.ok) {
-        return ok([]);
-      }
-      const diffs: FileDiff[] = [];
-      for (const filePath of protectedFiles.value) {
-        const protectHash = await ops.hashFile(filePath);
-        diffs.push({
-          path: filePath,
-          status: "deleted",
-          protectedHash: protectHash.ok ? protectHash.value : undefined,
-        });
-      }
-      return ok(diffs);
-    }
-    return ok([]);
-  }
-
-  // Both are directories — walk and compare
-  const [protectedFilesResult, stagedFilesResult] = await Promise.all([
-    ops.listDir(dirPath),
-    ops.listDir(stageDirPath),
-  ]);
-
-  const protectedFiles = protectedFilesResult.ok ? protectedFilesResult.value : [];
-  const stagedFiles = stagedFilesResult.ok ? stagedFilesResult.value : [];
-
-  // Build sets of relative-to-dir paths
-  const dirPrefix = dirPath + "/";
-  const stageDirPrefix = stageDirPath + "/";
-
-  const protectedRelPaths = new Set<string>();
-  const protectedAbsMap = new Map<string, string>();
-  for (const f of protectedFiles) {
-    if (f.startsWith(dirPrefix)) {
-      const rel = f.slice(dirPrefix.length);
-      protectedRelPaths.add(rel);
-      protectedAbsMap.set(rel, f);
-    }
-  }
-
-  const stagedRelPaths = new Set<string>();
-  const stagedAbsMap = new Map<string, string>();
-  for (const f of stagedFiles) {
-    if (f.startsWith(stageDirPrefix)) {
-      const rel = f.slice(stageDirPrefix.length);
-      stagedRelPaths.add(rel);
-      stagedAbsMap.set(rel, f);
-    }
-  }
-
-  const allRels = new Set([...protectedRelPaths, ...stagedRelPaths]);
-  const sortedRels = [...allRels].sort();
-
-  const diffs: FileDiff[] = [];
-
-  for (const rel of sortedRels) {
-    const protectedPath = dirPrefix + rel;
-    const stagedPath = stageDirPrefix + rel;
-    const displayPath = dirPrefix + rel;
-
-    const inProtected = protectedRelPaths.has(rel);
-    const inStaged = stagedRelPaths.has(rel);
-
-    if (inProtected && !inStaged) {
-      // File in protected but not in staging → not staged, no pending changes
-      continue;
-    } else if (!inProtected && inStaged) {
-      // File in staging but not in protected → check for delete sentinel, else new file
-      const content = await ops.readFile(stagedPath);
-      if (content.ok && isDeleteSentinel(content.value)) {
-        continue;
-      }
-      const newHash = await ops.hashFile(stagedPath);
-      diffs.push({
-        path: displayPath,
-        status: "protect_missing",
-        stagedHash: newHash.ok ? newHash.value : undefined,
-      });
-    } else {
-      // Both exist — check for delete sentinel first
-      const stagedContent = await ops.readFile(stagedPath);
-      if (!stagedContent.ok) {
-        return err({ kind: "read_failed", path: stagedPath, message: "read failed" });
-      }
-
-      if (isDeleteSentinel(stagedContent.value)) {
-        const protectHash = await ops.hashFile(protectedPath);
-        diffs.push({
-          path: displayPath,
-          status: "deleted",
-          protectedHash: protectHash.ok ? protectHash.value : undefined,
-        });
-        continue;
-      }
-
-      // Compare hashes
-      const [protectHash, stagedHash] = await Promise.all([
-        ops.hashFile(protectedPath),
-        ops.hashFile(stagedPath),
-      ]);
-
-      if (!protectHash.ok) {
-        return err({ kind: "read_failed", path: protectedPath, message: "hash failed" });
-      }
-      if (!stagedHash.ok) {
-        return err({ kind: "read_failed", path: stagedPath, message: "hash failed" });
-      }
-
-      if (protectHash.value === stagedHash.value) {
-        continue; // unchanged — skip
-      }
-
-      // Modified
-      const protectContent = await ops.readFile(protectedPath);
-      if (!protectContent.ok) {
-        return err({ kind: "read_failed", path: protectedPath, message: "read failed" });
-      }
-
-      const unifiedDiff = createTwoFilesPatch(
-        `a/${displayPath}`,
-        `b/${displayPath}`,
-        protectContent.value,
-        stagedContent.value,
-      );
-
-      diffs.push({
-        path: displayPath,
-        status: "modified",
-        diff: unifiedDiff,
-        protectedHash: protectHash.value,
-        stagedHash: stagedHash.value,
-      });
-    }
-  }
-
-  return ok(diffs);
-}
-
-/**
  * Compare protect-tier files against their staging copies.
+ *
+ * Builds a StateTree and derives all diff information from it.
  */
 export async function diff(options: DiffOptions): Promise<Result<DiffResult, DiffError>> {
   const { ops, config, files: filterFiles } = options;
 
-  let protectFiles = protectPatterns(config);
-  if (filterFiles && filterFiles.length > 0) {
-    const filterSet = new Set(filterFiles);
-    protectFiles = protectFiles.filter((p) => filterSet.has(p));
+  // Build the unified state tree
+  const treeResult = await StateTree.build({ ops, config });
+  if (!treeResult.ok) {
+    return err({ kind: "read_failed", path: "", message: treeResult.error.message });
   }
 
+  const tree = treeResult.value;
+
+  // Collect directory paths from config (trailing slash entries) so we can
+  // skip unchanged files inside directories — matching the old diff behavior
+  // where directory diffs only reported changed files.
+  const dirConfigPaths = new Set<string>();
+  for (const key of Object.keys(config.files)) {
+    if (key.endsWith("/")) {
+      dirConfigPaths.add(key.slice(0, -1));
+    }
+  }
+
+  let stateFiles = tree.flatFiles();
+
+  // Apply file filter if specified
+  if (filterFiles && filterFiles.length > 0) {
+    const filterSet = new Set(filterFiles);
+    stateFiles = stateFiles.filter((f) => filterSet.has(f.path));
+  }
+
+  // Convert StateFile entries to FileDiff entries.
+  // Skip unchanged files that live under directory config entries
+  // (old diff behavior: directories only reported changed files).
   const fileDiffs: FileDiff[] = [];
 
-  for (const path of protectFiles) {
-    const stageP = stagingPath(path);
+  for (const sf of stateFiles) {
+    const isUnderDir = [...dirConfigPaths].some((dp) => sf.path.startsWith(dp + "/"));
+    if (isUnderDir && sf.status === "unchanged") continue;
 
-    // Determine if this entry is a directory
-    let isDir = false;
+    const fileDiff = await stateFileToFileDiff(ops, sf);
+    if (!fileDiff.ok) return fileDiff;
+    fileDiffs.push(fileDiff.value);
+  }
 
-    const protectStat = await ops.stat(path);
-    if (protectStat.ok && protectStat.value.isDirectory) {
-      isDir = true;
-    } else {
-      const stageStat = await ops.stat(stageP);
-      if (stageStat.ok && stageStat.value.isDirectory) {
-        isDir = true;
-      }
+  // Detect config entries with nothing on disk or in staging (staging_missing).
+  // StateTree omits these as "no ghost entities", but the old diff API reports them.
+  const allEntityPaths = new Set(tree.flatFiles().map((f) => f.path));
+  for (const e of tree.entities) {
+    allEntityPaths.add(e.path);
+  }
+
+  let configKeys = Object.keys(config.files);
+  if (filterFiles && filterFiles.length > 0) {
+    const filterSet = new Set(filterFiles);
+    configKeys = configKeys.filter((k) => filterSet.has(k));
+  }
+
+  for (const key of configKeys) {
+    const path = key.endsWith("/") ? key.slice(0, -1) : key;
+    if (!allEntityPaths.has(path)) {
+      fileDiffs.push({ path, status: "staging_missing" });
     }
-
-    let result: Result<FileDiff[], DiffError>;
-    if (isDir) {
-      result = await diffDirectory(ops, path, stageP);
-    } else {
-      result = await diffFile(ops, path, stageP);
-    }
-
-    if (!result.ok) return result;
-    fileDiffs.push(...result.value);
   }
 
   const hasChanges = fileDiffs.some(
@@ -377,6 +129,67 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
   }
 
   return ok({ files: fileDiffs, hasChanges, approvalHash });
+}
+
+/**
+ * Convert a StateFile from the state tree into a FileDiff.
+ */
+async function stateFileToFileDiff(
+  ops: SystemOperations,
+  sf: StateFile,
+): Promise<Result<FileDiff, DiffError>> {
+  switch (sf.status) {
+    case "unchanged":
+      return ok({
+        path: sf.path,
+        status: "unchanged",
+        protectedHash: sf.canonicalHash ?? undefined,
+        stagedHash: sf.stagedHash ?? undefined,
+      });
+
+    case "created":
+      return ok({
+        path: sf.path,
+        status: "protect_missing",
+        stagedHash: sf.stagedHash ?? undefined,
+      });
+
+    case "deleted":
+      return ok({
+        path: sf.path,
+        status: "deleted",
+        protectedHash: sf.canonicalHash ?? undefined,
+      });
+
+    case "modified": {
+      // Generate unified diff by reading both files
+      const protectContent = await ops.readFile(sf.path);
+      if (!protectContent.ok) {
+        return err({ kind: "read_failed", path: sf.path, message: "read failed" });
+      }
+
+      const stagedPath = stagingPath(sf.path);
+      const stagingContent = await ops.readFile(stagedPath);
+      if (!stagingContent.ok) {
+        return err({ kind: "read_failed", path: stagedPath, message: "read failed" });
+      }
+
+      const unifiedDiff = createTwoFilesPatch(
+        `a/${sf.path}`,
+        `b/${sf.path}`,
+        protectContent.value,
+        stagingContent.value,
+      );
+
+      return ok({
+        path: sf.path,
+        status: "modified",
+        diff: unifiedDiff,
+        protectedHash: sf.canonicalHash ?? undefined,
+        stagedHash: sf.stagedHash ?? undefined,
+      });
+    }
+  }
 }
 
 /**

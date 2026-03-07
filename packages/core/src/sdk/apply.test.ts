@@ -416,7 +416,7 @@ describe("apply (directory support)", () => {
   const dirConfig: SoulguardConfig = {
     version: 1,
     files: {
-      mydir: "protect",
+      "mydir/": "protect",
     },
   };
 
@@ -552,7 +552,7 @@ describe("apply (directory support)", () => {
     const mixedConfig: SoulguardConfig = {
       version: 1,
       files: {
-        mydir: "protect",
+        "mydir/": "protect",
         "SOUL.md": "protect",
       },
     };
