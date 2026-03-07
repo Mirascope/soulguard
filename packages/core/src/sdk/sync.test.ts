@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { sync } from "./sync.js";
 import { MockSystemOps } from "../util/system-ops-mock.js";
-import type { FileStatus } from "./status.js";
+import type { SyncIssue } from "./sync.js";
 
 const WORKSPACE = "/test/workspace";
 const VAULT_OWNERSHIP = { user: "soulguardian", group: "soulguard", mode: "444" };
@@ -25,10 +25,8 @@ function opts(
 }
 
 /** Filter to only file-level issues (not registry reconciliation) */
-function fileIssues(issues: FileStatus[]) {
-  return issues.filter(
-    (i: any) => !["unregistered", "tier_changed", "orphaned"].includes(i.status),
-  );
+function fileIssues(issues: SyncIssue[]) {
+  return issues.filter((i) => !["unregistered", "tier_changed", "orphaned"].includes(i.status));
 }
 
 describe("sync", () => {
@@ -51,7 +49,7 @@ describe("sync", () => {
     if (!result.ok) return;
 
     // Before had issues
-    expect(fileIssues(result.value.before.issues)).toHaveLength(1);
+    expect(fileIssues(result.value.beforeIssues)).toHaveLength(1);
     // Sync succeeded
     expect(result.value.errors).toHaveLength(0);
     expect(ops.ops).toHaveLength(2); // chown + chmod
@@ -79,7 +77,7 @@ describe("sync", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(fileIssues(result.value.before.issues)).toHaveLength(0);
+    expect(fileIssues(result.value.beforeIssues)).toHaveLength(0);
     expect(result.value.errors).toHaveLength(0);
     expect(result.value.errors).toHaveLength(0);
   });
@@ -101,7 +99,7 @@ describe("sync", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(fileIssues(result.value.before.issues)).toHaveLength(1);
+    expect(fileIssues(result.value.beforeIssues)).toHaveLength(1);
     // Missing files can't be fixed — they show up as errors or remain
     expect(result.value.errors).toHaveLength(0);
   });
@@ -155,7 +153,7 @@ describe("sync", () => {
     if (!result.ok) return;
 
     // Watch tier has no ownership expectations — no file-level issues
-    expect(fileIssues(result.value.before.issues)).toHaveLength(0);
+    expect(fileIssues(result.value.beforeIssues)).toHaveLength(0);
   });
 
   test("handles multiple files across tiers", async () => {
@@ -189,7 +187,7 @@ describe("sync", () => {
     if (!result.ok) return;
 
     // Before: SOUL.md drifted (protect only — watch has no ownership checks)
-    expect(fileIssues(result.value.before.issues)).toHaveLength(1);
+    expect(fileIssues(result.value.beforeIssues)).toHaveLength(1);
     // After: all clean
     expect(result.value.errors).toHaveLength(0);
     expect(result.value.errors).toHaveLength(0);
