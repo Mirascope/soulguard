@@ -224,7 +224,7 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(await opts({ version: 1, files: { skills: "protect" } }, ops));
+    const result = await status(await opts({ version: 1, files: { "skills/": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -248,7 +248,7 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(await opts({ version: 1, files: { skills: "protect" } }, ops));
+    const result = await status(await opts({ version: 1, files: { "skills/": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -266,7 +266,7 @@ describe("status", () => {
       mode: "444", // wrong — should be 555
     });
 
-    const result = await status(await opts({ version: 1, files: { skills: "protect" } }, ops));
+    const result = await status(await opts({ version: 1, files: { "skills/": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -337,7 +337,7 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(await opts({ version: 1, files: { skills: "protect" } }, ops));
+    const result = await status(await opts({ version: 1, files: { "skills/": "protect" } }, ops));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
