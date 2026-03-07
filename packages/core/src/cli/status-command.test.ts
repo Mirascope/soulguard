@@ -3,7 +3,6 @@ import { MockSystemOps } from "../util/system-ops-mock.js";
 import { MockConsoleOutput } from "../util/console-mock.js";
 import { StatusCommand } from "./status-command.js";
 import type { StatusOptions } from "../sdk/status.js";
-import { Registry } from "../sdk/registry.js";
 
 const VAULT_OWNERSHIP = { user: "soulguardian", group: "soulguard", mode: "444" };
 const VAULT_MOCK = { owner: "soulguardian", group: "soulguard", mode: "444" };
@@ -22,13 +21,10 @@ async function setup(
   const ops = new MockSystemOps("/workspace");
   configureMock(ops);
   const out = new MockConsoleOutput();
-  const registryResult = await Registry.load(ops);
-  if (!registryResult.ok) throw new Error("Failed to load registry");
   const opts: StatusOptions = {
     config: { version: 1, files },
     expectedProtectOwnership: VAULT_OWNERSHIP,
     ops,
-    registry: registryResult.value,
   };
   return { cmd: new StatusCommand(opts, out), out };
 }

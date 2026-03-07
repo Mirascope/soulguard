@@ -10,10 +10,17 @@ import type { SoulguardConfig } from "../util/types.js";
 
 export const tierSchema = z.enum(["protect", "watch"]);
 
+const ownershipSchema = z.object({
+  user: z.string(),
+  group: z.string(),
+  mode: z.string(),
+});
+
 export const soulguardConfigSchema: z.ZodType<SoulguardConfig> = z.object({
   version: z.literal(1),
   files: z.record(z.string(), tierSchema),
   git: z.boolean().optional(),
+  defaultOwnership: ownershipSchema.optional(),
 });
 
 /**

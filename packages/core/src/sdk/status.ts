@@ -25,7 +25,6 @@ import { ok, err } from "../util/result.js";
 import type { SystemOperations } from "../util/system-ops.js";
 import { StateTree } from "./state.js";
 import type { StateFile, StateDirectory, StateEntity, Drift } from "./state.js";
-import type { Registry } from "./registry.js";
 
 // ── File status ────────────────────────────────────────────────────────
 
@@ -33,18 +32,13 @@ export type FileStatus =
   | { tier: Tier; status: "ok"; path: string; stagedChanges?: number }
   | { tier: Tier; status: "drifted"; path: string; issues: DriftIssue[]; stagedChanges?: number }
   | { tier: Tier; status: "missing"; path: string }
-  | { tier: Tier; status: "error"; path: string; error: { kind: string; message: string } }
-  | { tier: Tier; status: "unregistered"; path: string }
-  | { tier: Tier; status: "tier_changed"; path: string; registryTier: Tier }
-  | { status: "orphaned"; path: string; registryTier: Tier; originalOwnership?: FileOwnership };
+  | { tier: Tier; status: "error"; path: string; error: { kind: string; message: string } };
 
 export type StatusResult = {
   /** All file statuses (ok + issues) */
   files: FileStatus[];
   /** Only non-ok statuses (for backward compat) */
   issues: FileStatus[];
-  /** Current registry state */
-  registry: Registry;
 };
 
 export type StatusOptions = {
@@ -52,8 +46,6 @@ export type StatusOptions = {
   /** Expected ownership for protect-tier files (e.g. soulguardian:soulguard 444) */
   expectedProtectOwnership: FileOwnership;
   ops: SystemOperations;
-  /** Registry for reconciliation */
-  registry: Registry;
 };
 
 /**
@@ -62,7 +54,7 @@ export type StatusOptions = {
  * Builds a StateTree and derives all status information from it.
  */
 export async function status(options: StatusOptions): Promise<Result<StatusResult, IOError>> {
-  const { config, ops, registry } = options;
+  const { config, ops } = options;
 
   // Build the unified state tree
   const treeResult = await StateTree.build({ ops, config });
@@ -97,36 +89,7 @@ export async function status(options: StatusOptions): Promise<Result<StatusResul
 
   const issues: FileStatus[] = allFiles.filter((f) => f.status !== "ok");
 
-  // ── Registry reconciliation (backward compat, will be removed) ─────
-  {
-    const configKeys = Object.keys(config.files);
-    const managedPaths = new Set(configKeys.map((k) => (k.endsWith("/") ? k.slice(0, -1) : k)));
-
-    for (const key of configKeys) {
-      const path = key.endsWith("/") ? key.slice(0, -1) : key;
-      const tier = config.files[key]!;
-      const entry = registry.get(path);
-      if (!entry) {
-        issues.push({ tier, status: "unregistered", path });
-      } else if (entry.tier !== tier) {
-        issues.push({ tier, status: "tier_changed", path, registryTier: entry.tier });
-      }
-    }
-
-    for (const regPath of registry.paths()) {
-      if (!managedPaths.has(regPath)) {
-        const entry = registry.get(regPath)!;
-        issues.push({
-          status: "orphaned",
-          path: regPath,
-          registryTier: entry.tier,
-          originalOwnership: entry.tier === "protect" ? entry.originalOwnership : undefined,
-        });
-      }
-    }
-  }
-
-  return ok({ files: allFiles, issues, registry });
+  return ok({ files: allFiles, issues });
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────

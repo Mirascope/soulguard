@@ -1,7 +1,7 @@
 /**
  * soulguard init — one-time workspace setup.
  *
- * Creates system user/group, writes config, initializes registry and git.
+ * Creates system user/group, writes config, initializes git.
  * Does NOT enforce protection — that's `sync`.
  *
  * Idempotent: skips already-completed steps, reports what was done.
@@ -14,7 +14,6 @@ import { ok, err } from "../util/result.js";
 import { SOULGUARDIAN_IDENTITY, PROTECT_OWNERSHIP } from "../util/constants.js";
 import { ensureConfig } from "./config.js";
 import type { ConfigError } from "./config.js";
-import { Registry } from "./registry.js";
 import { status } from "./status.js";
 
 /** Result of `soulguard init` — idempotent, booleans report what was done */
@@ -22,7 +21,6 @@ export type InitResult = {
   userCreated: boolean;
   groupCreated: boolean;
   configCreated: boolean;
-  registryCreated: boolean;
   gitInitialized: boolean;
   issueCount: number;
 };
@@ -31,7 +29,6 @@ export type InitResult = {
 export type InitError =
   | { kind: "not_root"; message: string }
   | { kind: "config_invalid"; message: string }
-  | { kind: "registry_invalid"; message: string }
   | { kind: "system_error"; message: string };
 
 export type InitOptions = {
@@ -125,61 +122,6 @@ async function ensureStagingDir(ops: SystemOperations): Promise<Result<void, Ini
     });
   }
   return ok(undefined);
-}
-
-/**
- * Load or create registry. If missing, creates with soulguard.json tracked.
- * If present but unparseable, returns registry_invalid error.
- */
-async function ensureRegistry(
-  ops: SystemOperations,
-): Promise<Result<{ registry: Registry; created: boolean }, InitError>> {
-  const exists = await ops.exists(".soulguard/registry.json");
-
-  if (exists.ok && exists.value) {
-    // Validate existing registry
-    const result = await Registry.load(ops);
-    if (!result.ok) {
-      return err({ kind: "registry_invalid", message: result.error.message });
-    }
-    return ok({ registry: result.value, created: false });
-  }
-
-  // Create new registry tracking soulguard.json
-  const result = await Registry.load(ops); // loads empty
-  if (!result.ok) {
-    return err({ kind: "registry_invalid", message: result.error.message });
-  }
-  const registry = result.value;
-  await registry.register("soulguard.json", "protect");
-  const writeResult = await registry.write();
-  if (!writeResult.ok) {
-    return err({
-      kind: "system_error",
-      message: `write registry failed: ${writeResult.error.message}`,
-    });
-  }
-
-  // Set ownership: soulguardian:soulguard 444
-  const chown = await ops.chown(".soulguard/registry.json", {
-    user: SOULGUARDIAN_IDENTITY.user,
-    group: SOULGUARDIAN_IDENTITY.group,
-  });
-  if (!chown.ok) {
-    return err({
-      kind: "system_error",
-      message: `chown registry.json failed: ${chown.error.kind}`,
-    });
-  }
-  const chmod = await ops.chmod(".soulguard/registry.json", "444");
-  if (!chmod.ok) {
-    return err({
-      kind: "system_error",
-      message: `chmod registry.json failed: ${chmod.error.kind}`,
-    });
-  }
-
-  return ok({ registry, created: true });
 }
 
 /** Initialize git repo in .soulguard/.git with initial commit of soulguard.json. */
@@ -315,23 +257,17 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   const stagingResult = await ensureStagingDir(ops);
   if (!stagingResult.ok) return stagingResult;
 
-  // ── 5. Ensure registry ───────────────────────────────────────────────
-  const registryResult = await ensureRegistry(ops);
-  if (!registryResult.ok) return registryResult;
-  const { registry, created: registryCreated } = registryResult.value;
-
-  // ── 6. Ensure git ────────────────────────────────────────────────────
+  // ── 5. Ensure git ────────────────────────────────────────────────────
   const gitResult = await ensureGit(ops, config);
   if (!gitResult.ok) return gitResult;
   const { gitInitialized } = gitResult.value;
 
-  // ── 7. Status check ──────────────────────────────────────────────────
+  // ── 6. Status check ──────────────────────────────────────────────────
   let issueCount = 0;
   const statusResult = await status({
     config,
     expectedProtectOwnership: PROTECT_OWNERSHIP,
     ops,
-    registry,
   });
   if (statusResult.ok) {
     issueCount = statusResult.value.issues.length;
@@ -341,7 +277,6 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     userCreated,
     groupCreated,
     configCreated,
-    registryCreated,
     gitInitialized,
     issueCount,
   });
