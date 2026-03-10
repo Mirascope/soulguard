@@ -23,6 +23,7 @@
  * "skills/": "protect"), file entries do not (e.g. "SOUL.md": "protect").
  */
 
+import { createHash } from "node:crypto";
 import type { SystemOperations } from "../util/system-ops.js";
 import type { SoulguardConfig, FileOwnership, Tier, DriftIssue, Result } from "../util/types.js";
 import { ok, err } from "../util/result.js";
@@ -184,7 +185,7 @@ export class StateTree {
 
     // Sort by path for determinism, then hash each file's identity
     const sorted = [...changed].sort((a, b) => a.path.localeCompare(b.path));
-    const hasher = new Bun.CryptoHasher("sha256");
+    const hasher = createHash("sha256");
     for (const file of sorted) {
       hasher.update(file.path);
       hasher.update(file.status);

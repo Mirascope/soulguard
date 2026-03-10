@@ -44,7 +44,7 @@ export type { StatusResult, StatusOptions } from "./sdk/status.js";
 
 // Diff
 export { diff } from "./sdk/diff.js";
-export type { FileDiff, DiffResult, DiffError, DiffOptions } from "./sdk/diff.js";
+export type { DiffFile, DiffResult, DiffError, DiffOptions } from "./sdk/diff.js";
 
 // Sync
 export { sync } from "./sdk/sync.js";

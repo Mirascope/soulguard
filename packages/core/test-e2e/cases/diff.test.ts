@@ -42,8 +42,6 @@ e2e("diff: shows no changes for unmodified staging", (t) => {
       exit 0
       Soulguard Diff — /workspace
 
-        ⚠️ soulguard.json (no staging copy)
-        ✅ SOUL.md (no changes)
 
       No changes
     `)
@@ -110,7 +108,6 @@ e2e("diff: shows unified diff for modified staging", (t) => {
       exit 1
       Soulguard Diff — /workspace
 
-        ⚠️ soulguard.json (no staging copy)
         📝 SOUL.md
             ===================================================================
             --- a/SOUL.md
@@ -120,8 +117,8 @@ e2e("diff: shows unified diff for modified staging", (t) => {
             +# My Modified Soul
             
 
-      2 file(s) changed
-      Apply hash: 3ef797046758a06b4f4cae5b20fdca383f4baff6ec653abe6b42597618a0b577
+      1 file(s) changed
+      Apply hash: d01778271aa3d1b3f85e00ad03cf555dd3493f3fb9819d34b9f5c53f0f763dc4
     `)
     .exits(1)
     .outputs(/SOUL\.md/)
@@ -187,11 +184,16 @@ e2e("diff: shows new file when protect-tier copy is missing", (t) => {
       exit 1
       Soulguard Diff — /workspace
 
-        ⚠️ soulguard.json (no staging copy)
-        ⚠️ SOUL.md (protect-tier file missing — new file)
+        ⚠️ SOUL.md (new file)
+            ===================================================================
+            --- /dev/null
+            +++ b/SOUL.md
+            @@ -0,0 +1,1 @@
+            +# My Soul
+            
 
-      2 file(s) changed
-      Apply hash: ddc1ac8615d0e23d031c518f50b17bacc02fd15e5e5cd1a6e2993978f50221a0
+      1 file(s) changed
+      Apply hash: 0773780685caa24a38dd8596891af63bb3f224bc86d8fea8bdec2279cf832542
     `)
     .exits(1)
     .outputs(/missing|new file/);
@@ -262,7 +264,6 @@ e2e("diff: directory staged recursively with no changes shows clean", (t) => {
       exit 0
       Soulguard Diff — /workspace
 
-        ⚠️ soulguard.json (no staging copy)
 
       No changes
     `)
@@ -338,7 +339,6 @@ e2e("diff: directory staged recursively with modified file shows diff", (t) => {
       exit 1
       Soulguard Diff — /workspace
 
-        ⚠️ soulguard.json (no staging copy)
         📝 memory/day1.md
             ===================================================================
             --- a/memory/day1.md
@@ -348,8 +348,8 @@ e2e("diff: directory staged recursively with modified file shows diff", (t) => {
             +modified notes
             
 
-      2 file(s) changed
-      Apply hash: 9a65c0ca63eff83363483059ad5c33c737fab5552b2ca59767c891054181a195
+      1 file(s) changed
+      Apply hash: d76775395e077fbc9dd944758ea4adafa482b58db8b2675e499bfe9f9c2d2cb5
     `)
     .exits(1)
     .outputs(/memory\/day1\.md/)
@@ -419,7 +419,6 @@ e2e("diff: soulguard.json staged with no changes shows clean", (t) => {
       exit 0
       Soulguard Diff — /workspace
 
-        ✅ soulguard.json (no changes)
 
       No changes
     `)
@@ -497,11 +496,16 @@ e2e("diff: new file staged in protected directory shows new file diff", (t) => {
       exit 1
       Soulguard Diff — /workspace
 
-        ⚠️ soulguard.json (no staging copy)
-        ⚠️ skills/new-skill.md (protect-tier file missing — new file)
+        ⚠️ skills/new-skill.md (new file)
+            ===================================================================
+            --- /dev/null
+            +++ b/skills/new-skill.md
+            @@ -0,0 +1,1 @@
+            +# New Skill
+            
 
-      2 file(s) changed
-      Apply hash: 89535457fb4d5b10a4d265731791c45a6980b5915d1161833716c9782b0d9086
+      1 file(s) changed
+      Apply hash: 54433bd7ffce3b87f282b7c6ad93379cc796b97e15b04f96bf23e6f1b42cc7c1
     `)
     .exits(1)
     .outputs(/new-skill\.md/)
@@ -563,11 +567,16 @@ e2e("diff: stage -d file shows deletion cleanly", (t) => {
       exit 1
       Soulguard Diff — /workspace
 
-        ⚠️ soulguard.json (no staging copy)
         🗑️ SOUL.md (staged for deletion)
+            ===================================================================
+            --- a/SOUL.md
+            +++ /dev/null
+            @@ -1,1 +0,0 @@
+            -# My Soul
+            
 
-      2 file(s) changed
-      Apply hash: 0ccb3f8699af8879e159343eb76c545f6ac782d6678a97edbf5473dca31184ea
+      1 file(s) changed
+      Apply hash: 7058fdad94858a8262f2c413c7428b1b43be818d2fbc8cdff6d8d4fdb9c94954
     `)
     .exits(1)
     .outputs(/SOUL\.md/)
@@ -639,12 +648,23 @@ e2e("diff: stage -d directory shows deletion cleanly", (t) => {
       exit 1
       Soulguard Diff — /workspace
 
-        ⚠️ soulguard.json (no staging copy)
         🗑️ memory/day1.md (staged for deletion)
+            ===================================================================
+            --- a/memory/day1.md
+            +++ /dev/null
+            @@ -1,1 +0,0 @@
+            -day one notes
+            
         🗑️ memory/day2.md (staged for deletion)
+            ===================================================================
+            --- a/memory/day2.md
+            +++ /dev/null
+            @@ -1,1 +0,0 @@
+            -day two notes
+            
 
-      3 file(s) changed
-      Apply hash: 9353b2b849dbf295aad31c5ebb0d8205b5593280137f5bceb4746ea4ecb3248a
+      2 file(s) changed
+      Apply hash: 68c086e64351ec9bd5bc9b49ab7ad977789cea9f3d38bf34c099db1b04213c56
     `)
     .exits(1)
     .outputs(/memory/)

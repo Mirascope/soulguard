@@ -125,7 +125,7 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
             const result = await diff({ ops, config, files });
             if (!result.ok) {
               return {
-                content: [{ type: "text" as const, text: `Diff failed: ${result.error.kind}` }],
+                content: [{ type: "text" as const, text: `Diff failed: ${result.error.message}` }],
               };
             }
             if (!result.value.hasChanges) {
@@ -135,9 +135,7 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
                 ],
               };
             }
-            const lines = result.value.files
-              .filter((d) => d.status === "modified" && d.diff)
-              .map((d) => `--- ${d.path}\n${d.diff}`);
+            const lines = result.value.files.map((d) => d.diff);
             let text = lines.join("\n\n") || "No modified files.";
             if (result.value.approvalHash) {
               text += `\n\n────────────────────────────────────────\nApproval hash: ${result.value.approvalHash}\nTo apply: soulguard apply --hash ${result.value.approvalHash}`;
