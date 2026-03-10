@@ -5,8 +5,7 @@
 import type { ConsoleOutput } from "../util/console.js";
 import type { SystemOperations } from "../util/system-ops.js";
 import type { SoulguardConfig } from "../util/types.js";
-import { stagingPath, DELETE_SENTINEL } from "../sdk/staging.js";
-import { protectPatterns } from "../sdk/config.js";
+import { stage } from "../sdk/stage.js";
 
 export type StageCommandOptions = {
   ops: SystemOperations;
@@ -24,63 +23,61 @@ export class StageCommand {
 
   async execute(): Promise<number> {
     const { ops, config, paths, delete: isDelete } = this.opts;
-    const protectFiles = new Set(protectPatterns(config));
 
     if (paths.length === 0) {
       this.out.error("No paths specified.");
       return 1;
     }
 
-    let staged = 0;
+    // Aggregate results across all paths
+    const allStagedFiles: Array<{ path: string; action: "edit" | "delete" }> = [];
+    const alreadyStaged: string[] = [];
 
+    // Call SDK function for each path
     for (const path of paths) {
-      if (!protectFiles.has(path)) {
-        this.out.error(`${path} is not in the protect tier.`);
-        return 1;
+      const result = await stage({ ops, config, path, delete: isDelete });
+
+      // Handle errors (fail fast on first error)
+      if (!result.ok) {
+        switch (result.error.kind) {
+          case "not_in_protect_tier":
+            this.out.error(`${result.error.path} is not in the protect tier.`);
+            return 1;
+          case "stage_failed":
+            this.out.error(`Failed to stage ${result.error.path}: ${result.error.message}`);
+            return 1;
+        }
       }
 
-      const target = stagingPath(path);
-
-      if (isDelete) {
-        // Stage for deletion: write sentinel
-        await ops.mkdir(target.substring(0, target.lastIndexOf("/")));
-        const writeResult = await ops.writeFile(target, JSON.stringify(DELETE_SENTINEL, null, 2));
-        if (!writeResult.ok) {
-          this.out.error(`Failed to write sentinel for ${path}: ${writeResult.error.kind}`);
-          return 1;
-        }
-        this.out.success(`  🗑️  ${path} (staged for deletion)`);
-        staged++;
+      // Accumulate results
+      if (result.value.stagedFiles.length === 0) {
+        // Path was already staged (SDK skipped it)
+        alreadyStaged.push(path);
       } else {
-        // Stage for editing: copy protected content to staging
-        const existsResult = await ops.exists(target);
-        if (existsResult.ok && existsResult.value) {
-          this.out.info(`  · ${path} (already staged)`);
-          continue;
-        }
-
-        // Create parent dirs
-        const lastSlash = target.lastIndexOf("/");
-        if (lastSlash > 0) {
-          await ops.mkdir(target.substring(0, lastSlash));
-        }
-
-        const copyResult = await ops.copyFile(path, target);
-        if (!copyResult.ok) {
-          this.out.error(`Failed to stage ${path}: ${copyResult.error.kind}`);
-          return 1;
-        }
-        this.out.success(`  📝 ${path} (staged for editing)`);
-        staged++;
+        allStagedFiles.push(...result.value.stagedFiles);
       }
     }
 
-    if (staged === 0) {
+    // Format and display results
+    for (const file of alreadyStaged) {
+      this.out.info(`  · ${file} (already staged)`);
+    }
+
+    for (const { path, action } of allStagedFiles) {
+      if (action === "delete") {
+        this.out.success(`  🗑️  ${path} (staged for deletion)`);
+      } else {
+        this.out.success(`  📝 ${path} (staged for editing)`);
+      }
+    }
+
+    if (allStagedFiles.length === 0) {
       this.out.info("Nothing to stage.");
     } else {
       this.out.write("");
-      this.out.success(`Staged ${staged} file(s).`);
+      this.out.success(`Staged ${allStagedFiles.length} file(s).`);
     }
+
     return 0;
   }
 }
