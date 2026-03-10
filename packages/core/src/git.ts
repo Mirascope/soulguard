@@ -8,7 +8,6 @@
 import type { SystemOperations } from "./system-ops.js";
 import type { SoulguardConfig, Result } from "./types.js";
 import { ok, err } from "./result.js";
-import { resolvePatterns } from "./glob.js";
 import { watchPatterns } from "./config.js";
 
 export type GitCommitResult =
@@ -146,9 +145,7 @@ export async function gitLog(
 /**
  * Commit all watch-tier files to git (best-effort).
  *
- * Stages all resolved watch-tier files and commits if anything changed.
- * Note: `sync` now also commits all tracked files (protect + watch).
- * This function is still useful for targeted watch-only commits.
+ * Stages all watch-tier files and commits if anything changed.
  */
 export async function commitWatchFiles(
   ops: SystemOperations,
@@ -158,11 +155,7 @@ export async function commitWatchFiles(
     return ok({ committed: false, reason: "git_disabled" });
   }
 
-  const resolved = await resolvePatterns(ops, watchPatterns(config));
-  if (!resolved.ok) {
-    return err({ kind: "git_error", message: `glob failed: ${resolved.error.message}` });
-  }
-  const watchFiles = resolved.value;
+  const watchFiles = watchPatterns(config);
   if (watchFiles.length === 0) {
     return ok({ committed: false, reason: "no_files" });
   }

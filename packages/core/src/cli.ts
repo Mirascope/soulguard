@@ -223,7 +223,7 @@ program
 program
   .command("protect")
   .description("Add files to the protect tier (requires sudo)")
-  .argument("<files...>", "files or glob patterns to protect")
+  .argument("<paths...>", "files or directories to protect")
   .option("-w, --workspace <path>", "workspace path", process.cwd())
   .action(async (files: string[], opts: { workspace: string }) => {
     const out = new LiveConsoleOutput();
@@ -253,7 +253,7 @@ program
 program
   .command("watch")
   .description("Add files to the watch tier (requires sudo)")
-  .argument("<files...>", "files or glob patterns to watch")
+  .argument("<paths...>", "files or directories to watch")
   .option("-w, --workspace <path>", "workspace path", process.cwd())
   .action(async (files: string[], opts: { workspace: string }) => {
     const out = new LiveConsoleOutput();
@@ -283,7 +283,7 @@ program
 program
   .command("release")
   .description("Release files from all tiers (requires sudo)")
-  .argument("<files...>", "files to release")
+  .argument("<paths...>", "files or directories to release")
   .option("-w, --workspace <path>", "workspace path", process.cwd())
   .action(async (files: string[], opts: { workspace: string }) => {
     const out = new LiveConsoleOutput();

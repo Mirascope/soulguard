@@ -8,7 +8,6 @@ import type { Result } from "./result.js";
 import { ok, err } from "./result.js";
 import type { SoulguardConfig } from "./types.js";
 import type { SystemOperations } from "./system-ops.js";
-import { resolvePatterns } from "./glob.js";
 import { protectPatterns } from "./config.js";
 import { stagingPath } from "./staging.js";
 
@@ -53,12 +52,8 @@ export type DiffOptions = {
 export async function diff(options: DiffOptions): Promise<Result<DiffResult, DiffError>> {
   const { ops, config, files: filterFiles } = options;
 
-  // Resolve glob patterns to concrete file paths
-  const resolved = await resolvePatterns(ops, protectPatterns(config));
-  if (!resolved.ok) {
-    return err({ kind: "read_failed", path: "glob", message: resolved.error.message });
-  }
-  let protectFiles = resolved.value;
+  // Get literal protect-tier paths from config
+  let protectFiles = protectPatterns(config);
   if (filterFiles && filterFiles.length > 0) {
     const filterSet = new Set(filterFiles);
     protectFiles = protectFiles.filter((p) => filterSet.has(p));

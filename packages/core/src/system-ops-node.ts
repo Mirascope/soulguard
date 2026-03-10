@@ -477,4 +477,83 @@ export class NodeSystemOps implements SystemOperations {
       });
     }
   }
+
+  // ── Added for SOUL-51: directory protection ─────────────────────────
+
+  async chownRecursive(
+    path: string,
+    owner: { user: string; group: string },
+  ): Promise<Result<void, FileError>> {
+    const resolved = this.resolvePath(path);
+    if (!resolved.ok) return resolved;
+    try {
+      await execFileAsync("chown", ["-R", `${owner.user}:${owner.group}`, resolved.value]);
+      return ok(undefined);
+    } catch (e) {
+      return err(mapError(e, path, "chownRecursive"));
+    }
+  }
+
+  async chmodRecursive(path: string, mode: string): Promise<Result<void, FileError>> {
+    const resolved = this.resolvePath(path);
+    if (!resolved.ok) return resolved;
+    try {
+      await execFileAsync("chmod", ["-R", mode, resolved.value]);
+      return ok(undefined);
+    } catch (e) {
+      return err(mapError(e, path, "chmodRecursive"));
+    }
+  }
+
+  async chmodDirectoryTree(
+    path: string,
+    modes: { fileMode: string; dirMode: string },
+  ): Promise<Result<void, FileError>> {
+    const resolved = this.resolvePath(path);
+    if (!resolved.ok) return resolved;
+    try {
+      // Set file permissions
+      await execFileAsync("find", [
+        resolved.value,
+        "-type",
+        "f",
+        "-exec",
+        "chmod",
+        modes.fileMode,
+        "{}",
+        "+",
+      ]);
+      // Set directory permissions
+      await execFileAsync("find", [
+        resolved.value,
+        "-type",
+        "d",
+        "-exec",
+        "chmod",
+        modes.dirMode,
+        "{}",
+        "+",
+      ]);
+      return ok(undefined);
+    } catch (e) {
+      return err(mapError(e, path, "chmodDirectoryTree"));
+    }
+  }
+
+  async listDir(path: string): Promise<Result<string[], FileError>> {
+    const resolved = this.resolvePath(path);
+    if (!resolved.ok) return resolved;
+    try {
+      const { stdout } = await execFileAsync("find", [resolved.value, "-type", "f"]);
+      const files = stdout
+        .trim()
+        .split("\n")
+        .filter((f) => f.length > 0)
+        .map((f) => relative(this.workspace, f))
+        .sort();
+      return ok(files);
+    } catch (e) {
+      return err(mapError(e, path, "listDir"));
+    }
+  }
 }

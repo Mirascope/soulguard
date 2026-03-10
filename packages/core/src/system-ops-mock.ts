@@ -8,7 +8,6 @@
 import { resolve } from "node:path";
 import type { FileStat, SystemOperations } from "./system-ops.js";
 import type { Result, NotFoundError, PermissionDeniedError, IOError } from "./types.js";
-import { matchGlob } from "./glob.js";
 import { ok, err } from "./result.js";
 
 /**
@@ -25,6 +24,7 @@ type MockFile = {
   owner: string;
   group: string;
   mode: string;
+  isDirectory?: boolean;
 };
 
 export class MockSystemOps implements SystemOperations {
@@ -47,7 +47,13 @@ export class MockSystemOps implements SystemOperations {
   constructor(workspace: string) {
     this.workspace = workspace;
     // Register workspace root as a directory so chown/chmod on "." works
-    this.files.set(workspace, { content: "", owner: "root", group: "root", mode: "755" });
+    this.files.set(workspace, {
+      content: "",
+      owner: "root",
+      group: "root",
+      mode: "755",
+      isDirectory: true,
+    });
   }
 
   private resolve(path: string): string {
@@ -65,6 +71,17 @@ export class MockSystemOps implements SystemOperations {
       owner: opts.owner ?? "unknown",
       group: opts.group ?? "unknown",
       mode: opts.mode ?? "644",
+    });
+  }
+
+  /** Add a simulated directory (relative path) */
+  addDirectory(path: string, opts: { owner?: string; group?: string; mode?: string } = {}): void {
+    this.files.set(this.resolve(path), {
+      content: "",
+      owner: opts.owner ?? "unknown",
+      group: opts.group ?? "unknown",
+      mode: opts.mode ?? "755",
+      isDirectory: true,
     });
   }
 
@@ -95,7 +112,7 @@ export class MockSystemOps implements SystemOperations {
     return ok({
       path,
       ownership: { user: file.owner, group: file.group, mode: file.mode },
-      isDirectory: false,
+      isDirectory: file.isDirectory ?? false,
     });
   }
 
@@ -112,6 +129,27 @@ export class MockSystemOps implements SystemOperations {
     return ok(undefined);
   }
 
+  async chownRecursive(
+    path: string,
+    owner: { user: string; group: string },
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
+    const full = this.resolve(path);
+    const file = this.files.get(full);
+    if (!file) return err({ kind: "not_found", path });
+    this.ops.push({ kind: "chown", path, owner });
+    file.owner = owner.user;
+    file.group = owner.group;
+    // Also chown all children
+    const prefix = full + "/";
+    for (const [childPath, childFile] of this.files) {
+      if (childPath.startsWith(prefix)) {
+        childFile.owner = owner.user;
+        childFile.group = owner.group;
+      }
+    }
+    return ok(undefined);
+  }
+
   async chmod(
     path: string,
     mode: string,
@@ -121,6 +159,25 @@ export class MockSystemOps implements SystemOperations {
     if (!file) return err({ kind: "not_found", path });
     this.ops.push({ kind: "chmod", path, mode });
     file.mode = mode;
+    return ok(undefined);
+  }
+
+  async chmodRecursive(
+    path: string,
+    mode: string,
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
+    const full = this.resolve(path);
+    const file = this.files.get(full);
+    if (!file) return err({ kind: "not_found", path });
+    this.ops.push({ kind: "chmod", path, mode });
+    file.mode = mode;
+    // Also chmod all children
+    const prefix = full + "/";
+    for (const [childPath, childFile] of this.files) {
+      if (childPath.startsWith(prefix)) {
+        childFile.mode = mode;
+      }
+    }
     return ok(undefined);
   }
 
@@ -158,7 +215,13 @@ export class MockSystemOps implements SystemOperations {
     // Track directory and all parent dirs as entries (mirrors recursive mkdir)
     const full = this.resolve(path);
     if (!this.files.has(full)) {
-      this.files.set(full, { content: "", owner: "root", group: "root", mode: "755" });
+      this.files.set(full, {
+        content: "",
+        owner: "root",
+        group: "root",
+        mode: "755",
+        isDirectory: true,
+      });
     }
     // Also create parent directories
     const parts = path.split("/");
@@ -166,7 +229,13 @@ export class MockSystemOps implements SystemOperations {
       const parent = parts.slice(0, i).join("/");
       const parentFull = this.resolve(parent);
       if (!this.files.has(parentFull)) {
-        this.files.set(parentFull, { content: "", owner: "root", group: "root", mode: "755" });
+        this.files.set(parentFull, {
+          content: "",
+          owner: "root",
+          group: "root",
+          mode: "755",
+          isDirectory: true,
+        });
       }
     }
     return ok(undefined);
@@ -213,19 +282,54 @@ export class MockSystemOps implements SystemOperations {
   }
 
   async glob(pattern: string): Promise<Result<string[], IOError>> {
-    // Simple glob matching against mock filesystem
+    // Simple prefix-based matching for mock (globs are being removed from core)
     const prefix = this.workspace + "/";
     const matches: string[] = [];
-
     for (const fullPath of this.files.keys()) {
       if (!fullPath.startsWith(prefix)) continue;
       const relPath = fullPath.slice(prefix.length);
-      if (matchGlob(pattern, relPath)) {
+      // Simple startsWith for directory-like patterns, exact match otherwise
+      if (relPath === pattern || relPath.startsWith(pattern + "/")) {
         matches.push(relPath);
       }
     }
-
     return ok(matches.sort());
+  }
+
+  async chmodDirectoryTree(
+    path: string,
+    modes: { fileMode: string; dirMode: string },
+  ): Promise<Result<void, NotFoundError | PermissionDeniedError | IOError>> {
+    const full = this.resolve(path);
+    const dir = this.files.get(full);
+    if (!dir) return err({ kind: "not_found", path });
+    // Set directory mode on the root
+    this.ops.push({ kind: "chmod", path, mode: modes.dirMode });
+    dir.mode = modes.dirMode;
+    // Set modes on children
+    const prefix = full + "/";
+    for (const [childPath, childFile] of this.files) {
+      if (childPath.startsWith(prefix)) {
+        childFile.mode = childFile.isDirectory ? modes.dirMode : modes.fileMode;
+      }
+    }
+    return ok(undefined);
+  }
+
+  async listDir(
+    path: string,
+  ): Promise<Result<string[], NotFoundError | PermissionDeniedError | IOError>> {
+    const full = this.resolve(path);
+    const dir = this.files.get(full);
+    if (!dir) return err({ kind: "not_found", path });
+    const prefix = full + "/";
+    const files: string[] = [];
+    for (const [childPath, childFile] of this.files) {
+      if (childPath.startsWith(prefix) && !childFile.isDirectory) {
+        files.push(childPath.slice((this.workspace + "/").length));
+      }
+    }
+    return ok(files.sort());
   }
 
   async exec(command: string, args: string[]): Promise<Result<void, IOError>> {
