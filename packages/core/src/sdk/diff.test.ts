@@ -48,10 +48,11 @@ describe("diff", () => {
     expect(result.value.files[0]!.diff).toContain("+modified");
   });
 
-  test("protect-tier file exists but staging deleted → deleted status", async () => {
+  test("protect-tier file exists but staging has DELETE_SENTINEL → deleted status", async () => {
     const ops = makeMock();
 
     ops.addFile("SOUL.md", "# Soul");
+    ops.addFile(".soulguard-staging/SOUL.md", JSON.stringify(DELETE_SENTINEL));
 
     const result = await diff({ ops, config: makeConfig() });
 
@@ -269,7 +270,7 @@ describe("diff", () => {
     expect(newFile!.status).toBe("protect_missing");
   });
 
-  test("directory: file deleted from staging → deleted status", async () => {
+  test("directory: file has DELETE_SENTINEL in staging → deleted status", async () => {
     const ops = makeMock();
 
     ops.addDirectory("memory");
@@ -277,7 +278,8 @@ describe("diff", () => {
     ops.addFile("memory/day2.md", "more notes");
     ops.addDirectory(".soulguard-staging/memory");
     ops.addFile(".soulguard-staging/memory/day1.md", "notes");
-    // day2.md not in staging → deletion
+    // day2.md has DELETE_SENTINEL in staging → deletion
+    ops.addFile(".soulguard-staging/memory/day2.md", JSON.stringify(DELETE_SENTINEL));
 
     const config = makeConfig(["memory"]);
     const result = await diff({ ops, config });

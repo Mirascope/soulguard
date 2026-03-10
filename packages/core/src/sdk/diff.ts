@@ -88,17 +88,9 @@ async function diffFile(
     ]);
   }
 
-  // Protect exists but staging doesn't → no pending changes
+  // Protect exists but staging doesn't → not staged, no pending changes
   if (protectExists.value && !stagingExists.value) {
-    // Original behavior: treat as deletion
-    const protectHash = await ops.hashFile(path);
-    return ok([
-      {
-        path,
-        status: "deleted",
-        protectedHash: protectHash.ok ? protectHash.value : undefined,
-      },
-    ]);
+    return ok([{ path, status: "staging_missing" }]);
   }
 
   // Both exist — check for delete sentinel
@@ -260,13 +252,8 @@ async function diffDirectory(
     const inStaged = stagedRelPaths.has(rel);
 
     if (inProtected && !inStaged) {
-      // File in protected but not in staging → deletion
-      const protectHash = await ops.hashFile(protectedPath);
-      diffs.push({
-        path: displayPath,
-        status: "deleted",
-        protectedHash: protectHash.ok ? protectHash.value : undefined,
-      });
+      // File in protected but not in staging → not staged, no pending changes
+      continue;
     } else if (!inProtected && inStaged) {
       // File in staging but not in protected → check for delete sentinel, else new file
       const content = await ops.readFile(stagedPath);

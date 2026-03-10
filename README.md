@@ -95,14 +95,24 @@ soulguard stage SOUL.md
 # Edit the staging copy
 echo "Don't be evil, even if it would get great quarterly numbers." > .soulguard-staging/SOUL.md
 
-# Review the diff and get an approval hash
+# Review the diff
 soulguard diff
 
-# Apply the changes (requires sudo + approval hash)
+# Apply the changes (requires sudo)
+sudo soulguard apply -y
+```
+
+For maximum security, use the approval hash to ensure that what you reviewed is exactly what gets applied — preventing race conditions between review and apply:
+
+```bash
+# Get the approval hash
+soulguard diff  # Shows hash at bottom
+
+# Apply with hash verification
 sudo soulguard apply --hash <hash>
 ```
 
-The approval hash ensures that what the human reviewed is exactly what gets applied — no race conditions.
+**Security Note**: The `-y` / `--yes` flag is convenient for trusted environments and provides the same security model as interactive mode. Use `--hash` for cryptographic verification when security is paramount or for automation.
 
 ### Releasing files
 
@@ -216,15 +226,21 @@ soulguard log . SOUL.md
 
 ### Requires sudo
 
-| Command                                      | Description                                                                        |
-| -------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `sudo soulguard init [dir]`                  | One-time setup — creates system user/group, `.soulguard/` directory, sudoers entry |
-| `sudo soulguard protect <paths...>`          | Add files or directories to the protect tier                                       |
-| `sudo soulguard watch <paths...>`            | Add files or directories to the watch tier                                         |
-| `sudo soulguard release <paths...>`          | Remove files or directories from all protection tiers                              |
-| `sudo soulguard apply [dir] [--hash <hash>]` | Apply staged changes to protect-tier files                                         |
-| `sudo soulguard sync [dir]`                  | Fix ownership/permission drift and commit all tracked files                        |
-| `sudo soulguard reset [dir]`                 | Reset staging to match current protect-tier state                                  |
+| Command                                          | Description                                                                        |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `sudo soulguard init [dir]`                      | One-time setup — creates system user/group, `.soulguard/` directory, sudoers entry |
+| `sudo soulguard protect <paths...>`              | Add files or directories to the protect tier                                       |
+| `sudo soulguard watch <paths...>`                | Add files or directories to the watch tier                                         |
+| `sudo soulguard release <paths...>`              | Remove files or directories from all protection tiers                              |
+| `sudo soulguard apply [dir] [-y\|--hash <hash>]` | Apply staged changes to protect-tier files                                         |
+| `sudo soulguard sync [dir]`                      | Fix ownership/permission drift and commit all tracked files                        |
+| `sudo soulguard reset [dir]`                     | Reset staging to match current protect-tier state                                  |
+
+**Apply modes:**
+
+- No flags: Interactive mode — shows diff, prompts for confirmation
+- `-y` / `--yes`: Apply current staging state without hash verification (convenient)
+- `--hash <hash>`: Apply with cryptographic verification (maximum security)
 
 ### No sudo required
 
@@ -255,11 +271,16 @@ The staging model uses an implicit proposal pattern:
 1. Agent stages file          →  soulguard stage SOUL.md
 2. Agent edits staging copy   →  .soulguard-staging/SOUL.md  (agent-writable)
 3. Human reviews              →  soulguard diff       (shows unified diff + hash)
-4. Human approves             →  sudo soulguard apply --hash <hash>
+4. Human approves             →  sudo soulguard apply -y  (convenient)
+                              or sudo soulguard apply --hash <hash>  (maximum security)
 5. Changes applied            →  staging → protect, re-locked to 444
 ```
 
-The approval hash is computed over frozen copies in `.soulguard/pending/` (owned by soulguardian), preventing the agent from modifying the staging copy between review and apply.
+**Apply Security Options:**
+
+- **`apply -y`** — Applies the current staging state. Convenient for trusted environments. Same security model as interactive mode: the human reviews changes, then immediately applies them. Small TOCTOU window where agent could theoretically modify staging between review and apply.
+
+- **`apply --hash <hash>`** — Cryptographic verification mode. The approval hash is computed over frozen copies in `.soulguard/pending/` (owned by soulguardian), preventing the agent from modifying staging between review and apply. Use for maximum security or automation.
 
 ### Directory Layout
 

@@ -3,33 +3,30 @@ import { e2e } from "../harness";
 e2e("diff: shows no changes for unmodified staging", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
-    exit 0
-  `)
+      exit 0
+    `)
     .exits(0);
   t.$(`sudo soulguard init .`)
     .expect(`
-    exit 0
-    ✓ Soulguard initialized.
-  `)
+      exit 0
+      ✓ Soulguard initialized.
+    `)
     .exits(0);
   t.$(`sudo soulguard protect SOUL.md`)
     .expect(`
-    exit 0
-      + SOUL.md → protect
+      exit 0
+        + SOUL.md → protect
 
-    Updated. 1 file(s) now protect-tier.
-  `)
+      Updated. 1 file(s) now protect-tier.
+    `)
     .exits(0);
-  t.$(`soulguard stage SOUL.md && soulguard stage soulguard.json`)
+  t.$(`soulguard stage SOUL.md`)
     .expect(`
-    exit 0
-      📝 SOUL.md (staged for editing)
+      exit 0
+        📝 SOUL.md (staged for editing)
 
-    Staged 1 file(s).
-      📝 soulguard.json (staged for editing)
-
-    Staged 1 file(s).
-  `)
+      Staged 1 file(s).
+    `)
     .exits(0);
 
   t.$(`sudo soulguard diff .`)
@@ -37,7 +34,7 @@ e2e("diff: shows no changes for unmodified staging", (t) => {
       exit 0
       Soulguard Diff — /workspace
 
-        ✅ soulguard.json (no changes)
+        ⚠️ soulguard.json (no staging copy)
         ✅ SOUL.md (no changes)
 
       No changes
@@ -49,38 +46,35 @@ e2e("diff: shows no changes for unmodified staging", (t) => {
 e2e("diff: shows unified diff for modified staging", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
-    exit 0
-  `)
+      exit 0
+    `)
     .exits(0);
   t.$(`sudo soulguard init .`)
     .expect(`
-    exit 0
-    ✓ Soulguard initialized.
-  `)
+      exit 0
+      ✓ Soulguard initialized.
+    `)
     .exits(0);
   t.$(`sudo soulguard protect SOUL.md`)
     .expect(`
-    exit 0
-      + SOUL.md → protect
+      exit 0
+        + SOUL.md → protect
 
-    Updated. 1 file(s) now protect-tier.
-  `)
+      Updated. 1 file(s) now protect-tier.
+    `)
     .exits(0);
-  t.$(`soulguard stage SOUL.md && soulguard stage soulguard.json`)
+  t.$(`soulguard stage SOUL.md`)
     .expect(`
-    exit 0
-      📝 SOUL.md (staged for editing)
+      exit 0
+        📝 SOUL.md (staged for editing)
 
-    Staged 1 file(s).
-      📝 soulguard.json (staged for editing)
-
-    Staged 1 file(s).
-  `)
+      Staged 1 file(s).
+    `)
     .exits(0);
   t.$(`echo '# My Modified Soul' | sudo tee .soulguard-staging/SOUL.md > /dev/null`)
     .expect(`
-    exit 0
-  `)
+      exit 0
+    `)
     .exits(0);
 
   t.$(`sudo soulguard diff .`)
@@ -88,7 +82,7 @@ e2e("diff: shows unified diff for modified staging", (t) => {
       exit 1
       Soulguard Diff — /workspace
 
-        ✅ soulguard.json (no changes)
+        ⚠️ soulguard.json (no staging copy)
         📝 SOUL.md
             ===================================================================
             --- a/SOUL.md
@@ -98,7 +92,7 @@ e2e("diff: shows unified diff for modified staging", (t) => {
             +# My Modified Soul
             
 
-      1 file(s) changed
+      2 file(s) changed
       Apply hash: 3ef797046758a06b4f4cae5b20fdca383f4baff6ec653abe6b42597618a0b577
     `)
     .exits(1)
@@ -109,38 +103,35 @@ e2e("diff: shows unified diff for modified staging", (t) => {
 e2e("diff: shows new file when protect-tier copy is missing", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
-    exit 0
-  `)
+      exit 0
+    `)
     .exits(0);
   t.$(`sudo soulguard init .`)
     .expect(`
-    exit 0
-    ✓ Soulguard initialized.
-  `)
+      exit 0
+      ✓ Soulguard initialized.
+    `)
     .exits(0);
   t.$(`sudo soulguard protect SOUL.md`)
     .expect(`
-    exit 0
-      + SOUL.md → protect
+      exit 0
+        + SOUL.md → protect
 
-    Updated. 1 file(s) now protect-tier.
-  `)
+      Updated. 1 file(s) now protect-tier.
+    `)
     .exits(0);
-  t.$(`soulguard stage SOUL.md && soulguard stage soulguard.json`)
+  t.$(`soulguard stage SOUL.md`)
     .expect(`
-    exit 0
-      📝 SOUL.md (staged for editing)
+      exit 0
+        📝 SOUL.md (staged for editing)
 
-    Staged 1 file(s).
-      📝 soulguard.json (staged for editing)
-
-    Staged 1 file(s).
-  `)
+      Staged 1 file(s).
+    `)
     .exits(0);
   t.$(`sudo rm SOUL.md`)
     .expect(`
-    exit 0
-  `)
+      exit 0
+    `)
     .exits(0);
 
   t.$(`sudo soulguard diff .`)
@@ -148,10 +139,10 @@ e2e("diff: shows new file when protect-tier copy is missing", (t) => {
       exit 1
       Soulguard Diff — /workspace
 
-        ✅ soulguard.json (no changes)
+        ⚠️ soulguard.json (no staging copy)
         ⚠️ SOUL.md (protect-tier file missing — new file)
 
-      1 file(s) changed
+      2 file(s) changed
       Apply hash: ddc1ac8615d0e23d031c518f50b17bacc02fd15e5e5cd1a6e2993978f50221a0
     `)
     .exits(1)
