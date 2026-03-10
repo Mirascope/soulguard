@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { MockSystemOps } from "./system-ops-mock.js";
+import { MockSystemOps } from "../util/system-ops-mock.js";
 import { Registry } from "./registry.js";
 
 const WORKSPACE = "/test/workspace";

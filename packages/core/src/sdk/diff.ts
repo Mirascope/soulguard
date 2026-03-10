@@ -4,10 +4,10 @@
 
 import { createHash } from "node:crypto";
 import { createTwoFilesPatch } from "diff";
-import type { Result } from "./result.js";
-import { ok, err } from "./result.js";
-import type { SoulguardConfig } from "./types.js";
-import type { SystemOperations } from "./system-ops.js";
+import type { Result } from "../util/result.js";
+import { ok, err } from "../util/result.js";
+import type { SoulguardConfig } from "../util/types.js";
+import type { SystemOperations } from "../util/system-ops.js";
 import { protectPatterns } from "./config.js";
 import { stagingPath, isDeleteSentinel } from "./staging.js";
 

@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { MockSystemOps } from "./system-ops-mock.js";
+import { MockSystemOps } from "../util/system-ops-mock.js";
 import { diff } from "./diff.js";
 import { apply } from "./apply.js";
-import type { SoulguardConfig, FileOwnership } from "./types.js";
+import type { SoulguardConfig, FileOwnership } from "../util/types.js";
 import type { Policy } from "./policy.js";
-import { ok, err } from "./result.js";
+import { ok, err } from "../util/result.js";
 
 const config: SoulguardConfig = {
   version: 1,

@@ -2,11 +2,11 @@
  * StageCommand — stage protect-tier files for editing or deletion.
  */
 
-import type { ConsoleOutput } from "../console.js";
-import type { SystemOperations } from "../system-ops.js";
-import type { SoulguardConfig } from "../types.js";
-import { stagingPath, DELETE_SENTINEL } from "../staging.js";
-import { protectPatterns } from "../config.js";
+import type { ConsoleOutput } from "../util/console.js";
+import type { SystemOperations } from "../util/system-ops.js";
+import type { SoulguardConfig } from "../util/types.js";
+import { stagingPath, DELETE_SENTINEL } from "../sdk/staging.js";
+import { protectPatterns } from "../sdk/config.js";
 
 export type StageCommandOptions = {
   ops: SystemOperations;

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { MockSystemOps } from "./system-ops-mock.js";
+import { MockSystemOps } from "../util/system-ops-mock.js";
 import { diff } from "./diff.js";
 import { apply } from "./apply.js";
-import type { SoulguardConfig, FileOwnership } from "./types.js";
+import type { SoulguardConfig, FileOwnership } from "../util/types.js";
 
 const protectOwnership: FileOwnership = { user: "soulguardian", group: "soulguard", mode: "444" };
 

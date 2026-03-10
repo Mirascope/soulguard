@@ -3,10 +3,10 @@
  * Shows all files with their protection state + staged change indicators.
  */
 
-import type { ConsoleOutput } from "../console.js";
-import type { StatusOptions, FileStatus } from "../status.js";
-import { status } from "../status.js";
-import { formatIssue } from "../types.js";
+import type { ConsoleOutput } from "../util/console.js";
+import type { StatusOptions, FileStatus } from "../sdk/status.js";
+import { status } from "../sdk/status.js";
+import { formatIssue } from "../util/types.js";
 
 export class StatusCommand {
   constructor(

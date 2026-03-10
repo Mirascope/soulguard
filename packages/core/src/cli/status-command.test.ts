@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { MockSystemOps } from "../system-ops-mock.js";
-import { MockConsoleOutput } from "../console-mock.js";
+import { MockSystemOps } from "../util/system-ops-mock.js";
+import { MockConsoleOutput } from "../util/console-mock.js";
 import { StatusCommand } from "./status-command.js";
-import type { StatusOptions } from "../status.js";
-import { Registry } from "../registry.js";
+import type { StatusOptions } from "../sdk/status.js";
+import { Registry } from "../sdk/registry.js";
 
 const VAULT_OWNERSHIP = { user: "soulguardian", group: "soulguard", mode: "444" };
 const VAULT_MOCK = { owner: "soulguardian", group: "soulguard", mode: "444" };

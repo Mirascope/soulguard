@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { sync } from "./sync.js";
-import { MockSystemOps } from "./system-ops-mock.js";
+import { MockSystemOps } from "../util/system-ops-mock.js";
 import type { FileStatus } from "./status.js";
 
 const WORKSPACE = "/test/workspace";

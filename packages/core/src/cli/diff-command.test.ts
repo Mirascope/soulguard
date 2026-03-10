@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { DiffCommand } from "./diff-command.js";
-import { MockSystemOps } from "../system-ops-mock.js";
-import { MockConsoleOutput } from "../console-mock.js";
-import type { SoulguardConfig, Tier } from "../types.js";
+import { MockSystemOps } from "../util/system-ops-mock.js";
+import { MockConsoleOutput } from "../util/console-mock.js";
+import type { SoulguardConfig, Tier } from "../util/types.js";
 
 const WORKSPACE = "/test/workspace";
 

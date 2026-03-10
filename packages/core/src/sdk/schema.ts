@@ -6,7 +6,7 @@
  */
 
 import { z } from "zod";
-import type { SoulguardConfig } from "./types.js";
+import type { SoulguardConfig } from "../util/types.js";
 
 export const tierSchema = z.enum(["protect", "watch"]);
 
