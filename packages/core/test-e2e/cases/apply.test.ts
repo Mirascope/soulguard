@@ -9,7 +9,7 @@ e2e.skip("apply: applies staged changes with hash", (t) => {
 
   // Agent creates staging and modifies it
   t.$(
-    `su - agent -c "cp $(pwd)/SOUL.md $(pwd)/.soulguard.SOUL.md && echo '# My Updated Soul' > $(pwd)/.soulguard.SOUL.md"`,
+    `su - agent -c "cp $(pwd)/SOUL.md $(pwd)/.soulguard-staging/SOUL.md && echo '# My Updated Soul' > $(pwd)/.soulguard-staging/SOUL.md"`,
   ).expect(``);
 
   t.$(
@@ -40,7 +40,9 @@ e2e.skip("apply: blocks invalid soulguard.json changes (self-protection)", (t) =
   t.$(`soulguard protect SOUL.md`).expect(``).exits(0);
 
   // Agent writes invalid config to staging
-  t.$(`su - agent -c "echo '{"vault":["SOUL.md"]}' > $(pwd)/.soulguard.soulguard.json"`).expect(``);
+  t.$(
+    `su - agent -c "echo '{"vault":["SOUL.md"]}' > $(pwd)/.soulguard-staging/soulguard.json"`,
+  ).expect(``);
 
   // Apply should be blocked by self-protection
   t.$(
@@ -71,10 +73,10 @@ e2e.skip("apply: handles file deletion through staging", (t) => {
 
   // Agent creates staging copies, then deletes BOOTSTRAP staging
   t.$(
-    `su - agent -c "cp $(pwd)/SOUL.md $(pwd)/.soulguard.SOUL.md && cp $(pwd)/BOOTSTRAP.md $(pwd)/.soulguard.BOOTSTRAP.md"`,
+    `su - agent -c "cp $(pwd)/SOUL.md $(pwd)/.soulguard-staging/SOUL.md && cp $(pwd)/BOOTSTRAP.md $(pwd)/.soulguard-staging/BOOTSTRAP.md"`,
   ).expect(``);
 
-  t.$(`su - agent -c "rm $(pwd)/.soulguard.BOOTSTRAP.md"`).expect(``);
+  t.$(`su - agent -c "rm $(pwd)/.soulguard-staging/BOOTSTRAP.md"`).expect(``);
 
   // Changes found (deletion) → exit 1 (git diff convention)
   t.$(`soulguard diff .`).expect(``).exits(1).outputs(/delet/);

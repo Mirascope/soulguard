@@ -33,10 +33,10 @@ e2e.skip("reset: restores staging to match protect-tier", (t) => {
 
   // Agent creates staging and modifies it
   t.$(
-    `su - agent -c "cp $(pwd)/SOUL.md $(pwd)/.soulguard.SOUL.md && echo '# Hacked Soul' > $(pwd)/.soulguard.SOUL.md"`,
+    `su - agent -c "cp $(pwd)/SOUL.md $(pwd)/.soulguard-staging/SOUL.md && echo '# Hacked Soul' > $(pwd)/.soulguard-staging/SOUL.md"`,
   ).expect(`
     exit 1
-    -bash: line 1: /workspace/.soulguard.SOUL.md: Permission denied
+    -bash: line 1: /workspace/.soulguard-staging/SOUL.md: Permission denied
   `);
 
   t.$(`soulguard reset .`)
@@ -60,7 +60,7 @@ e2e.skip("reset: restores staging to match protect-tier", (t) => {
     .outputs(/# My Soul/);
 
   // Staging reset to match
-  t.$(`cat .soulguard.SOUL.md`)
+  t.$(`cat .soulguard-staging/SOUL.md`)
     .expect(`
       exit 0
       # My Soul
