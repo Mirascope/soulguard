@@ -100,7 +100,7 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
               for (const f of issues) {
                 if (f.status === "drifted")
                   lines.push(
-                    `  ⚠️  ${f.file.path} — ${f.issues.map((i: { kind: string }) => i.kind).join(", ")}`,
+                    `  ⚠️  ${f.path} — ${f.issues.map((i: { kind: string }) => i.kind).join(", ")}`,
                   );
                 else if (f.status === "missing") lines.push(`  ❌ ${f.path} — missing`);
                 else if (f.status === "error")

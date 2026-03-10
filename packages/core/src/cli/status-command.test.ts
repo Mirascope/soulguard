@@ -9,7 +9,13 @@ const VAULT_OWNERSHIP = { user: "soulguardian", group: "soulguard", mode: "444" 
 const VAULT_MOCK = { owner: "soulguardian", group: "soulguard", mode: "444" };
 const LEDGER_MOCK = { owner: "agent", group: "soulguard", mode: "644" };
 
-async function setup(configureMock: (ops: MockSystemOps) => void): Promise<{
+async function setup(
+  configureMock: (ops: MockSystemOps) => void,
+  files: Record<string, "protect" | "watch"> = {
+    "SOUL.md": "protect",
+    "memory/today.md": "watch",
+  },
+): Promise<{
   cmd: StatusCommand;
   out: MockConsoleOutput;
 }> {
@@ -19,13 +25,7 @@ async function setup(configureMock: (ops: MockSystemOps) => void): Promise<{
   const registryResult = await Registry.load(ops);
   if (!registryResult.ok) throw new Error("Failed to load registry");
   const opts: StatusOptions = {
-    config: {
-      version: 1,
-      files: {
-        "SOUL.md": "protect",
-        "memory/today.md": "watch",
-      },
-    },
+    config: { version: 1, files },
     expectedProtectOwnership: VAULT_OWNERSHIP,
     ops,
     registry: registryResult.value,
@@ -44,6 +44,18 @@ describe("StatusCommand", () => {
 
     expect(code).toBe(0);
     expect(out.hasText("All files ok")).toBe(true);
+  });
+
+  it("shows ok files with tier info", async () => {
+    const { cmd, out } = await setup((ops) => {
+      ops.addFile("SOUL.md", "soul content", VAULT_MOCK);
+      ops.addFile("memory/today.md", "memory content", LEDGER_MOCK);
+    });
+
+    await cmd.execute();
+
+    expect(out.hasText("SOUL.md (protect, ok)")).toBe(true);
+    expect(out.hasText("memory/today.md (watch, ok)")).toBe(true);
   });
 
   it("returns 1 and shows ⚠️ when files are drifted", async () => {
@@ -69,5 +81,53 @@ describe("StatusCommand", () => {
     expect(code).toBe(1);
     expect(out.hasText("❌")).toBe(true);
     expect(out.hasText("1 missing")).toBe(true);
+  });
+
+  it("shows staged change indicators", async () => {
+    const { cmd, out } = await setup((ops) => {
+      ops.addFile("SOUL.md", "soul content", VAULT_MOCK);
+      ops.addFile(".soulguard-staging/SOUL.md", "updated", LEDGER_MOCK);
+      ops.addFile("memory/today.md", "memory content", LEDGER_MOCK);
+    });
+
+    const code = await cmd.execute();
+
+    expect(code).toBe(0);
+    expect(out.hasText("1 staged change")).toBe(true);
+  });
+
+  it("shows staged changes count for directories", async () => {
+    const { cmd, out } = await setup(
+      (ops) => {
+        ops.addDirectory("skills", { owner: "soulguardian", group: "soulguard", mode: "555" });
+        ops.addFile("skills/a.md", "a", VAULT_MOCK);
+        ops.addDirectory(".soulguard-staging/skills", {
+          owner: "agent",
+          group: "staff",
+          mode: "755",
+        });
+        ops.addFile(".soulguard-staging/skills/a.md", "updated a", LEDGER_MOCK);
+        ops.addFile(".soulguard-staging/skills/b.md", "new b", LEDGER_MOCK);
+      },
+      { skills: "protect" },
+    );
+
+    const code = await cmd.execute();
+
+    expect(code).toBe(0);
+    expect(out.hasText("2 staged changes")).toBe(true);
+  });
+
+  it("returns 0 when only staged changes exist (no drift)", async () => {
+    const { cmd, out } = await setup((ops) => {
+      ops.addFile("SOUL.md", "soul content", VAULT_MOCK);
+      ops.addFile(".soulguard-staging/SOUL.md", "updated", LEDGER_MOCK);
+      ops.addFile("memory/today.md", "memory content", LEDGER_MOCK);
+    });
+
+    const code = await cmd.execute();
+
+    expect(code).toBe(0);
+    expect(out.hasText("All files ok")).toBe(true);
   });
 });
