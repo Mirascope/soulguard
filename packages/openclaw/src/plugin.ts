@@ -10,6 +10,7 @@ import {
   parseConfig,
   NodeSystemOps,
   protectPatterns,
+  formatIssue,
   type SoulguardConfig,
 } from "@soulguard/core";
 
@@ -78,29 +79,23 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
           parameters: { type: "object", properties: {}, required: [] },
           async execute(_id, _params) {
             const ops = createOps();
-            const result = await status({
-              config,
-              expectedProtectOwnership: { user: "soulguardian", group: "soulguard", mode: "444" },
-              ops,
-            });
+            const result = await status({ config, ops });
             if (!result.ok) {
               return { content: [{ type: "text" as const, text: "Status check failed" }] };
             }
             const lines: string[] = ["Soulguard Status:", ""];
-            const { issues } = result.value;
-            if (issues.length === 0) {
+            const { changed, drifts } = result.value;
+            if (changed.length === 0 && drifts.length === 0) {
               lines.push("All files ok.");
             } else {
-              for (const f of issues) {
-                if (f.status === "drifted")
-                  lines.push(
-                    `  ⚠️  ${f.path} — ${f.issues.map((i: { kind: string }) => i.kind).join(", ")}`,
-                  );
-                else if (f.status === "missing") lines.push(`  ❌ ${f.path} — missing`);
-                else if (f.status === "error")
-                  lines.push(`  ❌ ${f.path} — error: ${f.error.kind}`);
+              for (const f of changed) {
+                lines.push(`  ${f.status === "deleted" ? "❌" : "⚠️"}  ${f.path} — ${f.status}`);
               }
-              lines.push("", `${issues.length} issue(s) found.`);
+              for (const d of drifts) {
+                lines.push(`  ⚠️  ${d.entity.path} — ${d.details.map(formatIssue).join(", ")}`);
+              }
+              const total = changed.length + drifts.length;
+              lines.push("", `${total} issue(s) found.`);
             }
             return { content: [{ type: "text" as const, text: lines.join("\n") }] };
           },

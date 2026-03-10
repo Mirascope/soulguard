@@ -4,7 +4,6 @@ import { MockConsoleOutput } from "../util/console-mock.js";
 import { StatusCommand } from "./status-command.js";
 import type { StatusOptions } from "../sdk/status.js";
 
-const VAULT_OWNERSHIP = { user: "soulguardian", group: "soulguard", mode: "444" };
 const VAULT_MOCK = { owner: "soulguardian", group: "soulguard", mode: "444" };
 const LEDGER_MOCK = { owner: "agent", group: "soulguard", mode: "644" };
 
@@ -23,14 +22,13 @@ async function setup(
   const out = new MockConsoleOutput();
   const opts: StatusOptions = {
     config: { version: 1, files },
-    expectedProtectOwnership: VAULT_OWNERSHIP,
     ops,
   };
   return { cmd: new StatusCommand(opts, out), out };
 }
 
 describe("StatusCommand", () => {
-  it("returns 0 and shows all-ok when files are correct", async () => {
+  it("returns 0 and shows all-ok when no drifts or changes", async () => {
     const { cmd, out } = await setup((ops) => {
       ops.addFile("SOUL.md", "soul content", VAULT_MOCK);
       ops.addFile("memory/today.md", "memory content", LEDGER_MOCK);
@@ -42,19 +40,7 @@ describe("StatusCommand", () => {
     expect(out.hasText("All files ok")).toBe(true);
   });
 
-  it("shows ok files with tier info", async () => {
-    const { cmd, out } = await setup((ops) => {
-      ops.addFile("SOUL.md", "soul content", VAULT_MOCK);
-      ops.addFile("memory/today.md", "memory content", LEDGER_MOCK);
-    });
-
-    await cmd.execute();
-
-    expect(out.hasText("SOUL.md (protect, ok)")).toBe(true);
-    expect(out.hasText("memory/today.md (watch, ok)")).toBe(true);
-  });
-
-  it("returns 1 and shows ⚠️ when files are drifted", async () => {
+  it("returns 1 and shows drift when file has wrong owner", async () => {
     const { cmd, out } = await setup((ops) => {
       ops.addFile("SOUL.md", "soul content", { owner: "wrong", group: "soulguard", mode: "444" });
       ops.addFile("memory/today.md", "memory content", LEDGER_MOCK);
@@ -67,19 +53,18 @@ describe("StatusCommand", () => {
     expect(out.hasText("1 drifted")).toBe(true);
   });
 
-  it("returns 1 and shows ❌ when files are missing", async () => {
+  it("returns 0 when config entry has no file on disk", async () => {
     const { cmd, out } = await setup((ops) => {
       ops.addFile("memory/today.md", "memory content", LEDGER_MOCK);
     });
 
     const code = await cmd.execute();
 
-    expect(code).toBe(1);
-    expect(out.hasText("❌")).toBe(true);
-    expect(out.hasText("1 missing")).toBe(true);
+    expect(code).toBe(0);
+    expect(out.hasText("All files ok")).toBe(true);
   });
 
-  it("shows staged change indicators", async () => {
+  it("shows staged changes as info", async () => {
     const { cmd, out } = await setup((ops) => {
       ops.addFile("SOUL.md", "soul content", VAULT_MOCK);
       ops.addFile(".soulguard-staging/SOUL.md", "updated", LEDGER_MOCK);
@@ -89,10 +74,10 @@ describe("StatusCommand", () => {
     const code = await cmd.execute();
 
     expect(code).toBe(0);
-    expect(out.hasText("1 staged change")).toBe(true);
+    expect(out.hasText("staged SOUL.md")).toBe(true);
   });
 
-  it("shows staged changes count for directories", async () => {
+  it("shows staged directory changes per file", async () => {
     const { cmd, out } = await setup(
       (ops) => {
         ops.addDirectory("skills", { owner: "soulguardian", group: "soulguard", mode: "555" });
@@ -111,7 +96,8 @@ describe("StatusCommand", () => {
     const code = await cmd.execute();
 
     expect(code).toBe(0);
-    expect(out.hasText("2 staged changes")).toBe(true);
+    expect(out.hasText("staged skills/a.md")).toBe(true);
+    expect(out.hasText("staged (new) skills/b.md")).toBe(true);
   });
 
   it("returns 0 when only staged changes exist (no drift)", async () => {
@@ -124,6 +110,5 @@ describe("StatusCommand", () => {
     const code = await cmd.execute();
 
     expect(code).toBe(0);
-    expect(out.hasText("All files ok")).toBe(true);
   });
 });

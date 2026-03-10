@@ -40,12 +40,12 @@ export type StageError =
  * Check if a path is in the protect tier (either directly or as a child of a protected directory).
  */
 function isInProtectTier(path: string, protectPatterns: string[]): boolean {
-  // Direct match
-  if (protectPatterns.includes(path)) return true;
-
-  // Check if path is a child of any protected directory
   for (const pattern of protectPatterns) {
-    if (path.startsWith(pattern + "/")) return true;
+    const normalized = pattern.endsWith("/") ? pattern.slice(0, -1) : pattern;
+    // Direct match (handles both "SOUL.md"=="SOUL.md" and "memory"=="memory/")
+    if (path === normalized || path === pattern) return true;
+    // Child of a protected directory (handles "skills/python.md" under "skills/" or "skills")
+    if (path.startsWith(normalized + "/")) return true;
   }
 
   return false;
