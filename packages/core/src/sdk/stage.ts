@@ -214,13 +214,21 @@ export async function stage(options: StageOptions): Promise<Result<StageResult, 
     const sourceExists = await ops.exists(path);
 
     if (sourceExists.ok && sourceExists.value) {
-      // File exists: copy to staging
-      const copyResult = await ops.copyFile(path, stagePath);
-      if (!copyResult.ok) {
+      // File exists: read and write to staging (not copy, to avoid inheriting 444 permissions)
+      const readResult = await ops.readFile(path);
+      if (!readResult.ok) {
         return err({
           kind: "stage_failed",
           path,
-          message: `Cannot copy file: ${copyResult.error.kind}`,
+          message: `Cannot read file: ${readResult.error.kind}`,
+        });
+      }
+      const writeResult = await ops.writeFile(stagePath, readResult.value);
+      if (!writeResult.ok) {
+        return err({
+          kind: "stage_failed",
+          path,
+          message: `Cannot write staging copy: ${writeResult.error.kind}`,
         });
       }
     } else {

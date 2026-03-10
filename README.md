@@ -86,11 +86,14 @@ This prevents the agent from creating, modifying, or deleting any files within t
 
 ### Proposing changes to protected files
 
-When an agent (or anyone) wants to modify a protected file, they edit the staging copy — a sibling file named `.soulguard.<filename>`:
+When an agent (or anyone) wants to modify a protected file, they use the staging workflow:
 
 ```bash
-# Edit the staging copy (no sudo required)
-echo "Don't be evil, even if it would get great quarterly numbers." > .soulguard.SOUL.md
+# Stage the file for editing (no sudo required)
+soulguard stage SOUL.md
+
+# Edit the staging copy
+echo "Don't be evil, even if it would get great quarterly numbers." > .soulguard-staging/SOUL.md
 
 # Review the diff and get an approval hash
 soulguard diff
@@ -228,6 +231,7 @@ soulguard log . SOUL.md
 | Command                           | Description                                                                  |
 | --------------------------------- | ---------------------------------------------------------------------------- |
 | `soulguard status [dir]`          | Report protect and watch file health (ownership, permissions, missing files) |
+| `soulguard stage <paths...>`      | Stage protect-tier files for editing or deletion (use -d flag for deletion)  |
 | `soulguard diff [dir] [files...]` | Show pending changes as unified diff + approval hash                         |
 | `soulguard log [dir] [file]`      | Show git history for tracked files                                           |
 
@@ -248,10 +252,11 @@ Soulguard uses two independent security layers:
 The staging model uses an implicit proposal pattern:
 
 ```text
-1. Agent edits staging copy   →  .soulguard.SOUL.md  (agent-writable)
-2. Human reviews              →  soulguard diff       (shows unified diff + hash)
-3. Human approves             →  sudo soulguard apply --hash <hash>
-4. Changes applied            →  staging → protect, re-locked to 444
+1. Agent stages file          →  soulguard stage SOUL.md
+2. Agent edits staging copy   →  .soulguard-staging/SOUL.md  (agent-writable)
+3. Human reviews              →  soulguard diff       (shows unified diff + hash)
+4. Human approves             →  sudo soulguard apply --hash <hash>
+5. Changes applied            →  staging → protect, re-locked to 444
 ```
 
 The approval hash is computed over frozen copies in `.soulguard/pending/` (owned by soulguardian), preventing the agent from modifying the staging copy between review and apply.
@@ -262,9 +267,10 @@ The approval hash is computed over frozen copies in `.soulguard/pending/` (owned
 workspace/
 ├── soulguard.json                 # Config (always protected)
 ├── SOUL.md                        # Protected file (444, soulguardian:soulguard)
-├── .soulguard.SOUL.md             # Staging sibling (644, agent-writable)
 ├── memory/
 │   └── notes.md                   # Watched file (644, tracked in git)
+├── .soulguard-staging/
+│   └── SOUL.md                    # Staging copy (777, agent-writable)
 └── .soulguard/
     ├── registry.json              # Tracks file tiers + original ownership
     ├── pending/                   # Frozen copies during apply
