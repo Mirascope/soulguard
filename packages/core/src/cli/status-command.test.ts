@@ -109,7 +109,7 @@ describe("StatusCommand", () => {
         ops.addFile(".soulguard-staging/skills/a.md", "updated a", LEDGER_MOCK);
         ops.addFile(".soulguard-staging/skills/b.md", "new b", LEDGER_MOCK);
       },
-      { skills: "protect" },
+      { "skills/": "protect" },
     );
 
     const code = await cmd.execute();
