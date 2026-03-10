@@ -16,14 +16,8 @@ export class DiffCommand {
     const result = await diff(this.options);
 
     if (!result.ok) {
-      switch (result.error.kind) {
-        case "no_config":
-          this.out.error("No soulguard.json found.");
-          return 1;
-        case "read_failed":
-          this.out.error(`Failed to read ${result.error.path}: ${result.error.message}`);
-          return 1;
-      }
+      this.out.error(`Failed: ${result.error.message}`);
+      return 1;
     }
 
     const { files, hasChanges } = result.value;
@@ -31,40 +25,26 @@ export class DiffCommand {
     this.out.heading(`Soulguard Diff — ${this.options.ops.workspace}`);
     this.out.write("");
 
-    let changeCount = 0;
-
-    for (const file of files) {
-      switch (file.status) {
-        case "unchanged":
-          this.out.info(`  ✅ ${file.path} (no changes)`);
-          break;
+    for (const entry of files) {
+      switch (entry.file.status) {
         case "modified":
-          changeCount++;
-          this.out.warn(`  📝 ${file.path}`);
-          if (file.diff) {
-            for (const line of file.diff.split("\n")) {
-              this.out.write(`      ${line}`);
-            }
-          }
+          this.out.warn(`  📝 ${entry.file.path}`);
           break;
-        case "staging_missing":
-          changeCount++;
-          this.out.warn(`  ⚠️ ${file.path} (no staging copy)`);
-          break;
-        case "protect_missing":
-          changeCount++;
-          this.out.warn(`  ⚠️ ${file.path} (protect-tier file missing — new file)`);
+        case "created":
+          this.out.warn(`  ⚠️ ${entry.file.path} (new file)`);
           break;
         case "deleted":
-          changeCount++;
-          this.out.warn(`  🗑️ ${file.path} (staged for deletion)`);
+          this.out.warn(`  🗑️ ${entry.file.path} (staged for deletion)`);
           break;
+      }
+      for (const line of entry.diff.split("\n")) {
+        this.out.write(`      ${line}`);
       }
     }
 
     this.out.write("");
     if (hasChanges) {
-      this.out.info(`${changeCount} file(s) changed`);
+      this.out.info(`${files.length} file(s) changed`);
       if (result.value.approvalHash) {
         this.out.info(`Apply hash: ${result.value.approvalHash}`);
       }

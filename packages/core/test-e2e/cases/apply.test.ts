@@ -284,7 +284,7 @@ e2e("apply: rejects with wrong hash", (t) => {
   t.$(`sudo soulguard apply . --hash "deadbeef" 2>&1`)
     .expect(`
       exit 1
-      Expected hash deadbeef but got hash 80b0f1ea5e2b6e9896224a89c8025ff309de616b83345c8b3f34f20e2acddd98
+      Expected hash deadbeef but got hash 0ef9a3b0ec7982fa7f92305d99c74e10bb74bebb0a0114d74e797c53f0618052
       Please run \`soulguard diff\` again and re-review.
     `)
     .exits(1)

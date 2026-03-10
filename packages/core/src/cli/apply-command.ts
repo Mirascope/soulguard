@@ -42,7 +42,7 @@ export class ApplyCommand {
       // Interactive mode: show diff, compute hash, prompt
       const diffResult = await diff({ ops: this.opts.ops, config: this.opts.config });
       if (!diffResult.ok) {
-        this.out.error(`Diff failed: ${diffResult.error.kind}`);
+        this.out.error(`Diff failed: ${diffResult.error.message}`);
         return 1;
       }
       if (!diffResult.value.hasChanges) {
@@ -53,10 +53,8 @@ export class ApplyCommand {
       // Show diff
       this.out.heading(`Soulguard Apply — ${this.opts.ops.workspace}`);
       this.out.write("");
-      for (const file of diffResult.value.files) {
-        if (file.status === "modified" && file.diff) {
-          this.out.write(file.diff);
-        }
+      for (const entry of diffResult.value.files) {
+        this.out.write(entry.diff);
       }
       this.out.write("");
       this.out.info(`Apply hash: ${diffResult.value.approvalHash}`);

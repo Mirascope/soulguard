@@ -17,7 +17,7 @@ function makeConfig(protect: string[] = ["SOUL.md"]): SoulguardConfig {
 }
 
 describe("diff", () => {
-  test("no changes → all unchanged, hasChanges false", async () => {
+  test("no changes → empty files, hasChanges false", async () => {
     const ops = makeMock();
 
     ops.addFile("SOUL.md", "# Soul");
@@ -28,8 +28,7 @@ describe("diff", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.hasChanges).toBe(false);
-    expect(result.value.files).toHaveLength(1);
-    expect(result.value.files[0]!.status).toBe("unchanged");
+    expect(result.value.files).toHaveLength(0);
   });
 
   test("modified file → shows diff, hasChanges true", async () => {
@@ -43,7 +42,7 @@ describe("diff", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.hasChanges).toBe(true);
-    expect(result.value.files[0]!.status).toBe("modified");
+    expect(result.value.files[0]!.file.status).toBe("modified");
     expect(result.value.files[0]!.diff).toContain("-original");
     expect(result.value.files[0]!.diff).toContain("+modified");
   });
@@ -59,22 +58,23 @@ describe("diff", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.hasChanges).toBe(true);
-    expect(result.value.files[0]!.status).toBe("deleted");
-    expect(result.value.files[0]!.protectedHash).toBeDefined();
+    expect(result.value.files[0]!.file.status).toBe("deleted");
+    expect(result.value.files[0]!.file.canonicalHash).toBeDefined();
     expect(result.value.approvalHash).toBeDefined();
   });
 
-  test("neither protect-tier file nor staging exists → staging_missing status", async () => {
+  test("neither protect-tier file nor staging exists → no files, no changes", async () => {
     const ops = makeMock();
 
     const result = await diff({ ops, config: makeConfig() });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.files[0]!.status).toBe("staging_missing");
+    expect(result.value.files).toHaveLength(0);
+    expect(result.value.hasChanges).toBe(false);
   });
 
-  test("protect-tier file missing → protect_missing status", async () => {
+  test("protect-tier file missing → created status", async () => {
     const ops = makeMock();
 
     ops.addFile(".soulguard-staging/SOUL.md", "# New Soul");
@@ -84,14 +84,14 @@ describe("diff", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.hasChanges).toBe(true);
-    expect(result.value.files[0]!.status).toBe("protect_missing");
+    expect(result.value.files[0]!.file.status).toBe("created");
   });
 
   test("specific files filter works", async () => {
     const ops = makeMock();
 
     ops.addFile("SOUL.md", "# Soul");
-    ops.addFile(".soulguard-staging/SOUL.md", "# Soul");
+    ops.addFile(".soulguard-staging/SOUL.md", "# Soul modified");
     ops.addFile("AGENTS.md", "# Agents");
     ops.addFile(".soulguard-staging/AGENTS.md", "# Agents modified");
 
@@ -101,16 +101,16 @@ describe("diff", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.files).toHaveLength(1);
-    expect(result.value.files[0]!.path).toBe("SOUL.md");
+    expect(result.value.files[0]!.file.path).toBe("SOUL.md");
   });
 
   test("multiple literal files", async () => {
     const ops = makeMock();
 
-    ops.addFile("SOUL.md", "# Soul");
-    ops.addFile(".soulguard-staging/SOUL.md", "# Soul");
+    ops.addFile("SOUL.md", "original");
+    ops.addFile(".soulguard-staging/SOUL.md", "modified");
     ops.addFile("memory/day1.md", "notes");
-    ops.addFile(".soulguard-staging/memory/day1.md", "notes");
+    ops.addFile(".soulguard-staging/memory/day1.md", "modified notes");
 
     const config = makeConfig(["SOUL.md", "memory/day1.md"]);
     const result = await diff({ ops, config });
@@ -118,8 +118,8 @@ describe("diff", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.files).toHaveLength(2);
-    expect(result.value.files.map((f) => f.path)).toContain("SOUL.md");
-    expect(result.value.files.map((f) => f.path)).toContain("memory/day1.md");
+    expect(result.value.files.map((f) => f.file.path)).toContain("SOUL.md");
+    expect(result.value.files.map((f) => f.file.path)).toContain("memory/day1.md");
   });
 
   test("approvalHash is present when changes exist", async () => {
@@ -192,7 +192,7 @@ describe("diff", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.hasChanges).toBe(true);
-    expect(result.value.files[0]!.status).toBe("deleted");
+    expect(result.value.files[0]!.file.status).toBe("deleted");
   });
 
   // ── Directory tests ───────────────────────────────────────────────
@@ -227,8 +227,8 @@ describe("diff", () => {
     if (!result.ok) return;
     expect(result.value.hasChanges).toBe(true);
     expect(result.value.files).toHaveLength(1);
-    expect(result.value.files[0]!.path).toBe("memory/day1.md");
-    expect(result.value.files[0]!.status).toBe("modified");
+    expect(result.value.files[0]!.file.path).toBe("memory/day1.md");
+    expect(result.value.files[0]!.file.status).toBe("modified");
     expect(result.value.files[0]!.diff).toContain("-original notes");
     expect(result.value.files[0]!.diff).toContain("+modified notes");
   });
@@ -250,7 +250,7 @@ describe("diff", () => {
     expect(result.value.files).toHaveLength(0);
   });
 
-  test("directory: new file in staging → protect_missing", async () => {
+  test("directory: new file in staging → created", async () => {
     const ops = makeMock();
 
     ops.addDirectory("memory/");
@@ -265,9 +265,9 @@ describe("diff", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.hasChanges).toBe(true);
-    const newFile = result.value.files.find((f) => f.path === "memory/day2.md");
+    const newFile = result.value.files.find((f) => f.file.path === "memory/day2.md");
     expect(newFile).toBeDefined();
-    expect(newFile!.status).toBe("protect_missing");
+    expect(newFile!.file.status).toBe("created");
   });
 
   test("directory: file has DELETE_SENTINEL in staging → deleted status", async () => {
@@ -287,9 +287,9 @@ describe("diff", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.hasChanges).toBe(true);
-    const deleted = result.value.files.find((f) => f.path === "memory/day2.md");
+    const deleted = result.value.files.find((f) => f.file.path === "memory/day2.md");
     expect(deleted).toBeDefined();
-    expect(deleted!.status).toBe("deleted");
+    expect(deleted!.file.status).toBe("deleted");
   });
 
   test("directory: delete sentinel on staging dir → deletes all files", async () => {
@@ -308,7 +308,7 @@ describe("diff", () => {
     if (!result.ok) return;
     expect(result.value.hasChanges).toBe(true);
     expect(result.value.files).toHaveLength(2);
-    expect(result.value.files.every((f) => f.status === "deleted")).toBe(true);
+    expect(result.value.files.every((f) => f.file.status === "deleted")).toBe(true);
   });
 
   test("directory: delete sentinel on individual file within dir", async () => {
@@ -327,11 +327,11 @@ describe("diff", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.hasChanges).toBe(true);
-    const deleted = result.value.files.find((f) => f.path === "memory/day2.md");
+    const deleted = result.value.files.find((f) => f.file.path === "memory/day2.md");
     expect(deleted).toBeDefined();
-    expect(deleted!.status).toBe("deleted");
-    // day1.md is unchanged, should not appear
-    expect(result.value.files.find((f) => f.path === "memory/day1.md")).toBeUndefined();
+    expect(deleted!.file.status).toBe("deleted");
+    // day1.md is unchanged, should not appear (changed-only)
+    expect(result.value.files.find((f) => f.file.path === "memory/day1.md")).toBeUndefined();
   });
 
   test("directory: approval hash includes individual file paths", async () => {
@@ -368,7 +368,9 @@ describe("diff", () => {
     if (!result.ok) return;
     expect(result.value.hasChanges).toBe(true);
     expect(result.value.files).toHaveLength(2);
-    expect(result.value.files.find((f) => f.path === "SOUL.md")!.status).toBe("modified");
-    expect(result.value.files.find((f) => f.path === "memory/day1.md")!.status).toBe("modified");
+    expect(result.value.files.find((f) => f.file.path === "SOUL.md")!.file.status).toBe("modified");
+    expect(result.value.files.find((f) => f.file.path === "memory/day1.md")!.file.status).toBe(
+      "modified",
+    );
   });
 });

@@ -16,12 +16,11 @@
  * The hash is verified against these frozen copies, not the live staging dir.
  */
 
+import { createHash } from "node:crypto";
 import type { SystemOperations } from "../util/system-ops.js";
 import type { FileOwnership, SoulguardConfig, Result } from "../util/types.js";
 import { StateTree } from "./state.js";
 import type { StateFile } from "./state.js";
-import { computeApprovalHash } from "./diff.js";
-import type { FileDiff } from "./diff.js";
 import { ok, err } from "../util/result.js";
 import type { GitCommitResult } from "../util/git.js";
 import { isGitEnabled, gitCommit, protectCommitMessage } from "../util/git.js";
@@ -80,35 +79,6 @@ function collectParentDirs(prefix: string, paths: string[]): string[] {
 }
 
 /**
- * Convert a StateFile to a FileDiff for approval hash computation.
- */
-function stateFileToFileDiff(sf: StateFile): FileDiff {
-  switch (sf.status) {
-    case "modified":
-      return {
-        path: sf.path,
-        status: "modified",
-        protectedHash: sf.canonicalHash ?? undefined,
-        stagedHash: sf.stagedHash ?? undefined,
-      };
-    case "created":
-      return {
-        path: sf.path,
-        status: "protect_missing",
-        stagedHash: sf.stagedHash ?? undefined,
-      };
-    case "deleted":
-      return {
-        path: sf.path,
-        status: "deleted",
-        protectedHash: sf.canonicalHash ?? undefined,
-      };
-    default:
-      return { path: sf.path, status: "unchanged" };
-  }
-}
-
-/**
  * Apply staging changes to protect.
  */
 export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, ApplyError>> {
@@ -129,19 +99,17 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
   }
 
   const tree = treeResult.value;
-  const changedStateFiles = tree.changedFiles();
+  const changedFiles = tree.changedFiles();
 
-  if (changedStateFiles.length === 0) {
+  if (changedFiles.length === 0) {
     return err({ kind: "no_changes" });
   }
 
-  // Convert to FileDiff for approval hash compatibility
-  const changedFiles = changedStateFiles.map(stateFileToFileDiff);
+  const nonDeletedFiles = changedFiles.filter((f) => f.status !== "deleted");
 
   // ── Phase 2: Copy staging to protected working dir ─────────────────
   await ops.mkdir(".soulguard/pending");
 
-  const nonDeletedFiles = changedFiles.filter((f) => f.status !== "deleted");
   const pendingParents = collectParentDirs(
     ".soulguard/pending",
     nonDeletedFiles.map((f) => f.path),
@@ -249,7 +217,7 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
   // ── Phase 4: Backup all affected protect-tier files ──────────────
   await ops.mkdir(".soulguard/backup");
 
-  const filesToBackup = changedFiles.filter((f) => f.status !== "protect_missing");
+  const filesToBackup = changedFiles.filter((f) => f.status !== "created");
   const backupParents = collectParentDirs(
     ".soulguard/backup",
     filesToBackup.map((f) => f.path),
@@ -281,7 +249,7 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
         });
       }
     } else {
-      if (file.status === "protect_missing") {
+      if (file.status === "created") {
         const parentDir = dirname(file.path);
         if (parentDir !== ".") {
           await ops.mkdir(parentDir);
@@ -352,24 +320,33 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
 
 /**
  * Compute approval hash from frozen pending copies.
+ * Uses the same algorithm as StateTree.approvalHash but hashes the
+ * pending copies instead of staging, to detect timing attacks.
  */
 async function computePendingHash(
   ops: SystemOperations,
-  changedFiles: FileDiff[],
+  changedFiles: StateFile[],
 ): Promise<Result<string, string>> {
-  const withHashes: FileDiff[] = [];
-  for (const f of changedFiles) {
+  const sorted = [...changedFiles].sort((a, b) => a.path.localeCompare(b.path));
+  const hasher = createHash("sha256");
+  for (const f of sorted) {
     if (f.status === "deleted") {
-      withHashes.push(f);
+      hasher.update(f.path);
+      hasher.update(f.status);
+      hasher.update(f.canonicalHash ?? "null");
+      hasher.update("null");
     } else {
       const fileHash = await ops.hashFile(`.soulguard/pending/${f.path}`);
       if (!fileHash.ok) {
         return err(`Cannot hash pending/${f.path}`);
       }
-      withHashes.push({ ...f, stagedHash: fileHash.value });
+      hasher.update(f.path);
+      hasher.update(f.status);
+      hasher.update(f.canonicalHash ?? "null");
+      hasher.update(fileHash.value);
     }
   }
-  return ok(computeApprovalHash(withHashes));
+  return ok(hasher.digest("hex"));
 }
 
 async function cleanupPending(ops: SystemOperations): Promise<void> {
