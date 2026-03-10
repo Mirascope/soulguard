@@ -24,7 +24,7 @@
  */
 
 import type { SystemOperations } from "../util/system-ops.js";
-import type { SoulguardConfig, FileOwnership, Tier, Result } from "../util/types.js";
+import type { SoulguardConfig, FileOwnership, Tier, DriftIssue, Result } from "../util/types.js";
 import { ok, err } from "../util/result.js";
 import { PROTECT_OWNERSHIP } from "../util/constants.js";
 import { STAGING_DIR, stagingPath, isDeleteSentinel } from "./staging.js";
@@ -79,14 +79,8 @@ export type StateDirectory = {
 /** An entity with ownership that doesn't match its tier expectations. */
 export type Drift = {
   entity: StateEntity;
-  details: DriftDetail[];
+  details: DriftIssue[];
 };
-
-/** Specific ownership/permission mismatch. */
-export type DriftDetail =
-  | { kind: "wrong_owner"; expected: string; actual: string }
-  | { kind: "wrong_group"; expected: string; actual: string }
-  | { kind: "wrong_mode"; expected: string; actual: string };
 
 // ── Build options ───────────────────────────────────────────────────────
 
@@ -236,7 +230,7 @@ function collectDrifts(entities: StateEntity[]): Drift[] {
   const drifts: Drift[] = [];
   for (const entity of entities) {
     if (entity.configTier === "protect" && entity.ownership) {
-      const details: DriftDetail[] = [];
+      const details: DriftIssue[] = [];
       const expectedMode = entity.kind === "directory" ? PROTECT_DIR_MODE : PROTECT_OWNERSHIP.mode;
 
       if (entity.ownership.user !== PROTECT_OWNERSHIP.user) {

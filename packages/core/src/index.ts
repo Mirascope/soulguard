@@ -34,9 +34,13 @@ export { MockSystemOps } from "./util/system-ops-mock.js";
 export type { RecordedOp } from "./util/system-ops-mock.js";
 export { NodeSystemOps } from "./util/system-ops-node.js";
 
+// State
+export { StateTree } from "./sdk/state.js";
+export type { StateFile, StateDirectory, StateEntity, FileStatus, Drift } from "./sdk/state.js";
+
 // Status
 export { status } from "./sdk/status.js";
-export type { FileStatus, StatusResult, StatusOptions } from "./sdk/status.js";
+export type { StatusResult, StatusOptions } from "./sdk/status.js";
 
 // Diff
 export { diff } from "./sdk/diff.js";

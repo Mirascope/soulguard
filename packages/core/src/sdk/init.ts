@@ -11,7 +11,7 @@
 import type { SystemOperations } from "../util/system-ops.js";
 import type { SoulguardConfig, Result } from "../util/types.js";
 import { ok, err } from "../util/result.js";
-import { SOULGUARDIAN_IDENTITY, PROTECT_OWNERSHIP } from "../util/constants.js";
+import { SOULGUARDIAN_IDENTITY } from "../util/constants.js";
 import { ensureConfig, writeConfig } from "./config.js";
 import type { ConfigError } from "./config.js";
 import { status } from "./status.js";
@@ -292,13 +292,9 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
 
   // ── 6. Status check ──────────────────────────────────────────────────
   let issueCount = 0;
-  const statusResult = await status({
-    config,
-    expectedProtectOwnership: PROTECT_OWNERSHIP,
-    ops,
-  });
+  const statusResult = await status({ config, ops });
   if (statusResult.ok) {
-    issueCount = statusResult.value.issues.length;
+    issueCount = statusResult.value.drifts.length;
   }
 
   return ok({

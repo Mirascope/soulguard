@@ -38,13 +38,12 @@ e2e("sync: fixes drifted ownership and permissions", (t) => {
       exit 1
       Soulguard Status — /workspace
 
-        ✓ soulguard.json (protect, ok)
         ⚠️  SOUL.md (protect)
             owner is root, expected soulguardian
             group is root, expected soulguard
             mode is 644, expected 444
 
-      1 drifted, 0 missing
+      1 drifted
     `)
     .exits(1)
     .outputs(/drifted/);
@@ -70,10 +69,8 @@ e2e("sync: fixes drifted ownership and permissions", (t) => {
       exit 0
       Soulguard Status — /workspace
 
-        ✓ soulguard.json (protect, ok)
-        ✓ SOUL.md (protect, ok)
-
       All files ok.
+
     `)
     .exits(0)
     .outputs(/All files ok/);

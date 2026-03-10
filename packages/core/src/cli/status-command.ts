@@ -1,12 +1,21 @@
 /**
  * StatusCommand — pretty-prints the result of `status()`.
- * Shows all files with their protection state + staged change indicators.
+ * Shows drifted entities and staged changes. Unchanged files are hidden.
  */
 
 import type { ConsoleOutput } from "../util/console.js";
-import type { StatusOptions, FileStatus } from "../sdk/status.js";
+import type { StatusOptions } from "../sdk/status.js";
 import { status } from "../sdk/status.js";
+import type { Drift } from "../sdk/state.js";
+import type { FileStatus } from "../sdk/state.js";
 import { formatIssue } from "../util/types.js";
+
+const STAGED_LABELS: Record<FileStatus, string> = {
+  modified: "staged",
+  created: "staged (new)",
+  deleted: "staged (delete)",
+  unchanged: "unchanged",
+};
 
 export class StatusCommand {
   constructor(
@@ -18,58 +27,35 @@ export class StatusCommand {
     const result = await status(this.opts);
     if (!result.ok) return 1;
 
-    const { files, issues } = result.value;
+    const { changed, drifts } = result.value;
 
     this.out.heading(`Soulguard Status — ${this.opts.ops.workspace}`);
     this.out.write("");
 
-    // Show all files
-    for (const f of files) {
-      this.printFile(f);
+    // Show drifts
+    for (const drift of drifts) {
+      this.out.warn(`  ⚠️  ${drift.entity.path} (${drift.entity.configTier})`);
+      for (const issue of drift.details) {
+        this.out.warn(`      ${formatIssue(issue)}`);
+      }
+    }
+
+    // Show staged changes
+    for (const file of changed) {
+      this.out.info(`  ${STAGED_LABELS[file.status]} ${file.path}`);
+    }
+
+    if (drifts.length === 0 && changed.length === 0) {
+      this.out.success("All files ok.");
     }
 
     this.out.write("");
 
-    // Exit code: only file-level issues (drifted/missing/error) cause failure
-    const fileIssues = issues.filter((f) => ["drifted", "missing", "error"].includes(f.status));
-
-    if (fileIssues.length === 0) {
-      this.out.success("All files ok.");
-      return 0;
+    if (drifts.length > 0) {
+      this.out.info(`${drifts.length} drifted`);
+      return 1;
     }
 
-    const drifted = fileIssues.filter((f) => f.status === "drifted").length;
-    const missing = fileIssues.filter((f) => f.status === "missing").length;
-    this.out.info(`${drifted} drifted, ${missing} missing`);
-
-    return 1;
-  }
-
-  private printFile(f: FileStatus): void {
-    switch (f.status) {
-      case "ok": {
-        const staged = f.stagedChanges
-          ? `, ${f.stagedChanges} staged change${f.stagedChanges > 1 ? "s" : ""}`
-          : "";
-        this.out.success(`  ✓ ${f.path} (${f.tier}, ok${staged})`);
-        break;
-      }
-      case "drifted": {
-        const staged = f.stagedChanges
-          ? `, ${f.stagedChanges} staged change${f.stagedChanges > 1 ? "s" : ""}`
-          : "";
-        this.out.warn(`  ⚠️  ${f.path} (${f.tier}${staged})`);
-        for (const issue of f.issues) {
-          this.out.warn(`      ${formatIssue(issue)}`);
-        }
-        break;
-      }
-      case "missing":
-        this.out.error(`  ❌ ${f.path} (${f.tier}, missing)`);
-        break;
-      case "error":
-        this.out.error(`  ❌ ${f.path} (${f.error.kind})`);
-        break;
-    }
+    return 0;
   }
 }

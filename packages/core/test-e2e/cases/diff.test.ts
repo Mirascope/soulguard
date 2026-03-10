@@ -56,10 +56,8 @@ e2e("diff: shows no changes for unmodified staging", (t) => {
       exit 0
       Soulguard Status — /workspace
 
-        ✓ soulguard.json (protect, ok)
-        ✓ SOUL.md (protect, ok, 1 staged change)
-
       All files ok.
+
     `)
     .exits(0)
     .outputs(/ok/);
@@ -135,10 +133,8 @@ e2e("diff: shows unified diff for modified staging", (t) => {
       exit 0
       Soulguard Status — /workspace
 
-        ✓ soulguard.json (protect, ok)
-        ✓ SOUL.md (protect, ok, 1 staged change)
+        staged SOUL.md
 
-      All files ok.
     `)
     .exits(0)
     .outputs(/staged/);
@@ -203,13 +199,11 @@ e2e("diff: shows new file when protect-tier copy is missing", (t) => {
   // Status — should report the missing file
   t.$(`soulguard status`)
     .expect(`
-      exit 1
+      exit 0
       Soulguard Status — /workspace
 
-        ✓ soulguard.json (protect, ok)
-        ❌ SOUL.md (protect, missing)
+        staged (new) SOUL.md
 
-      0 drifted, 1 missing
     `)
     .outputs(/missing|SOUL\.md/);
 });
@@ -281,10 +275,8 @@ e2e("diff: directory staged recursively with no changes shows clean", (t) => {
       exit 0
       Soulguard Status — /workspace
 
-        ✓ soulguard.json (protect, ok)
-        ✓ memory (protect, ok, 2 staged changes)
-
       All files ok.
+
     `)
     .exits(0)
     .outputs(/ok/);
@@ -369,10 +361,8 @@ e2e("diff: directory staged recursively with modified file shows diff", (t) => {
       exit 0
       Soulguard Status — /workspace
 
-        ✓ soulguard.json (protect, ok)
-        ✓ memory (protect, ok, 1 staged change)
+        staged memory/day1.md
 
-      All files ok.
     `)
     .exits(0)
     .outputs(/staged/);
@@ -442,10 +432,8 @@ e2e("diff: soulguard.json staged with no changes shows clean", (t) => {
       exit 0
       Soulguard Status — /workspace
 
-        ✓ soulguard.json (protect, ok, 1 staged change)
-        ✓ memory (protect, ok)
-
       All files ok.
+
     `)
     .exits(0)
     .outputs(/ok/);
@@ -525,10 +513,8 @@ e2e("diff: new file staged in protected directory shows new file diff", (t) => {
       exit 0
       Soulguard Status — /workspace
 
-        ✓ soulguard.json (protect, ok)
-        ✓ skills (protect, ok, 1 staged change)
+        staged (new) skills/new-skill.md
 
-      All files ok.
     `)
     .exits(0)
     .outputs(/staged/);
@@ -593,10 +579,8 @@ e2e("diff: stage -d file shows deletion cleanly", (t) => {
       exit 0
       Soulguard Status — /workspace
 
-        ✓ soulguard.json (protect, ok)
-        ✓ SOUL.md (protect, ok, 1 staged change)
+        staged (delete) SOUL.md
 
-      All files ok.
     `)
     .exits(0)
     .outputs(/staged/);
@@ -672,10 +656,9 @@ e2e("diff: stage -d directory shows deletion cleanly", (t) => {
       exit 0
       Soulguard Status — /workspace
 
-        ✓ soulguard.json (protect, ok)
-        ✓ memory (protect, ok, 1 staged change)
+        staged (delete) memory/day1.md
+        staged (delete) memory/day2.md
 
-      All files ok.
     `)
     .exits(0)
     .outputs(/staged/);
