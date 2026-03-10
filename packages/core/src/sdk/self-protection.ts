@@ -12,7 +12,6 @@
 
 import type { Result } from "../util/types.js";
 import type { ApplyError } from "./apply.js";
-import type { FileDiff } from "./diff.js";
 import { soulguardConfigSchema } from "./schema.js";
 import { ok, err } from "../util/result.js";
 
@@ -23,7 +22,7 @@ import { ok, err } from "../util/result.js";
  */
 export function validateSelfProtection(
   pendingContents: Map<string, string>,
-  deletedFiles: FileDiff[] = [],
+  deletedFiles: Array<{ path: string }> = [],
 ): Result<void, ApplyError> {
   // Block deletion of soulguard.json — config must always exist
   if (deletedFiles.some((f) => f.path === "soulguard.json")) {
