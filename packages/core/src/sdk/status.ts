@@ -25,7 +25,6 @@ import { ok, err } from "../util/result.js";
 import type { SystemOperations } from "../util/system-ops.js";
 import { StateTree } from "./state.js";
 import type { StateFile, StateDirectory, StateEntity, Drift } from "./state.js";
-import type { Registry } from "./registry.js";
 
 // ── File status ────────────────────────────────────────────────────────
 
@@ -33,18 +32,13 @@ export type FileStatus =
   | { tier: Tier; status: "ok"; path: string; stagedChanges?: number }
   | { tier: Tier; status: "drifted"; path: string; issues: DriftIssue[]; stagedChanges?: number }
   | { tier: Tier; status: "missing"; path: string }
-  | { tier: Tier; status: "error"; path: string; error: { kind: string; message: string } }
-  | { tier: Tier; status: "unregistered"; path: string }
-  | { tier: Tier; status: "tier_changed"; path: string; registryTier: Tier }
-  | { status: "orphaned"; path: string; registryTier: Tier; originalOwnership?: FileOwnership };
+  | { tier: Tier; status: "error"; path: string; error: { kind: string; message: string } };
 
 export type StatusResult = {
   /** All file statuses (ok + issues) */
   files: FileStatus[];
   /** Only non-ok statuses (for backward compat) */
   issues: FileStatus[];
-  /** Current registry state */
-  registry: Registry;
 };
 
 export type StatusOptions = {
@@ -52,8 +46,6 @@ export type StatusOptions = {
   /** Expected ownership for protect-tier files (e.g. soulguardian:soulguard 444) */
   expectedProtectOwnership: FileOwnership;
   ops: SystemOperations;
-  /** Registry for reconciliation */
-  registry: Registry;
 };
 
 /**
@@ -62,7 +54,7 @@ export type StatusOptions = {
  * Builds a StateTree and derives all status information from it.
  */
 export async function status(options: StatusOptions): Promise<Result<StatusResult, IOError>> {
-  const { config, ops, registry } = options;
+  const { config, ops } = options;
 
   // Build the unified state tree
   const treeResult = await StateTree.build({ ops, config });
@@ -78,8 +70,7 @@ export async function status(options: StatusOptions): Promise<Result<StatusResul
   const drifts = tree.driftedEntities();
   const driftsByPath = new Map(drifts.map((d) => [d.entity.path, d]));
 
-  // Build a map from StateTree entity path → original config key
-  // so we can use the correct key format (with trailing slash for dirs)
+  // Map entity paths back to original config keys (preserves trailing slash for dirs)
   const entityToConfigKey = new Map<string, string>();
   for (const key of Object.keys(config.files)) {
     const path = key.endsWith("/") ? key.slice(0, -1) : key;
@@ -99,51 +90,13 @@ export async function status(options: StatusOptions): Promise<Result<StatusResul
   for (const [key, tier] of Object.entries(config.files)) {
     const path = key.endsWith("/") ? key.slice(0, -1) : key;
     if (!entityPaths.has(path)) {
-      // Use the original config key as the path (preserves trailing slash)
-      allFiles.push({ tier, status: "missing", path: key });
+      allFiles.push({ tier, status: "missing", path });
     }
   }
 
   const issues: FileStatus[] = allFiles.filter((f) => f.status !== "ok");
 
-  // ── Registry reconciliation (backward compat, will be removed) ─────
-  // Registry uses the same key format as config (with trailing slash for dirs).
-  // We must look up registry using the original config key, not the stripped path.
-  {
-    const configKeys = Object.keys(config.files);
-    // managedPaths uses original config keys for registry comparison
-    const managedKeys = new Set(configKeys);
-
-    for (const key of configKeys) {
-      const tier = config.files[key]!;
-      // Try the config key as-is first (e.g. "skills/"), then without slash
-      const entry = registry.get(key) ?? registry.get(key.replace(/\/$/, ""));
-      if (!entry) {
-        issues.push({ tier, status: "unregistered", path: key });
-      } else if (entry.tier !== tier) {
-        issues.push({ tier, status: "tier_changed", path: key, registryTier: entry.tier });
-      }
-    }
-
-    for (const regPath of registry.paths()) {
-      // Check both with and without trailing slash
-      if (
-        !managedKeys.has(regPath) &&
-        !managedKeys.has(regPath + "/") &&
-        !managedKeys.has(regPath.replace(/\/$/, ""))
-      ) {
-        const entry = registry.get(regPath)!;
-        issues.push({
-          status: "orphaned",
-          path: regPath,
-          registryTier: entry.tier,
-          originalOwnership: entry.tier === "protect" ? entry.originalOwnership : undefined,
-        });
-      }
-    }
-  }
-
-  return ok({ files: allFiles, issues, registry });
+  return ok({ files: allFiles, issues });
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -200,7 +153,6 @@ function directoryEntityToStatus(
 ): FileStatus {
   const changedChildren = countStagedChanges(dir);
   const drift = driftsByPath.get(dir.path);
-
   // Use original config key (with trailing slash) for display path
   const displayPath = entityToConfigKey.get(dir.path) ?? dir.path;
 

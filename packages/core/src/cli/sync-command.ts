@@ -18,21 +18,12 @@ export class SyncCommand {
     const result = await sync(this.opts);
     if (!result.ok) return 1;
 
-    const { beforeIssues, errors, released, git } = result.value;
+    const { beforeIssues, errors, git } = result.value;
 
     this.out.heading(`Soulguard Sync — ${this.opts.ops.workspace}`);
     this.out.write("");
 
-    // Show released files
-    if (released.length > 0) {
-      this.out.heading("Released:");
-      for (const f of released) {
-        this.out.info(`  🔓 ${f} (released)`);
-      }
-      this.out.write("");
-    }
-
-    if (beforeIssues.length === 0 && errors.length === 0 && released.length === 0) {
+    if (beforeIssues.length === 0 && errors.length === 0) {
       this.out.success("Nothing to fix — all files ok.");
       this.reportGit(git);
       return 0;
@@ -40,8 +31,7 @@ export class SyncCommand {
 
     // Show fixed drift issues
     const drifted = beforeIssues.filter((f) => f.status === "drifted");
-    const releasedSet = new Set(released);
-    const fixed = drifted.filter((f) => !releasedSet.has(f.path));
+    const fixed = drifted;
 
     if (fixed.length > 0 && errors.length === 0) {
       this.out.heading("Fixed:");

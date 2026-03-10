@@ -39,6 +39,11 @@ e2e("protect: sets correct ownership and permissions", (t) => {
         "files": {
           "soulguard.json": "protect",
           "SOUL.md": "protect"
+        },
+        "defaultOwnership": {
+          "user": "agent",
+          "group": "agent",
+          "mode": "644"
         }
       }
     `)
