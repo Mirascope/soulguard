@@ -298,21 +298,6 @@ export class MockSystemOps implements SystemOperations {
     return ok(hash.digest("hex"));
   }
 
-  async glob(pattern: string): Promise<Result<string[], IOError>> {
-    // Simple prefix-based matching for mock (globs are being removed from core)
-    const prefix = this.workspace + "/";
-    const matches: string[] = [];
-    for (const fullPath of this.files.keys()) {
-      if (!fullPath.startsWith(prefix)) continue;
-      const relPath = fullPath.slice(prefix.length);
-      // Simple startsWith for directory-like patterns, exact match otherwise
-      if (relPath === pattern || relPath.startsWith(pattern + "/")) {
-        matches.push(relPath);
-      }
-    }
-    return ok(matches.sort());
-  }
-
   async chmodDirectoryTree(
     path: string,
     modes: { fileMode: string; dirMode: string },
