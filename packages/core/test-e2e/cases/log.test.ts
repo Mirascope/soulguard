@@ -19,7 +19,7 @@ e2e("log: shows git history after sync", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
 
@@ -28,7 +28,7 @@ e2e("log: shows git history after sync", (t) => {
       exit 0
         + memory/notes.md → watch
 
-      Updated. 1 file(s) now watch-tier.
+      Updated. 1 file(s) now watched.
     `)
     .exits(0);
 

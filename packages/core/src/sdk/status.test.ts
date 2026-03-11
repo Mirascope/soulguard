@@ -24,7 +24,7 @@ function opts(
 describe("status", () => {
   // ── Changed files ──────────────────────────────────────────────────
 
-  test("correct protect-tier file is not in changed", async () => {
+  test("correct protected file is not in changed", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", {
       owner: VAULT_OWNERSHIP.user,
@@ -129,7 +129,7 @@ describe("status", () => {
 
   // ── Drift detection ────────────────────────────────────────────────
 
-  test("reports drift when protect-tier file has wrong owner", async () => {
+  test("reports drift when protected file has wrong owner", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", {
       owner: "agent",
@@ -149,7 +149,7 @@ describe("status", () => {
     });
   });
 
-  test("reports drift when protect-tier file has wrong mode", async () => {
+  test("reports drift when protected file has wrong mode", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", {
       owner: VAULT_OWNERSHIP.user,
@@ -186,7 +186,7 @@ describe("status", () => {
     ]);
   });
 
-  test("watch-tier files produce no drifts regardless of ownership", async () => {
+  test("watched files produce no drifts regardless of ownership", async () => {
     const ops = makeMock();
     ops.addFile("notes.md", "# Notes", {
       owner: VAULT_OWNERSHIP.user,

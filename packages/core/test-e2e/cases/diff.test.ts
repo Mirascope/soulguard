@@ -22,7 +22,7 @@ e2e("diff: shows no changes for unmodified staging", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
 
@@ -83,7 +83,7 @@ e2e("diff: shows unified diff for modified staging", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
 
@@ -137,9 +137,9 @@ e2e("diff: shows unified diff for modified staging", (t) => {
     .outputs(/staged/);
 });
 
-// ── Single file: protect-tier copy missing (new file) ───────────────
+// ── Single file: protected copy missing (new file) ──────────────────
 
-e2e("diff: shows new file when protect-tier copy is missing", (t) => {
+e2e("diff: shows new file when protected copy is missing", (t) => {
   // Create a file
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
@@ -159,11 +159,11 @@ e2e("diff: shows new file when protect-tier copy is missing", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
 
-  // Stage, then delete the protect-tier original
+  // Stage, then delete the protected original
   t.$(`soulguard stage SOUL.md`)
     .expect(`
       exit 0
@@ -178,7 +178,7 @@ e2e("diff: shows new file when protect-tier copy is missing", (t) => {
     `)
     .exits(0);
 
-  // Diff — protect-tier file is gone, staging copy exists → new file
+  // Diff — protected file is gone, staging copy exists → new file
   t.$(`soulguard diff .`)
     .expect(`
       exit 1
@@ -234,7 +234,7 @@ e2e("diff: directory staged recursively with no changes shows clean", (t) => {
       exit 0
         + memory → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
   t.$(`sudo soulguard sync`)
@@ -305,7 +305,7 @@ e2e("diff: directory staged recursively with modified file shows diff", (t) => {
       exit 0
         + memory → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
   t.$(`sudo soulguard sync`)
@@ -390,7 +390,7 @@ e2e("diff: soulguard.json staged with no changes shows clean", (t) => {
       exit 0
         + memory → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
   t.$(`sudo soulguard sync`)
@@ -402,7 +402,7 @@ e2e("diff: soulguard.json staged with no changes shows clean", (t) => {
     `)
     .exits(0);
 
-  // Stage the config file (always protect-tier)
+  // Stage the config file (always protected)
   t.$(`soulguard stage soulguard.json`)
     .expect(`
       exit 0
@@ -460,7 +460,7 @@ e2e("diff: new file staged in protected directory shows new file diff", (t) => {
       exit 0
         + skills → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
   t.$(`sudo soulguard sync`)
@@ -546,7 +546,7 @@ e2e("diff: stage -d file shows deletion cleanly", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
 
@@ -619,7 +619,7 @@ e2e("diff: stage -d directory shows deletion cleanly", (t) => {
       exit 0
         + memory → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
   t.$(`sudo soulguard sync`)

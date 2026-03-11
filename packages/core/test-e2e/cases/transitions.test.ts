@@ -19,7 +19,7 @@ e2e("transitions: protect → watch downgrades permissions", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
 
@@ -36,7 +36,7 @@ e2e("transitions: protect → watch downgrades permissions", (t) => {
       exit 0
         ↓ SOUL.md → watch (was protect)
 
-      Updated. 1 file(s) now watch-tier.
+      Updated. 1 file(s) now watched.
     `)
     .exits(0)
     .outputs(/watch/);
@@ -70,7 +70,7 @@ e2e("transitions: protect → release restores default ownership", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
 

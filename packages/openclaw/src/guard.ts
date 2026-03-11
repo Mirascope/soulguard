@@ -1,5 +1,5 @@
 /**
- * before_tool_call guard — blocks writes to protect-tier protected files and
+ * before_tool_call guard — blocks writes to protected files and
  * returns a helpful message pointing the agent to the staging workflow.
  */
 
@@ -9,7 +9,7 @@ import { isProtectedFile, isStagingPath, stagingPath } from "@soulguard/core";
 // ── Types ──────────────────────────────────────────────────────────────
 
 export type GuardOptions = {
-  /** Protect-tier file paths/patterns from soulguard.json */
+  /** Protected file paths/patterns from soulguard.json */
   protectFiles: string[];
 };
 
@@ -63,7 +63,7 @@ export function guardToolCall(
   return {
     blocked: true,
     reason:
-      `${fileName} is protect-tier protected by soulguard. ` +
+      `${fileName} is protected by soulguard. ` +
       `To modify it, edit ${stagingPath(targetPath)} instead. ` +
       `Your changes will be reviewed and approved by the owner.`,
   };

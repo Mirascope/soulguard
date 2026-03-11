@@ -1,5 +1,5 @@
 /**
- * Check if a file path matches a protect-tier entry.
+ * Check if a file path matches a protected entry.
  * Literal path comparison only (no globs).
  */
 

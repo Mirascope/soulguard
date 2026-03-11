@@ -1,12 +1,12 @@
 /**
- * soulguard apply — apply staging changes to protect-tier files.
+ * soulguard apply — apply staging changes to protected files.
  *
  * Built on top of StateTree: one walk, one snapshot, pure derivations.
  *
  * Implicit proposal model: staging IS the proposal. At approval time:
  * 1. Verify approval hash matches the StateTree snapshot
  * 2. Read staging content, run self-protection and policy checks
- * 3. Backup current protect-tier files
+ * 3. Backup current protected files
  * 4. Apply from staging, verify each written file's hash matches snapshot
  * 5. Sync staging, cleanup
  *
@@ -165,7 +165,7 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
     }
   }
 
-  // ── Phase 2: Backup all affected protect-tier files ─────────────────
+  // ── Phase 2: Backup all affected protected files ───────────────────
   await ops.mkdir(".soulguard/backup");
 
   const filesToBackup = changedFiles.filter((f) => f.status !== "created");

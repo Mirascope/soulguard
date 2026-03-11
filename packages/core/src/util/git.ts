@@ -1,7 +1,7 @@
 /**
  * Git integration helpers for soulguard.
  *
- * Provides auto-commit functionality for protect and watch-tier changes.
+ * Provides auto-commit functionality for protect and watch changes.
  * All operations are best-effort — git failures never block core operations.
  */
 
@@ -94,7 +94,7 @@ export async function gitCommit(
 }
 
 /**
- * Build a human-readable commit message for protect-tier changes.
+ * Build a human-readable commit message for protected changes.
  */
 export function protectCommitMessage(files: string[], approvalMessage?: string): string {
   const fileList = files.join(", ");
@@ -106,8 +106,8 @@ export function protectCommitMessage(files: string[], approvalMessage?: string):
 }
 
 /**
- * Build a human-readable commit message for watch-tier changes.
- * Uses a generic message since we stage all watch-tier files and let
+ * Build a human-readable commit message for watched changes.
+ * Uses a generic message since we stage all watched files and let
  * git determine which actually changed.
  */
 export function watchCommitMessage(): string {
@@ -143,9 +143,9 @@ export async function gitLog(
 }
 
 /**
- * Commit all watch-tier files to git (best-effort).
+ * Commit all watched files to git (best-effort).
  *
- * Stages all watch-tier files and commits if anything changed.
+ * Stages all watched files and commits if anything changed.
  */
 export async function commitWatchFiles(
   ops: SystemOperations,

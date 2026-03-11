@@ -20,7 +20,7 @@ function opts(
 }
 
 describe("sync", () => {
-  test("fixes unprotected protect-tier files", async () => {
+  test("fixes unprotected protected files", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", { owner: "agent", group: "staff", mode: "644" });
 
@@ -116,7 +116,7 @@ describe("sync", () => {
     expect(ops.ops).toHaveLength(1); // only chmod
   });
 
-  test("watch-tier files are not modified by sync", async () => {
+  test("watched files are not modified by sync", async () => {
     const ops = makeMock();
     ops.addFile("notes.md", "# Notes", {
       owner: "selene",
@@ -175,7 +175,7 @@ describe("sync", () => {
     expect(result.value.errors).toHaveLength(0);
   });
 
-  test("commits protect and watch-tier files to git when enabled", async () => {
+  test("commits protected and watched files to git when enabled", async () => {
     const ops = makeMock();
     ops.addFile(".soulguard/.git", "");
     ops.addFile("SOUL.md", "# Soul", {

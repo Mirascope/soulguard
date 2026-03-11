@@ -17,7 +17,7 @@ e2e("release: restores default ownership and cleans staging", (t) => {
     exit 0
       + SOUL.md → protect
 
-    Updated. 1 file(s) now protect-tier.
+    Updated. 1 file(s) now protected.
   `)
     .exits(0);
 

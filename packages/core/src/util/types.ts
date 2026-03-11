@@ -15,7 +15,7 @@ export type SoulguardConfig = {
   files: Record<string, Tier>;
   /** Whether to initialize and track git (default: true) */
   git?: boolean;
-  /** Default ownership to restore when releasing protect-tier files. Captured at init time. */
+  /** Default ownership to restore when releasing protected files. Captured at init time. */
   defaultOwnership?: FileOwnership;
 };
 

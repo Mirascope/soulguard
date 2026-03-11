@@ -1,5 +1,5 @@
 /**
- * StageCommand — stage protect-tier files for editing or deletion.
+ * StageCommand — stage protected files for editing or deletion.
  */
 
 import type { ConsoleOutput } from "../util/console.js";
