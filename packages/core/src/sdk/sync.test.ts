@@ -16,11 +16,7 @@ function opts(
   config: { version: 1; files: Record<string, "protect" | "watch"> },
   ops: MockSystemOps,
 ) {
-  return {
-    config,
-    expectedProtectOwnership: VAULT_OWNERSHIP,
-    ops,
-  };
+  return { config, ops };
 }
 
 describe("sync", () => {
@@ -42,7 +38,7 @@ describe("sync", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.beforeIssues).toHaveLength(1);
+    expect(result.value.drifts).toHaveLength(1);
     expect(result.value.errors).toHaveLength(0);
     expect(ops.ops).toHaveLength(2); // chown + chmod
   });
@@ -69,11 +65,11 @@ describe("sync", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.beforeIssues).toHaveLength(0);
+    expect(result.value.drifts).toHaveLength(0);
     expect(result.value.errors).toHaveLength(0);
   });
 
-  test("missing files remain in issues (can't fix)", async () => {
+  test("missing files are silently skipped", async () => {
     const ops = makeMock();
 
     const result = await sync(
@@ -90,7 +86,7 @@ describe("sync", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.beforeIssues).toHaveLength(1);
+    expect(result.value.drifts).toHaveLength(0);
     expect(result.value.errors).toHaveLength(0);
   });
 
@@ -142,7 +138,7 @@ describe("sync", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.beforeIssues).toHaveLength(0);
+    expect(result.value.drifts).toHaveLength(0);
   });
 
   test("handles multiple files across tiers", async () => {
@@ -175,7 +171,7 @@ describe("sync", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.beforeIssues).toHaveLength(1);
+    expect(result.value.drifts).toHaveLength(1);
     expect(result.value.errors).toHaveLength(0);
   });
 
