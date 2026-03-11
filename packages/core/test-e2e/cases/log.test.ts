@@ -1,32 +1,20 @@
 import { e2e } from "../harness";
 
-e2e.skip("log: shows git history after sync", (t) => {
-  t.$(`
-    echo '# My Soul' > SOUL.md
-    mkdir -p memory
-    echo '# Notes' > memory/notes.md
-  `)
+e2e("log: shows git history after sync", (t) => {
+  t.$(`echo '# My Soul' > SOUL.md && mkdir -p memory && echo '# Notes' > memory/notes.md`)
     .expect(`
       exit 0
     `)
     .exits(0);
 
-  t.$(`SUDO_USER=agent soulguard init .`)
+  t.$(`sudo soulguard init .`)
     .expect(`
       exit 0
-      Soulguard Init — /workspace
-        Created group: soulguard
-        Created user: soulguardian
-        Wrote soulguard.json
-        Wrote /etc/sudoers.d/soulguard
-        Prepared directories for staging
-        Synced 1 protect-tier file(s)
-
-      Done.
+      ✓ Soulguard initialized.
     `)
     .exits(0);
 
-  t.$(`soulguard protect SOUL.md`)
+  t.$(`sudo soulguard protect SOUL.md`)
     .expect(`
       exit 0
         + SOUL.md → protect
@@ -35,7 +23,7 @@ e2e.skip("log: shows git history after sync", (t) => {
     `)
     .exits(0);
 
-  t.$(`soulguard watch "memory/notes.md"`)
+  t.$(`sudo soulguard watch memory/notes.md`)
     .expect(`
       exit 0
         + memory/notes.md → watch
@@ -47,14 +35,15 @@ e2e.skip("log: shows git history after sync", (t) => {
   // Modify a watch file and sync to trigger a git commit
   t.$(`echo '# Updated Notes' > memory/notes.md`)
     .expect(`
-    exit 0
-  `)
+      exit 0
+    `)
     .exits(0);
 
-  t.$(`soulguard sync 2>&1 | grep -v '^$'`)
+  t.$(`sudo soulguard sync`)
     .expect(`
       exit 0
       Soulguard Sync — /workspace
+
       Nothing to fix — all files ok.
         📝 Committed 3 file(s) to git
     `)
@@ -65,8 +54,8 @@ e2e.skip("log: shows git history after sync", (t) => {
     .expect(`
       exit 0
       HASH soulguard: sync
-      HASH soulguard: sync
-      HASH soulguard: sync
+      HASH soulguard: watch memory/notes.md
+      HASH soulguard: protect SOUL.md
       HASH soulguard: initial commit
     `)
     .exits(0)
@@ -77,7 +66,7 @@ e2e.skip("log: shows git history after sync", (t) => {
     .expect(`
       exit 0
       HASH soulguard: sync
-      HASH soulguard: sync
+      HASH soulguard: watch memory/notes.md
     `)
     .exits(0)
     .outputs(/sync/);

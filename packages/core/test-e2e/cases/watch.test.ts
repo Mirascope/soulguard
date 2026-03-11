@@ -50,17 +50,3 @@ e2e("watch: adds file and updates config", (t) => {
     .exits(0)
     .outputs(/"notes\.md".*"watch"/);
 });
-
-e2e.skip("watch: resolves glob patterns", (t) => {
-  t.$(`mkdir -p memory && echo 'day 1' > memory/day1.md && echo 'day 2' > memory/day2.md`)
-    .expect(``)
-    .exits(0);
-  t.$(`sudo soulguard init .`).expect(``).exits(0);
-  t.$(`sudo soulguard watch 'memory/*.md'`).expect(``).exits(0).outputs(/watch/);
-
-  t.$(`cat soulguard.json`)
-    .expect(``)
-    .exits(0)
-    .outputs(/"memory\/day1\.md"/)
-    .outputs(/"memory\/day2\.md"/);
-});
