@@ -6,5 +6,8 @@ export PATH="$HOME/.bun/bin:$PATH"
 # Format + lint staged files only
 bunx lint-staged
 
+# Verify all package versions match
+bun run check-versions
+
 # Typecheck
 bun run typecheck
