@@ -8,18 +8,14 @@ on:
     paths: [website/**]
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      deployments: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
 
       - uses: oven-sh/setup-bun@v2
 
@@ -32,6 +28,7 @@ jobs:
         run: bun run build
 
       - name: Deploy to Cloudflare Workers
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
