@@ -1,0 +1,35 @@
+name: Website
+
+on:
+  push:
+    branches: [main]
+    paths: [website/**]
+  pull_request:
+    paths: [website/**]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        working-directory: website
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        working-directory: website
+        run: bun run build
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: website
+          command: deploy
