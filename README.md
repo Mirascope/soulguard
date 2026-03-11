@@ -123,7 +123,7 @@ sudo soulguard release SOUL.md
 echo "Free to edit" > SOUL.md  # succeeds
 ```
 
-The file's original ownership is restored from the registry.
+The file's ownership is restored to the workspace default.
 
 ### Watching files
 
@@ -154,10 +154,17 @@ sudo soulguard sync
 
 ### Resetting staging
 
-To discard all pending staged changes and reset to match the current protect-tier state:
+To manage the staging tree:
 
 ```bash
-sudo soulguard reset
+# Dry run — list what's staged
+soulguard reset
+
+# Reset a specific file
+soulguard reset SOUL.md
+
+# Reset everything
+soulguard reset --all
 ```
 
 ## Configuration
@@ -234,7 +241,6 @@ soulguard log . SOUL.md
 | `sudo soulguard release <paths...>`              | Remove files or directories from all protection tiers                              |
 | `sudo soulguard apply [dir] [-y\|--hash <hash>]` | Apply staged changes to protect-tier files                                         |
 | `sudo soulguard sync [dir]`                      | Fix ownership/permission drift and commit all tracked files                        |
-| `sudo soulguard reset [dir]`                     | Reset staging to match current protect-tier state                                  |
 
 **Apply modes:**
 
@@ -249,7 +255,10 @@ soulguard log . SOUL.md
 | `soulguard status [dir]`          | Report protect and watch file health (ownership, permissions, missing files) |
 | `soulguard stage <paths...>`      | Stage protect-tier files for editing or deletion (use -d flag for deletion)  |
 | `soulguard diff [dir] [files...]` | Show pending changes as unified diff + approval hash                         |
+| `soulguard reset [paths...] [-a]` | List, selectively reset, or clear all staged changes                         |
 | `soulguard log [dir] [file]`      | Show git history for tracked files                                           |
+
+**Exit codes:** `diff` and `status` exit with code 1 when changes or drifts are found (like `git diff`), not just on errors.
 
 For OpenClaw agents, `[dir]` is the OpenClaw home directory (e.g. `~/.openclaw/`), which contains both framework config and the agent workspace. When omitted, defaults to the current working directory.
 
@@ -280,7 +289,7 @@ The staging model uses an implicit proposal pattern:
 
 - **`apply -y`** — Applies the current staging state. Convenient for trusted environments. Same security model as interactive mode: the human reviews changes, then immediately applies them. Small TOCTOU window where agent could theoretically modify staging between review and apply.
 
-- **`apply --hash <hash>`** — Cryptographic verification mode. The approval hash is computed over frozen copies in `.soulguard/pending/` (owned by soulguardian), preventing the agent from modifying staging between review and apply. Use for maximum security or automation.
+- **`apply --hash <hash>`** — Cryptographic verification mode. The approval hash is a deterministic SHA-256 over all staged changes. If the staging tree is modified between review and apply, the hash won't match, preventing TOCTOU attacks. Use for maximum security or automation.
 
 ### Directory Layout
 
@@ -293,8 +302,7 @@ workspace/
 ├── .soulguard-staging/
 │   └── SOUL.md                    # Staging copy (777, agent-writable)
 └── .soulguard/
-    ├── registry.json              # Tracks file tiers + original ownership
-    ├── pending/                   # Frozen copies during apply
+    ├── backup/                    # Temporary backups during apply
     └── .git/                      # Internal git repo for audit trail
 ```
 
@@ -305,49 +313,6 @@ workspace/
 | [`@soulguard/core`](packages/core/)         | Core library — protect, watch, apply workflow, CLI, git integration |
 | [`@soulguard/openclaw`](packages/openclaw/) | OpenClaw framework plugin — templates, tool interception            |
 | [`soulguard`](packages/soulguard/)          | Meta-package — installs core + CLI globally                         |
-
-## Programmatic API
-
-`@soulguard/core` exports a full TypeScript API for building integrations:
-
-```typescript
-import {
-  init,
-  status,
-  sync,
-  diff,
-  apply,
-  reset,
-  setTier,
-  release,
-  readConfig,
-  NodeSystemOps,
-  Registry,
-} from "@soulguard/core";
-
-const ops = new NodeSystemOps("/path/to/workspace");
-
-// Check workspace health
-const statusResult = await status({
-  config: await readConfig(ops),
-  expectedProtectOwnership: { user: "soulguardian", group: "soulguard", mode: "444" },
-  ops,
-  registry: (await Registry.load(ops)).value,
-});
-
-// Review and apply changes
-const diffResult = await diff({ ops, config });
-if (diffResult.ok) {
-  await apply({
-    ops,
-    config,
-    hash: diffResult.value.approvalHash,
-    protectOwnership: { user: "soulguardian", group: "soulguard", mode: "444" },
-  });
-}
-```
-
-All functions return `Result<T, E>` discriminated unions — no exceptions thrown for expected error cases.
 
 ## E2E Testing
 
