@@ -138,3 +138,7 @@ export type {
 
 // Daemon config
 export type { DaemonConfig } from "./util/types.js";
+
+// Daemon: Watcher
+export { StagingWatcher } from "./daemon/index.js";
+export type { StagingSnapshot, WatcherEvents, WatcherOptions } from "./daemon/index.js";
