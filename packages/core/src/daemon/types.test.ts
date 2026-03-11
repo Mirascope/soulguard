@@ -19,7 +19,7 @@ describe("ApprovalChannel contract", () => {
   test.skip("waitForApproval resolves with approved=true on approval", () => {
     // const channel = createMockChannel({ autoApprove: true });
     // const id = await channel.postProposal({ diff: "...", hash: "abc123" });
-    // const result = await channel.waitForApproval(id, AbortSignal.timeout(5000));
+    // const result = await channel.waitForApproval(id, new AbortController().signal);
     // expect(result.approved).toBe(true);
     // expect(result.approver).toBeTruthy();
   });
@@ -27,7 +27,7 @@ describe("ApprovalChannel contract", () => {
   test.skip("waitForApproval resolves with approved=false on rejection", () => {
     // const channel = createMockChannel({ autoReject: true });
     // const id = await channel.postProposal({ diff: "...", hash: "abc123" });
-    // const result = await channel.waitForApproval(id, AbortSignal.timeout(5000));
+    // const result = await channel.waitForApproval(id, new AbortController().signal);
     // expect(result.approved).toBe(false);
   });
 

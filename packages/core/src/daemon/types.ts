@@ -35,7 +35,7 @@ export type ProposalState = "pending" | "approved" | "rejected" | "superseded";
 /** A tracked proposal with its channel-specific ID and snapshot. */
 export type Proposal = {
   /** Channel-specific proposal ID (e.g. Discord message ID). */
-  channelId: string;
+  externalId: string;
   /** The payload that was posted to the channel. */
   payload: ProposalPayload;
   /** Current lifecycle state. */
