@@ -3,30 +3,30 @@ import { e2e } from "../harness";
 e2e("reset: dry run lists staged files", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
-    exit 0
-  `)
+      exit 0
+    `)
     .exits(0);
   t.$(`sudo soulguard init .`)
     .expect(`
-    exit 0
-    ✓ Soulguard initialized.
-  `)
+      exit 0
+      ✓ Soulguard initialized.
+    `)
     .exits(0);
   t.$(`sudo soulguard protect SOUL.md`)
     .expect(`
-    exit 0
-      + SOUL.md → protect
+      exit 0
+        + SOUL.md → protect
 
-    Updated. 1 file(s) now protect-tier.
-  `)
+      Updated. 1 file(s) now protect-tier.
+    `)
     .exits(0);
   t.$(`soulguard stage SOUL.md`)
     .expect(`
-    exit 0
-      📝 SOUL.md (staged for editing)
+      exit 0
+        📝 SOUL.md (staged for editing)
 
-    Staged 1 file(s).
-  `)
+      Staged 1 file(s).
+    `)
     .exits(0);
 
   t.$(`sudo soulguard reset -w .`)
@@ -43,39 +43,39 @@ e2e("reset: dry run lists staged files", (t) => {
   // File should still exist after dry run
   t.$(`cat .soulguard-staging/SOUL.md`)
     .expect(`
-    exit 0
-    # My Soul
-  `)
+      exit 0
+      # My Soul
+    `)
     .exits(0);
 });
 
 e2e("reset: specific file removes staging copy", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
-    exit 0
-  `)
+      exit 0
+    `)
     .exits(0);
   t.$(`sudo soulguard init .`)
     .expect(`
-    exit 0
-    ✓ Soulguard initialized.
-  `)
+      exit 0
+      ✓ Soulguard initialized.
+    `)
     .exits(0);
   t.$(`sudo soulguard protect SOUL.md`)
     .expect(`
-    exit 0
-      + SOUL.md → protect
+      exit 0
+        + SOUL.md → protect
 
-    Updated. 1 file(s) now protect-tier.
-  `)
+      Updated. 1 file(s) now protect-tier.
+    `)
     .exits(0);
   t.$(`soulguard stage SOUL.md`)
     .expect(`
-    exit 0
-      📝 SOUL.md (staged for editing)
+      exit 0
+        📝 SOUL.md (staged for editing)
 
-    Staged 1 file(s).
-  `)
+      Staged 1 file(s).
+    `)
     .exits(0);
 
   t.$(`sudo soulguard reset -w . SOUL.md`)
@@ -99,30 +99,30 @@ e2e("reset: specific file removes staging copy", (t) => {
 e2e("reset: --all empties staging tree", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
-    exit 0
-  `)
+      exit 0
+    `)
     .exits(0);
   t.$(`sudo soulguard init .`)
     .expect(`
-    exit 0
-    ✓ Soulguard initialized.
-  `)
+      exit 0
+      ✓ Soulguard initialized.
+    `)
     .exits(0);
   t.$(`sudo soulguard protect SOUL.md`)
     .expect(`
-    exit 0
-      + SOUL.md → protect
+      exit 0
+        + SOUL.md → protect
 
-    Updated. 1 file(s) now protect-tier.
-  `)
+      Updated. 1 file(s) now protect-tier.
+    `)
     .exits(0);
   t.$(`soulguard stage SOUL.md`)
     .expect(`
-    exit 0
-      📝 SOUL.md (staged for editing)
+      exit 0
+        📝 SOUL.md (staged for editing)
 
-    Staged 1 file(s).
-  `)
+      Staged 1 file(s).
+    `)
     .exits(0);
 
   t.$(`sudo soulguard reset -w . --all`)
@@ -163,41 +163,41 @@ e2e("reset: no staged changes shows clean message", (t) => {
 e2e("reset: selective reset keeps other staged files", (t) => {
   t.$(`echo '# Soul' > SOUL.md && echo '# Notes' > notes.md`)
     .expect(`
-    exit 0
-  `)
+      exit 0
+    `)
     .exits(0);
   t.$(`sudo soulguard init .`)
     .expect(`
-    exit 0
-    ✓ Soulguard initialized.
-  `)
+      exit 0
+      ✓ Soulguard initialized.
+    `)
     .exits(0);
   t.$(`sudo soulguard protect SOUL.md`)
     .expect(`
-    exit 0
-      + SOUL.md → protect
+      exit 0
+        + SOUL.md → protect
 
-    Updated. 1 file(s) now protect-tier.
-  `)
+      Updated. 1 file(s) now protect-tier.
+    `)
     .exits(0);
   t.$(`sudo soulguard protect notes.md`)
     .expect(`
-    exit 0
-      + notes.md → protect
+      exit 0
+        + notes.md → protect
 
-    Updated. 1 file(s) now protect-tier.
-  `)
+      Updated. 1 file(s) now protect-tier.
+    `)
     .exits(0);
   t.$(`soulguard stage SOUL.md && soulguard stage notes.md`)
     .expect(`
-    exit 0
-      📝 SOUL.md (staged for editing)
+      exit 0
+        📝 SOUL.md (staged for editing)
 
-    Staged 1 file(s).
-      📝 notes.md (staged for editing)
+      Staged 1 file(s).
+        📝 notes.md (staged for editing)
 
-    Staged 1 file(s).
-  `)
+      Staged 1 file(s).
+    `)
     .exits(0);
 
   t.$(`sudo soulguard reset -w . SOUL.md`)
