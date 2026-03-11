@@ -18,29 +18,24 @@ export class SyncCommand {
     const result = await sync(this.opts);
     if (!result.ok) return 1;
 
-    const { beforeIssues, errors, git } = result.value;
+    const { drifts, errors, git } = result.value;
 
     this.out.heading(`Soulguard Sync — ${this.opts.ops.workspace}`);
     this.out.write("");
 
-    if (beforeIssues.length === 0 && errors.length === 0) {
+    if (drifts.length === 0 && errors.length === 0) {
       this.out.success("Nothing to fix — all files ok.");
       this.reportGit(git);
       return 0;
     }
 
     // Show fixed drift issues
-    const drifted = beforeIssues.filter((f) => f.status === "drifted");
-    const fixed = drifted;
-
-    if (fixed.length > 0 && errors.length === 0) {
+    if (drifts.length > 0 && errors.length === 0) {
       this.out.heading("Fixed:");
-      for (const f of fixed) {
-        this.out.success(`  🔧 ${f.path}`);
-        if (f.issues) {
-          for (const issue of f.issues) {
-            this.out.info(`      ${formatIssue(issue)}`);
-          }
+      for (const d of drifts) {
+        this.out.success(`  🔧 ${d.entity.path}`);
+        for (const issue of d.details) {
+          this.out.info(`      ${formatIssue(issue)}`);
         }
       }
       this.out.write("");
@@ -53,17 +48,6 @@ export class SyncCommand {
         this.out.error(`  ❌ ${e.path}: ${e.operation} failed (${e.error.kind})`);
       }
       this.out.write("");
-      return 1;
-    }
-
-    // Check for unfixable issues (missing files)
-    const remaining = beforeIssues.filter((f) => f.status === "missing");
-    if (remaining.length > 0) {
-      for (const f of remaining) {
-        this.out.error(`  ❌ ${f.path} — missing`);
-      }
-      this.out.write("");
-      this.reportGit(git);
       return 1;
     }
 

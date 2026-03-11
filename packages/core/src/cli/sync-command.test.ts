@@ -4,7 +4,6 @@ import { MockConsoleOutput } from "../util/console-mock.js";
 import { SyncCommand } from "./sync-command.js";
 import type { SyncOptions } from "../sdk/sync.js";
 
-const VAULT_OWNERSHIP = { user: "soulguardian", group: "soulguard", mode: "444" };
 const VAULT_MOCK = { owner: "soulguardian", group: "soulguard", mode: "444" };
 const LEDGER_MOCK = { owner: "agent", group: "soulguard", mode: "644" };
 
@@ -14,6 +13,8 @@ function setup(configureMock: (ops: MockSystemOps) => void): {
   ops: MockSystemOps;
 } {
   const ops = new MockSystemOps("/workspace");
+  ops.addUser("soulguardian");
+  ops.addGroup("soulguard");
   configureMock(ops);
   const out = new MockConsoleOutput();
   const opts: SyncOptions = {
@@ -24,7 +25,6 @@ function setup(configureMock: (ops: MockSystemOps) => void): {
         "memory/today.md": "watch",
       },
     },
-    expectedProtectOwnership: VAULT_OWNERSHIP,
     ops,
   };
   return { cmd: new SyncCommand(opts, out), out, ops };
@@ -57,15 +57,15 @@ describe("SyncCommand", () => {
     expect(out.hasText("Nothing to fix")).toBe(true);
   });
 
-  it("returns 1 when missing files remain after sync", async () => {
+  it("returns 0 when configured files are missing from disk", async () => {
     const { cmd, out } = setup((ops) => {
-      // SOUL.md missing — sync can't fix missing files
+      // SOUL.md missing — sync silently skips missing files
       ops.addFile("memory/today.md", "memory content", LEDGER_MOCK);
     });
 
     const code = await cmd.execute();
 
-    expect(code).toBe(1);
-    expect(out.hasText("missing")).toBe(true);
+    expect(code).toBe(0);
+    expect(out.hasText("Nothing to fix")).toBe(true);
   });
 });

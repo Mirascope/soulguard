@@ -48,7 +48,7 @@ export type { DiffFile, DiffResult, DiffError, DiffOptions } from "./sdk/diff.js
 
 // Sync
 export { sync } from "./sdk/sync.js";
-export type { SyncError, SyncResult, SyncOptions, SyncIssue } from "./sdk/sync.js";
+export type { SyncError, SyncResult, SyncOptions } from "./sdk/sync.js";
 
 // Init
 export type { InitResult, InitError, InitOptions } from "./sdk/init.js";
