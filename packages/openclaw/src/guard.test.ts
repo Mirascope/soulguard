@@ -6,26 +6,26 @@ const defaultOpts: GuardOptions = {
 };
 
 describe("guardToolCall", () => {
-  it("blocks Write to a protect-tier file", () => {
+  it("blocks Write to a protected file", () => {
     const result = guardToolCall("Write", { file_path: "SOUL.md" }, defaultOpts);
     expect(result.blocked).toBe(true);
-    expect(result.reason).toContain("protect-tier protected");
+    expect(result.reason).toContain("protected by soulguard");
     expect(result.reason).toContain(".soulguard-staging/SOUL.md");
     expect(result.reason).toContain("reviewed and approved by the owner");
   });
 
-  it("blocks Edit to a protect-tier file", () => {
+  it("blocks Edit to a protected file", () => {
     const result = guardToolCall("Edit", { path: "IDENTITY.md" }, defaultOpts);
     expect(result.blocked).toBe(true);
-    expect(result.reason).toContain("protect-tier protected");
+    expect(result.reason).toContain("protected by soulguard");
   });
 
-  it("allows Write to a non-protect-tier file", () => {
+  it("allows Write to a non-protected file", () => {
     const result = guardToolCall("Write", { file_path: "README.md" }, defaultOpts);
     expect(result.blocked).toBe(false);
   });
 
-  it("allows Write to staging copy of a protect-tier file", () => {
+  it("allows Write to staging copy of a protected file", () => {
     const result = guardToolCall("Write", { file_path: ".soulguard-staging/SOUL.md" }, defaultOpts);
     expect(result.blocked).toBe(false);
   });

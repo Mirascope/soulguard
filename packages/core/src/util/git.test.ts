@@ -168,7 +168,7 @@ describe("commit messages", () => {
 });
 
 describe("commitWatchFiles", () => {
-  test("commits watch-tier files when git enabled and changes exist", async () => {
+  test("commits watched files when git enabled and changes exist", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile(".soulguard/.git", "");
     // Pre-check succeeds (no pre-existing staged), post-add fails (= our files staged)
@@ -210,7 +210,7 @@ describe("commitWatchFiles", () => {
     expect(result.value).toEqual({ committed: false, reason: "git_disabled" });
   });
 
-  test("returns no_files when no watch-tier files", async () => {
+  test("returns no_files when no watched files", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile(".soulguard/.git", "");
     const result = await commitWatchFiles(ops, {

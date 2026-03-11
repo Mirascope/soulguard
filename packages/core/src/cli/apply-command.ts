@@ -1,5 +1,5 @@
 /**
- * ApplyCommand — approve and apply staging changes to protect-tier.
+ * ApplyCommand — approve and apply staging changes to protected files.
  *
  * Three modes:
  * - No args: Interactive — shows diff, prompts for confirmation, then applies.
@@ -53,7 +53,7 @@ export class ApplyCommand {
         return 1;
       }
       if (!diffResult.value.hasChanges) {
-        this.out.info("No changes to apply — staging matches protect-tier.");
+        this.out.info("No changes to apply — staging matches protected files.");
         return 0;
       }
 
@@ -124,7 +124,7 @@ export class ApplyCommand {
       this.out.success(`  ✅ ${file}`);
     }
     this.out.write("");
-    this.out.info("Protect-tier files updated. Staging synced.");
+    this.out.info("Protected files updated. Staging synced.");
     return 0;
   }
 }

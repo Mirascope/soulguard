@@ -18,13 +18,13 @@ e2e("apply: applies staged changes with -y", (t) => {
     `)
     .exits(0);
 
-  // Mark file as protect-tier
+  // Mark file as protected
   t.$(`sudo soulguard protect SOUL.md`)
     .expect(`
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
 
@@ -53,7 +53,7 @@ e2e("apply: applies staged changes with -y", (t) => {
       Applied 1 file(s):
         ✅ SOUL.md
 
-      Protect-tier files updated. Staging synced.
+      Protected files updated. Staging synced.
     `)
     .exits(0)
     .outputs(/Applied 1 file/);
@@ -86,7 +86,7 @@ e2e("apply: handles file deletion through staging", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
 
@@ -108,7 +108,7 @@ e2e("apply: handles file deletion through staging", (t) => {
       Applied 1 file(s):
         ✅ SOUL.md
 
-      Protect-tier files updated. Staging synced.
+      Protected files updated. Staging synced.
     `)
     .exits(0)
     .outputs(/Applied 1 file/);
@@ -143,7 +143,7 @@ e2e("apply: applies modified file inside protected directory", (t) => {
       exit 0
         + memories → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
 
@@ -173,7 +173,7 @@ e2e("apply: applies modified file inside protected directory", (t) => {
       Applied 1 file(s):
         ✅ memories/today.md
 
-      Protect-tier files updated. Staging synced.
+      Protected files updated. Staging synced.
     `)
     .exits(0);
 
@@ -208,7 +208,7 @@ e2e("apply: verifies hash with --hash flag", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
 
@@ -238,7 +238,7 @@ e2e("apply: verifies hash with --hash flag", (t) => {
       Applied 1 file(s):
         ✅ SOUL.md
 
-      Protect-tier files updated. Staging synced.
+      Protected files updated. Staging synced.
     `)
     .exits(0);
 });
@@ -261,7 +261,7 @@ e2e("apply: rejects with wrong hash", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
 
@@ -311,7 +311,7 @@ e2e("apply: rejects using both --yes and --hash", (t) => {
     exit 0
       + SOUL.md → protect
 
-    Updated. 1 file(s) now protect-tier.
+    Updated. 1 file(s) now protected.
   `)
     .exits(0);
 

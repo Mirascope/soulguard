@@ -56,7 +56,7 @@ describe("apply (implicit proposals)", () => {
     if (!result.ok) return;
     expect(result.value.appliedFiles).toEqual(["SOUL.md"]);
 
-    // Protect-tier file should have new content
+    // Protected file should have new content
     const content = await ops.readFile("SOUL.md");
     expect(content.ok).toBe(true);
     if (content.ok) expect(content.value).toBe("modified soul");
@@ -148,7 +148,7 @@ describe("apply (implicit proposals)", () => {
     const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
     expect(result.ok).toBe(true);
 
-    // Staging should now match protect tier (no diff)
+    // Staging should now match protected files (no diff)
     const diffResult = await diff({ ops, config });
     expect(diffResult.ok).toBe(true);
     if (diffResult.ok) expect(diffResult.value.hasChanges).toBe(false);
@@ -168,7 +168,7 @@ describe("apply (implicit proposals)", () => {
       expect(result.error.violations[0]!.policy).toBe("block-all");
     }
 
-    // Protect-tier should be unchanged
+    // Protected file should be unchanged
     const content = await ops.readFile("SOUL.md");
     if (content.ok) expect(content.value).toBe("original soul");
   });
@@ -217,7 +217,7 @@ describe("apply (implicit proposals)", () => {
     expect(capturedFinal).toBe("modified soul");
   });
 
-  test("auto-commits protect-tier changes when git enabled", async () => {
+  test("auto-commits protected changes when git enabled", async () => {
     const ops = setup();
     ops.addFile(".soulguard/.git", ""); // git repo exists
     ops.execFailOnCall.set(
@@ -251,7 +251,7 @@ describe("apply (implicit proposals)", () => {
     expect(result.value.gitResult).toBeUndefined();
   });
 
-  test("deletes protect-tier file when staging copy is removed", async () => {
+  test("deletes protected file when staging copy is removed", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile("SOUL.md", "original soul", {
       owner: "soulguardian",
@@ -268,7 +268,7 @@ describe("apply (implicit proposals)", () => {
     if (!result.ok) return;
     expect(result.value.appliedFiles).toEqual(["SOUL.md"]);
 
-    // Protect-tier file should be gone
+    // Protected file should be gone
     const exists = await ops.exists("SOUL.md");
     expect(exists.ok).toBe(true);
     if (exists.ok) expect(exists.value).toBe(false);

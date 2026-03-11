@@ -18,13 +18,13 @@ e2e("stage: stages a protected file for editing", (t) => {
   `)
     .exits(0);
 
-  // Mark file as protect-tier
+  // Mark file as protected
   t.$(`sudo soulguard protect SOUL.md`)
     .expect(`
     exit 0
       + SOUL.md → protect
 
-    Updated. 1 file(s) now protect-tier.
+    Updated. 1 file(s) now protected.
   `)
     .exits(0);
 
@@ -67,7 +67,7 @@ e2e("stage: no-op when staging copy already exists", (t) => {
     exit 0
       + SOUL.md → protect
 
-    Updated. 1 file(s) now protect-tier.
+    Updated. 1 file(s) now protected.
   `)
     .exits(0);
 
@@ -94,8 +94,8 @@ e2e("stage: no-op when staging copy already exists", (t) => {
 
 // ── Error cases ──────────────────────────────────────────────────────
 
-e2e("stage: errors on watch-tier file", (t) => {
-  // Setup: create a watch-tier file (not protect-tier)
+e2e("stage: errors on watched file", (t) => {
+  // Setup: create a watched file (not protected)
   t.$(`echo '# Notes' > notes.md`)
     .expect(`
     exit 0
@@ -112,11 +112,11 @@ e2e("stage: errors on watch-tier file", (t) => {
     exit 0
       + notes.md → watch
 
-    Updated. 1 file(s) now watch-tier.
+    Updated. 1 file(s) now watched.
   `)
     .exits(0);
 
-  // Attempt to stage watch-tier file → should error
+  // Attempt to stage watched file → should error
   t.$(`soulguard stage notes.md 2>&1`)
     .expect(`
       exit 1
@@ -146,7 +146,7 @@ e2e("stage: stages file for deletion with -d", (t) => {
     exit 0
       + SOUL.md → protect
 
-    Updated. 1 file(s) now protect-tier.
+    Updated. 1 file(s) now protected.
   `)
     .exits(0);
 
@@ -191,7 +191,7 @@ e2e("stage: stages subdirectory path for deletion with -d", (t) => {
     exit 0
       + docs/guide.md → protect
 
-    Updated. 1 file(s) now protect-tier.
+    Updated. 1 file(s) now protected.
   `)
     .exits(0);
 
@@ -258,8 +258,8 @@ e2e("stage: -d nonexistent file fails", (t) => {
 
 // ── Special cases ────────────────────────────────────────────────────
 
-e2e("stage: soulguard.json succeeds (always protect-tier)", (t) => {
-  // Initialize (soulguard.json is auto-created as protect-tier)
+e2e("stage: soulguard.json succeeds (always protected)", (t) => {
+  // Initialize (soulguard.json is auto-created as protected)
   t.$(`sudo soulguard init .`)
     .expect(`
     exit 0
@@ -267,7 +267,7 @@ e2e("stage: soulguard.json succeeds (always protect-tier)", (t) => {
   `)
     .exits(0);
 
-  // Stage soulguard.json (special file that's always protect-tier)
+  // Stage soulguard.json (special file that's always protected)
   t.$(`soulguard stage soulguard.json`)
     .expect(`
       exit 0
@@ -318,7 +318,7 @@ e2e("stage: non-existent file in protected directory succeeds", (t) => {
       exit 0
         + skills → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
 
@@ -359,7 +359,7 @@ e2e("stage: non-existent file at nested path in protected directory succeeds", (
       exit 0
         + skills → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
 
@@ -403,7 +403,7 @@ e2e("stage: multiple files at once", (t) => {
       + SOUL.md → protect
       + GOALS.md → protect
 
-    Updated. 2 file(s) now protect-tier.
+    Updated. 2 file(s) now protected.
   `)
     .exits(0);
 
@@ -453,7 +453,7 @@ e2e("stage: directory staging recursively stages all files", (t) => {
       exit 0
         + memory → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
 
@@ -503,7 +503,7 @@ e2e("stage: directory for deletion with -d", (t) => {
       exit 0
         + memory → protect
 
-      Updated. 1 file(s) now protect-tier.
+      Updated. 1 file(s) now protected.
     `)
     .exits(0);
 
@@ -550,7 +550,7 @@ e2e("stage: staging for edit after staging for delete overwrites sentinel", (t) 
     exit 0
       + SOUL.md → protect
 
-    Updated. 1 file(s) now protect-tier.
+    Updated. 1 file(s) now protected.
   `)
     .exits(0);
 
@@ -603,7 +603,7 @@ e2e("stage: staging for delete after staging for edit overwrites with sentinel",
     exit 0
       + SOUL.md → protect
 
-    Updated. 1 file(s) now protect-tier.
+    Updated. 1 file(s) now protected.
   `)
     .exits(0);
 

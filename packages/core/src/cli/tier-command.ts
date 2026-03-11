@@ -41,7 +41,7 @@ async function isDirectory(ops: SystemOperations, path: string): Promise<boolean
   return stat.ok && stat.value.isDirectory;
 }
 
-/** Enforce protect-tier ownership on a path (file or directory). */
+/** Enforce protected ownership on a path (file or directory). */
 async function enforceProtect(
   ops: SystemOperations,
   path: string,
@@ -184,7 +184,7 @@ export class TierCommand {
     } else if (action.kind === "release") {
       const defaultOwnership = configResult.value.defaultOwnership;
       for (const file of changedPaths) {
-        // Restore ownership if we have a default and the file was protect-tier
+        // Restore ownership if we have a default and the file was protected
         const wasTier = configResult.value.files[file];
         if (wasTier === "protect" && defaultOwnership) {
           await restoreOwnership(ops, file, defaultOwnership);
@@ -208,7 +208,9 @@ export class TierCommand {
     // Summary
     this.out.write("");
     if (action.kind === "set") {
-      this.out.success(`Updated. ${changedPaths.length} file(s) now ${action.tier}-tier.`);
+      this.out.success(
+        `Updated. ${changedPaths.length} file(s) now ${action.tier === "protect" ? "protected" : "watched"}.`,
+      );
     } else {
       this.out.success(`Released. ${changedPaths.length} file(s) untracked.`);
     }

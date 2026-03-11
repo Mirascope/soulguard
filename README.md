@@ -215,7 +215,7 @@ The OpenClaw plugin (`@soulguard/openclaw`) ships three templates that categoriz
 Soulguard maintains an internal git repository inside `.soulguard/` for audit trails:
 
 - **`init`** creates the git repo and commits all tracked files as an initial snapshot
-- **`apply`** auto-commits protect-tier changes after applying them
+- **`apply`** auto-commits protected changes after applying them
 - **`sync`** commits all tracked files (protect + watch) after fixing any drift
 - **`log`** shows the git history for tracked files
 
@@ -239,7 +239,7 @@ soulguard log . SOUL.md
 | `sudo soulguard protect <paths...>`              | Add files or directories to the protect tier                                       |
 | `sudo soulguard watch <paths...>`                | Add files or directories to the watch tier                                         |
 | `sudo soulguard release <paths...>`              | Remove files or directories from all protection tiers                              |
-| `sudo soulguard apply [dir] [-y\|--hash <hash>]` | Apply staged changes to protect-tier files                                         |
+| `sudo soulguard apply [dir] [-y\|--hash <hash>]` | Apply staged changes to protected files                                            |
 | `sudo soulguard sync [dir]`                      | Fix ownership/permission drift and commit all tracked files                        |
 
 **Apply modes:**
@@ -253,7 +253,7 @@ soulguard log . SOUL.md
 | Command                           | Description                                                                  |
 | --------------------------------- | ---------------------------------------------------------------------------- |
 | `soulguard status [dir]`          | Report protect and watch file health (ownership, permissions, missing files) |
-| `soulguard stage <paths...>`      | Stage protect-tier files for editing or deletion (use -d flag for deletion)  |
+| `soulguard stage <paths...>`      | Stage protected files for editing or deletion (use -d flag for deletion)     |
 | `soulguard diff [dir] [files...]` | Show pending changes as unified diff + approval hash                         |
 | `soulguard reset [paths...] [-a]` | List, selectively reset, or clear all staged changes                         |
 | `soulguard log [dir] [file]`      | Show git history for tracked files                                           |

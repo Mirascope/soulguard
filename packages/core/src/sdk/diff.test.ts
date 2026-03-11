@@ -47,7 +47,7 @@ describe("diff", () => {
     expect(result.value.files[0]!.diff).toContain("+modified");
   });
 
-  test("protect-tier file exists but staging has DELETE_SENTINEL → deleted status", async () => {
+  test("protected file exists but staging has DELETE_SENTINEL → deleted status", async () => {
     const ops = makeMock();
 
     ops.addFile("SOUL.md", "# Soul");
@@ -63,7 +63,7 @@ describe("diff", () => {
     expect(result.value.approvalHash).toBeDefined();
   });
 
-  test("neither protect-tier file nor staging exists → no files, no changes", async () => {
+  test("neither protected file nor staging exists → no files, no changes", async () => {
     const ops = makeMock();
 
     const result = await diff({ ops, config: makeConfig() });
@@ -74,7 +74,7 @@ describe("diff", () => {
     expect(result.value.hasChanges).toBe(false);
   });
 
-  test("protect-tier file missing → created status", async () => {
+  test("protected file missing → created status", async () => {
     const ops = makeMock();
 
     ops.addFile(".soulguard-staging/SOUL.md", "# New Soul");

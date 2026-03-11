@@ -43,7 +43,7 @@ export type DiffOptions = {
 // ── Implementation ─────────────────────────────────────────────────────
 
 /**
- * Compare protect-tier files against their staging copies.
+ * Compare protected files against their staging copies.
  *
  * Builds a StateTree and returns only changed files with unified diffs.
  */

@@ -12,12 +12,12 @@ export function patternsForTier(config: SoulguardConfig, tier: Tier): string[] {
     .map(([pattern]) => pattern);
 }
 
-/** Shorthand: get all protect-tier paths. */
+/** Shorthand: get all protected paths. */
 export function protectPatterns(config: SoulguardConfig): string[] {
   return patternsForTier(config, "protect");
 }
 
-/** Shorthand: get all watch-tier paths. */
+/** Shorthand: get all watched paths. */
 export function watchPatterns(config: SoulguardConfig): string[] {
   return patternsForTier(config, "watch");
 }

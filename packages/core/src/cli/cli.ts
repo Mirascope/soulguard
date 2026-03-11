@@ -112,7 +112,7 @@ program
 
 program
   .command("diff")
-  .description("Compare protect-tier files against staging copies")
+  .description("Compare protected files against staging copies")
   .argument("[workspace]", "workspace path", process.cwd())
   .argument("[files...]", "specific files to diff")
   .action(async (workspace: string, files: string[]) => {
@@ -136,7 +136,7 @@ program
 
 program
   .command("apply")
-  .description("Apply staging changes to protect-tier files")
+  .description("Apply staging changes to protected files")
   .argument("[workspace]", "workspace path", process.cwd())
   .option("--hash <hash>", "approval hash for cryptographic verification")
   .option("-y, --yes", "skip hash verification (convenient but slightly less secure)")
@@ -315,7 +315,7 @@ program
 
 program
   .command("stage")
-  .description("Stage protect-tier files for editing or deletion")
+  .description("Stage protected files for editing or deletion")
   .argument("<paths...>", "files to stage")
   .option("-w, --workspace <path>", "workspace path", process.cwd())
   .option("-d, --delete", "stage for deletion instead of editing")

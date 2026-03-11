@@ -1,9 +1,9 @@
 /**
- * soulguard stage — stage protect-tier files for editing or deletion.
+ * soulguard stage — stage protected files for editing or deletion.
  *
  * This module provides the core staging logic, separated from CLI concerns.
  * Staging prepares files for review via diff/apply:
- * - Edit mode: copies protect-tier files to staging tree
+ * - Edit mode: copies protected files to staging tree
  * - Delete mode: writes DELETE_SENTINEL to signal file/directory deletion
  */
 

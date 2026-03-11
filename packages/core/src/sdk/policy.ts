@@ -1,7 +1,7 @@
 /**
  * Policy hooks for soulguard apply.
  *
- * Policies are named check functions that run before protect-tier changes are applied.
+ * Policies are named check functions that run before protected changes are applied.
  * Each receives an ApprovalContext (map of file path → { final, diff, previous })
  * and returns ok() to allow or err() to block.
  *
