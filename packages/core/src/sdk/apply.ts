@@ -4,23 +4,20 @@
  * Built on top of StateTree: one walk, one snapshot, pure derivations.
  *
  * Implicit proposal model: staging IS the proposal. At approval time:
- * 1. Build StateTree and find changed files
- * 2. Copy modified staging files to protected .soulguard/pending/
- * 3. Hash the frozen pending copies and verify against reviewer's hash
- * 4. Backup current protect-tier files
- * 5. Apply from pending copies, re-protect protect-tier files
- * 6. Sync staging, cleanup
+ * 1. Verify approval hash matches the StateTree snapshot
+ * 2. Read staging content, run self-protection and policy checks
+ * 3. Backup current protect-tier files
+ * 4. Apply from staging, verify each written file's hash matches snapshot
+ * 5. Sync staging, cleanup
  *
- * The protected copy step eliminates timing attacks — once files are in
- * .soulguard/pending/ (owned by soulguardian), the agent cannot modify them.
- * The hash is verified against these frozen copies, not the live staging dir.
+ * The per-file hash verification after writing eliminates timing attacks —
+ * if the agent modifies staging between the StateTree snapshot and the
+ * actual copy, the written file's hash won't match the snapshot's stagedHash.
  */
 
-import { createHash } from "node:crypto";
 import type { SystemOperations } from "../util/system-ops.js";
-import type { FileOwnership, SoulguardConfig, Result } from "../util/types.js";
-import { StateTree } from "./state.js";
-import type { StateFile } from "./state.js";
+import type { FileOwnership, Result } from "../util/types.js";
+import type { StateTree } from "./state.js";
 import { ok, err } from "../util/result.js";
 import type { GitCommitResult } from "../util/git.js";
 import { isGitEnabled, gitCommit, protectCommitMessage } from "../util/git.js";
@@ -35,9 +32,11 @@ import { createTwoFilesPatch } from "diff";
 
 export type ApplyOptions = {
   ops: SystemOperations;
-  config: SoulguardConfig;
-  /** SHA-256 approval hash — must match computed hash of frozen pending copies.
-   *  If omitted, hash verification is skipped (convenient but slightly less secure). */
+  /** Pre-built StateTree snapshot — the reviewed artifact. */
+  tree: StateTree;
+  /** SHA-256 approval hash — must match tree.approvalHash.
+   *  If omitted, up-front hash verification is skipped. Per-file integrity
+   *  checks still run unconditionally. */
   hash?: string;
   /** Expected protect ownership to restore after writing */
   protectOwnership: FileOwnership;
@@ -48,13 +47,11 @@ export type ApplyOptions = {
 
 /** Errors from apply. */
 export type ApplyError =
-  | { kind: "no_changes" }
   | { kind: "hash_mismatch"; message: string }
   | { kind: "self_protection"; message: string }
   | { kind: "policy_violation"; violations: Array<{ policy: string; message: string }> }
   | { kind: "policy_name_collision"; duplicates: string[] }
-  | { kind: "apply_failed"; message: string }
-  | { kind: "diff_failed"; message: string };
+  | { kind: "apply_failed"; message: string };
 
 export type ApplyResult = {
   /** Files that were updated */
@@ -65,7 +62,7 @@ export type ApplyResult = {
 
 /**
  * Collect unique parent directories that need to be created for a set of
- * file paths under a given prefix (e.g. ".soulguard/pending").
+ * file paths under a given prefix (e.g. ".soulguard/backup").
  */
 function collectParentDirs(prefix: string, paths: string[]): string[] {
   const dirs = new Set<string>();
@@ -82,9 +79,9 @@ function collectParentDirs(prefix: string, paths: string[]): string[] {
  * Apply staging changes to protect.
  */
 export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, ApplyError>> {
-  const { ops, config, hash, protectOwnership, policies } = options;
+  const { ops, tree, hash, protectOwnership, policies } = options;
 
-  // ── Phase 0: Validate policy names (fail fast on collisions) ────────
+  // ── Phase 0: Validate policies + verify approval hash up front ──────
   if (policies && policies.length > 0) {
     const validation = validatePolicies(policies);
     if (!validation.ok) {
@@ -92,93 +89,48 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
     }
   }
 
-  // ── Phase 1: Build StateTree and find changed files ────────────────
-  const treeResult = await StateTree.build({ ops, config });
-  if (!treeResult.ok) {
-    return err({ kind: "diff_failed", message: treeResult.error.message });
-  }
-
-  const tree = treeResult.value;
   const changedFiles = tree.changedFiles();
 
   if (changedFiles.length === 0) {
-    return err({ kind: "no_changes" });
+    return ok({ appliedFiles: [] });
+  }
+
+  if (hash) {
+    if (tree.approvalHash !== hash) {
+      return err({
+        kind: "hash_mismatch",
+        message: `Expected hash ${hash} but got hash ${tree.approvalHash}`,
+      });
+    }
   }
 
   const nonDeletedFiles = changedFiles.filter((f) => f.status !== "deleted");
 
-  // ── Phase 2: Copy staging to protected working dir ─────────────────
-  await ops.mkdir(".soulguard/pending");
-
-  const pendingParents = collectParentDirs(
-    ".soulguard/pending",
-    nonDeletedFiles.map((f) => f.path),
-  );
-  for (const dir of pendingParents) {
-    await ops.mkdir(dir);
-  }
-
+  // ── Phase 1: Read staging, self-protection, policies ────────────────
+  const stagingContents = new Map<string, string>();
   for (const file of nonDeletedFiles) {
-    const copyResult = await ops.copyFile(
-      stagingPath(file.path),
-      `.soulguard/pending/${file.path}`,
-    );
-    if (!copyResult.ok) {
-      await cleanupPending(ops);
-      return err({ kind: "apply_failed", message: `Cannot copy staging/${file.path} to pending` });
-    }
-  }
-
-  const chownPending = await ops.chown(".soulguard/pending", protectOwnership);
-  if (!chownPending.ok) {
-    await cleanupPending(ops);
-    return err({ kind: "apply_failed", message: "Cannot protect pending directory" });
-  }
-
-  // ── Phase 3: Hash the frozen pending copies and verify ─────────────
-  if (hash) {
-    const pendingHash = await computePendingHash(ops, changedFiles);
-    if (!pendingHash.ok) {
-      await cleanupPending(ops);
-      return err({ kind: "apply_failed", message: pendingHash.error });
-    }
-
-    if (pendingHash.value !== hash) {
-      await cleanupPending(ops);
-      return err({
-        kind: "hash_mismatch",
-        message: `Expected hash ${hash} but got hash ${pendingHash.value}`,
-      });
-    }
-  }
-
-  // ── Phase 3a: Read all pending file contents ──────────────────────
-  const pendingContents = new Map<string, string>();
-  for (const file of nonDeletedFiles) {
-    const content = await ops.readFile(`.soulguard/pending/${file.path}`);
+    const content = await ops.readFile(stagingPath(file.path));
     if (!content.ok) {
-      await cleanupPending(ops);
       return err({
         kind: "apply_failed",
-        message: `Cannot read pending/${file.path}`,
+        message: `Cannot read staging/${file.path}`,
       });
     }
-    pendingContents.set(file.path, content.value);
+    stagingContents.set(file.path, content.value);
   }
 
-  // ── Phase 3b: Built-in self-protection ────────────────────────────
+  // ── Phase 1a: Built-in self-protection ──────────────────────────────
   {
     const selfCheck = validateSelfProtection(
-      pendingContents,
+      stagingContents,
       changedFiles.filter((f) => f.status === "deleted"),
     );
     if (!selfCheck.ok) {
-      await cleanupPending(ops);
       return err(selfCheck.error);
     }
   }
 
-  // ── Phase 3c: Run user-provided policy hooks ─────────────────────
+  // ── Phase 1b: Run user-provided policy hooks ───────────────────────
   if (policies && policies.length > 0) {
     const ctx: ApprovalContext = new Map();
     for (const file of changedFiles) {
@@ -198,7 +150,7 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
           }
         }
         // Generate diff text for policies
-        const final = pendingContents.get(file.path)!;
+        const final = stagingContents.get(file.path)!;
         const diffText =
           file.status === "modified"
             ? createTwoFilesPatch(`a/${file.path}`, `b/${file.path}`, previous, final)
@@ -209,12 +161,11 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
 
     const policyResult = await evaluatePolicies(policies, ctx);
     if (!policyResult.ok) {
-      await cleanupPending(ops);
       return err(policyResult.error);
     }
   }
 
-  // ── Phase 4: Backup all affected protect-tier files ──────────────
+  // ── Phase 2: Backup all affected protect-tier files ─────────────────
   await ops.mkdir(".soulguard/backup");
 
   const filesToBackup = changedFiles.filter((f) => f.status !== "created");
@@ -230,12 +181,11 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
     const backupResult = await ops.copyFile(file.path, `.soulguard/backup/${file.path}`);
     if (!backupResult.ok) {
       await cleanupBackup(ops);
-      await cleanupPending(ops);
       return err({ kind: "apply_failed", message: `Backup of ${file.path} failed` });
     }
   }
 
-  // ── Phase 5: Apply changes ─────────────────────────────────────────
+  // ── Phase 3: Apply changes + per-file hash verification ─────────────
   const appliedFiles: string[] = [];
 
   for (const file of changedFiles) {
@@ -256,10 +206,10 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
         }
       }
 
-      const content = await ops.readFile(`.soulguard/pending/${file.path}`);
+      const content = await ops.readFile(stagingPath(file.path));
       if (!content.ok) {
         await rollback(ops, appliedFiles, protectOwnership);
-        return err({ kind: "apply_failed", message: `Cannot read pending/${file.path}` });
+        return err({ kind: "apply_failed", message: `Cannot read staging/${file.path}` });
       }
 
       const writeResult = await ops.writeFile(file.path, content.value);
@@ -288,11 +238,21 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
           message: `Cannot chmod ${file.path}: ${chmodResult.error.kind}`,
         });
       }
+
+      // Per-file integrity check: verify written content matches snapshot
+      const writtenHash = await ops.hashFile(file.path);
+      if (!writtenHash.ok || writtenHash.value !== file.stagedHash) {
+        await rollback(ops, appliedFiles, protectOwnership);
+        return err({
+          kind: "hash_mismatch",
+          message: `Staging tampered: ${file.path} content after write does not match snapshot`,
+        });
+      }
     }
     appliedFiles.push(file.path);
   }
 
-  // ── Phase 6: Sync staging copies + cleanup ─────────────────────────
+  // ── Phase 4: Sync staging copies + cleanup ──────────────────────────
   for (const file of nonDeletedFiles) {
     const stagePath = stagingPath(file.path);
     const stageParent = dirname(stagePath);
@@ -303,11 +263,10 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
   }
 
   await cleanupBackup(ops);
-  await cleanupPending(ops);
 
-  // ── Git auto-commit (best-effort) ──────────────────────────────────
+  // ── Git auto-commit (best-effort) ───────────────────────────────────
   let gitResult: GitCommitResult | undefined;
-  if (await isGitEnabled(ops, config)) {
+  if (await isGitEnabled(ops, tree.config)) {
     const message = protectCommitMessage(appliedFiles);
     const result = await gitCommit(ops, appliedFiles, message);
     if (result.ok) {
@@ -316,41 +275,6 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
   }
 
   return ok({ appliedFiles, gitResult });
-}
-
-/**
- * Compute approval hash from frozen pending copies.
- * Uses the same algorithm as StateTree.approvalHash but hashes the
- * pending copies instead of staging, to detect timing attacks.
- */
-async function computePendingHash(
-  ops: SystemOperations,
-  changedFiles: StateFile[],
-): Promise<Result<string, string>> {
-  const sorted = [...changedFiles].sort((a, b) => a.path.localeCompare(b.path));
-  const hasher = createHash("sha256");
-  for (const f of sorted) {
-    if (f.status === "deleted") {
-      hasher.update(f.path);
-      hasher.update(f.status);
-      hasher.update(f.canonicalHash ?? "null");
-      hasher.update("null");
-    } else {
-      const fileHash = await ops.hashFile(`.soulguard/pending/${f.path}`);
-      if (!fileHash.ok) {
-        return err(`Cannot hash pending/${f.path}`);
-      }
-      hasher.update(f.path);
-      hasher.update(f.status);
-      hasher.update(f.canonicalHash ?? "null");
-      hasher.update(fileHash.value);
-    }
-  }
-  return ok(hasher.digest("hex"));
-}
-
-async function cleanupPending(ops: SystemOperations): Promise<void> {
-  await ops.deleteFile(".soulguard/pending");
 }
 
 async function cleanupBackup(ops: SystemOperations): Promise<void> {
@@ -363,13 +287,18 @@ async function rollback(
   protectOwnership: FileOwnership,
 ): Promise<void> {
   for (const filePath of appliedFiles) {
-    const backupContent = await ops.readFile(`.soulguard/backup/${filePath}`);
-    if (backupContent.ok) {
-      await ops.writeFile(filePath, backupContent.value);
-      await ops.chown(filePath, protectOwnership);
-      await ops.chmod(filePath, protectOwnership.mode);
+    const backupExists = await ops.exists(`.soulguard/backup/${filePath}`);
+    if (backupExists.ok && backupExists.value) {
+      const backupContent = await ops.readFile(`.soulguard/backup/${filePath}`);
+      if (backupContent.ok) {
+        await ops.writeFile(filePath, backupContent.value);
+        await ops.chown(filePath, protectOwnership);
+        await ops.chmod(filePath, protectOwnership.mode);
+      }
+    } else {
+      // No backup = was created by this apply. Delete to roll back.
+      await ops.deleteFile(filePath);
     }
   }
   await cleanupBackup(ops);
-  await cleanupPending(ops);
 }
