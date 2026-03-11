@@ -121,3 +121,17 @@ export { TierCommand } from "./cli/tier-command.js";
 export type { TierAction, TierCommandOptions } from "./cli/tier-command.js";
 export { StageCommand } from "./cli/stage-command.js";
 export type { StageCommandOptions } from "./cli/stage-command.js";
+
+// Daemon types
+export type {
+  ProposalPayload,
+  ApprovalResult,
+  ProposalOutcome,
+  ProposalState,
+  Proposal,
+  ApprovalChannel,
+  CreateChannelFn,
+} from "./daemon/index.js";
+
+// Daemon config
+export type { DaemonConfig } from "./util/types.js";
