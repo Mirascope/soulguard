@@ -9,48 +9,67 @@
 import { describe, test } from "bun:test";
 
 describe("ApprovalChannel contract", () => {
-  test.skip("postProposal returns a channel-specific proposal ID", () => {
+  test.skip("postProposal returns PostProposalResult with channel name and proposal ID", () => {
     // const channel = createMockChannel();
-    // const id = await channel.postProposal({ diff: "...", hash: "abc123" });
-    // expect(typeof id).toBe("string");
-    // expect(id.length).toBeGreaterThan(0);
+    // const result = await channel.postProposal({
+    //   files: [{ path: "SOUL.md", status: "modified", diff: "..." }],
+    //   hash: "abc123",
+    // });
+    // expect(result.channel).toBe("mock");
+    // expect(typeof result.proposalId).toBe("string");
+    // expect(result.proposalId.length).toBeGreaterThan(0);
   });
 
-  test.skip("waitForApproval resolves with approved=true on approval", () => {
+  test.skip("waitForApproval resolves with approved=true and channel name on approval", () => {
     // const channel = createMockChannel({ autoApprove: true });
-    // const id = await channel.postProposal({ diff: "...", hash: "abc123" });
-    // const result = await channel.waitForApproval(id, new AbortController().signal);
+    // const { proposalId } = await channel.postProposal({
+    //   files: [{ path: "SOUL.md", status: "modified", diff: "..." }],
+    //   hash: "abc123",
+    // });
+    // const result = await channel.waitForApproval(proposalId, new AbortController().signal);
     // expect(result.approved).toBe(true);
+    // expect(result.channel).toBe("mock");
     // expect(result.approver).toBeTruthy();
   });
 
   test.skip("waitForApproval resolves with approved=false on rejection", () => {
     // const channel = createMockChannel({ autoReject: true });
-    // const id = await channel.postProposal({ diff: "...", hash: "abc123" });
-    // const result = await channel.waitForApproval(id, new AbortController().signal);
+    // const { proposalId } = await channel.postProposal({
+    //   files: [{ path: "SOUL.md", status: "modified", diff: "..." }],
+    //   hash: "abc123",
+    // });
+    // const result = await channel.waitForApproval(proposalId, new AbortController().signal);
     // expect(result.approved).toBe(false);
   });
 
   test.skip("waitForApproval throws on abort signal (supersession)", () => {
     // const channel = createMockChannel({ neverResolve: true });
-    // const id = await channel.postProposal({ diff: "...", hash: "abc123" });
+    // const { proposalId } = await channel.postProposal({
+    //   files: [{ path: "SOUL.md", status: "modified", diff: "..." }],
+    //   hash: "abc123",
+    // });
     // const controller = new AbortController();
-    // const promise = channel.waitForApproval(id, controller.signal);
+    // const promise = channel.waitForApproval(proposalId, controller.signal);
     // controller.abort();
     // await expect(promise).rejects.toThrow();
   });
 
-  test.skip("postResult returns true on success", () => {
+  test.skip("postResult returns ok=true on success", () => {
     // const channel = createMockChannel();
-    // const id = await channel.postProposal({ diff: "...", hash: "abc123" });
-    // const ok = await channel.postResult(id, "applied");
-    // expect(ok).toBe(true);
+    // const { proposalId } = await channel.postProposal({
+    //   files: [{ path: "SOUL.md", status: "modified", diff: "..." }],
+    //   hash: "abc123",
+    // });
+    // const result = await channel.postResult(proposalId, "applied");
+    // expect(result.ok).toBe(true);
+    // expect(result.error).toBeUndefined();
   });
 
-  test.skip("postResult returns false on failure (best-effort)", () => {
+  test.skip("postResult returns ok=false with error on failure", () => {
     // const channel = createMockChannel({ postResultFails: true });
-    // const ok = await channel.postResult("fake-id", "applied");
-    // expect(ok).toBe(false);
+    // const result = await channel.postResult("fake-id", "applied");
+    // expect(result.ok).toBe(false);
+    // expect(result.error).toBeTruthy();
   });
 
   test.skip("dispose cleans up resources", () => {

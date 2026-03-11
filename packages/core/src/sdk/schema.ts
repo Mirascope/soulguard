@@ -16,6 +16,11 @@ const ownershipSchema = z.object({
   mode: z.string(),
 });
 
+/** Default debounce period (ms) after last staging write before proposing. */
+export const DEFAULT_DEBOUNCE_MS = 3000;
+/** Default max wait (ms) for .wait-for-ready sentinel removal. */
+export const DEFAULT_BATCH_READY_TIMEOUT_MS = 300_000; // 5 minutes
+
 const daemonConfigSchema = z
   .object({
     channel: z.string(),

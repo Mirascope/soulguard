@@ -124,11 +124,14 @@ export type { StageCommandOptions } from "./cli/stage-command.js";
 
 // Daemon types
 export type {
+  ProposalFile,
   ProposalPayload,
+  PostProposalResult,
   ApprovalResult,
   ProposalOutcome,
   ProposalState,
   Proposal,
+  PostResultOutcome,
   ApprovalChannel,
   CreateChannelFn,
 } from "./daemon/index.js";

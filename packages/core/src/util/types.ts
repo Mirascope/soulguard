@@ -107,9 +107,9 @@ export { ok, err } from "./result.js";
 export type DaemonConfig = {
   /** Which ApprovalChannel implementation to use (e.g. "discord"). */
   channel: string;
-  /** Debounce period (ms) after last staging write before creating a proposal. Default: 3000. */
+  /** Debounce period (ms) after last staging write before creating a proposal. */
   debounceMs?: number;
-  /** Max time (ms) to wait for .wait-for-ready sentinel removal. Default: 300000 (5 min). */
+  /** Max time (ms) to wait for .wait-for-ready sentinel removal. */
   batchReadyTimeoutMs?: number;
   /** Channel-specific config block. Validated by the channel plugin, not core. */
   [channelName: string]: unknown;

@@ -8,20 +8,40 @@
 
 // ── Proposal types ─────────────────────────────────────────────────────
 
+/** Per-file change in a proposal. */
+export type ProposalFile = {
+  /** Relative path from workspace root. */
+  path: string;
+  /** What kind of change. */
+  status: "modified" | "created" | "deleted";
+  /** Unified diff text for this file. */
+  diff: string;
+};
+
 /** Payload sent to a channel when posting a new proposal. */
 export type ProposalPayload = {
-  /** Unified diff text of all staged changes. */
-  diff: string;
+  /** Per-file changes with diffs. */
+  files: ProposalFile[];
   /** SHA-256 approval hash over the staged file contents. */
   hash: string;
   /** Optional agent-provided description of the changes. */
   description?: string;
 };
 
+/** Result from posting a proposal to a channel. */
+export type PostProposalResult = {
+  /** Which channel posted the proposal (e.g. "discord"). */
+  channel: string;
+  /** Channel-specific proposal ID (e.g. Discord message ID). */
+  proposalId: string;
+};
+
 /** Result from a channel's approval wait. */
 export type ApprovalResult = {
   /** Whether the proposal was approved. */
   approved: boolean;
+  /** Which channel the approval came from. */
+  channel: string;
   /** Identifier of the approver (e.g. Discord user ID). */
   approver: string;
 };
@@ -34,6 +54,8 @@ export type ProposalState = "pending" | "approved" | "rejected" | "superseded";
 
 /** A tracked proposal with its channel-specific ID and snapshot. */
 export type Proposal = {
+  /** Which channel this proposal was posted to. */
+  channel: string;
   /** Channel-specific proposal ID (e.g. Discord message ID). */
   externalId: string;
   /** The payload that was posted to the channel. */
@@ -42,6 +64,14 @@ export type Proposal = {
   state: ProposalState;
   /** ISO-8601 timestamp when the proposal was created. */
   createdAt: string;
+};
+
+/** Result from posting an outcome back to the channel. */
+export type PostResultOutcome = {
+  /** Whether the result was posted successfully. */
+  ok: boolean;
+  /** Error message if posting failed. */
+  error?: string;
 };
 
 // ── ApprovalChannel interface ──────────────────────────────────────────
@@ -58,11 +88,14 @@ export type Proposal = {
  *   The imported module must export `createChannel(config: unknown): ApprovalChannel`
  */
 export interface ApprovalChannel {
+  /** Channel name (e.g. "discord", "slack"). Used to tag proposals and results. */
+  readonly name: string;
+
   /**
    * Post a proposal to the channel.
-   * @returns Channel-specific proposal ID (e.g. Discord message ID).
+   * @returns Result with channel name and channel-specific proposal ID.
    */
-  postProposal(proposal: ProposalPayload): Promise<string>;
+  postProposal(proposal: ProposalPayload): Promise<PostProposalResult>;
 
   /**
    * Wait for a human to approve or reject the proposal.
@@ -80,9 +113,9 @@ export interface ApprovalChannel {
    * Post the outcome of a proposal back to the channel.
    *
    * Best-effort — the apply/reject has already happened by the time this is called.
-   * @returns true if the result was posted successfully, false otherwise.
+   * @returns Result indicating success or failure with optional error message.
    */
-  postResult(proposalId: string, result: ProposalOutcome): Promise<boolean>;
+  postResult(proposalId: string, result: ProposalOutcome): Promise<PostResultOutcome>;
 
   /**
    * Clean up resources (close connections, stop listeners).
