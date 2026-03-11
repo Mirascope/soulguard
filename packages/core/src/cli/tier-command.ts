@@ -172,6 +172,15 @@ export class TierCommand {
           return 1;
         }
       }
+    } else if (action.kind === "set" && action.tier === "watch") {
+      // Downgrade from protect → watch: restore default ownership
+      const defaultOwnership = configResult.value.defaultOwnership;
+      for (const file of changedPaths) {
+        const wasTier = configResult.value.files[file];
+        if (wasTier === "protect" && defaultOwnership) {
+          await restoreOwnership(ops, file, defaultOwnership);
+        }
+      }
     } else if (action.kind === "release") {
       const defaultOwnership = configResult.value.defaultOwnership;
       for (const file of changedPaths) {
