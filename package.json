@@ -22,10 +22,11 @@
     "lint": "oxlint packages/*/src",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
+    "build-and-link": "bun run build && cd packages/soulguard && bun link",
     "bump-version": "bun scripts/bump-version.ts",
     "check-versions": "bun scripts/bump-version.ts --check",
     "prepare": "husky",
-    "publish:all": "bun scripts/publish.ts"
+    "publish": "bun scripts/publish.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",
