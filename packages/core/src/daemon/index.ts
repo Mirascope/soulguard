@@ -1,5 +1,5 @@
 /**
- * Daemon types — re-exported for public API.
+ * Daemon types and components — re-exported for public API.
  */
 export type {
   ProposalFile,
@@ -13,3 +13,6 @@ export type {
   ApprovalChannel,
   CreateChannelFn,
 } from "./types.js";
+
+export { StagingWatcher } from "./watcher.js";
+export type { StagingSnapshot, WatcherEvents, WatcherOptions } from "./watcher.js";
