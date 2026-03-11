@@ -203,6 +203,17 @@ export class StateTree {
   }
 
   /**
+   * All files that have a staging copy (regardless of whether content differs).
+   *
+   * A file is staged if it has a stagedHash (content in staging) or a delete
+   * sentinel (status === "deleted"). This is broader than changedFiles() —
+   * it includes files staged for editing whose content hasn't been modified yet.
+   */
+  stagedFiles(): StateFile[] {
+    return this.flatFiles().filter((f) => f.stagedHash !== null || f.status === "deleted");
+  }
+
+  /**
    * All entities whose actual ownership doesn't match expectations
    * for their config tier. Protect-tier files should be
    * soulguardian:soulguard 444, directories 555.

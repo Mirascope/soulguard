@@ -7,6 +7,7 @@ const config: SoulguardConfig = {
   version: 1,
   files: {
     "SOUL.md": "protect",
+    "skills/": "protect",
   },
 };
 
@@ -17,7 +18,18 @@ function setup() {
     group: "soulguard",
     mode: "444",
   });
+  ops.addDirectory("skills", {
+    owner: "soulguardian",
+    group: "soulguard",
+    mode: "555",
+  });
+  ops.addFile("skills/python.md", "python skill on disk", {
+    owner: "soulguardian",
+    group: "soulguard",
+    mode: "444",
+  });
   ops.addDirectory(".soulguard-staging");
+  ops.addDirectory(".soulguard-staging/skills");
   ops.addFile(".soulguard-staging/SOUL.md", "modified soul", {
     owner: "agent",
     group: "soulguard",

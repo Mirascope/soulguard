@@ -1,6 +1,9 @@
 /**
  * soulguard reset — manage staging tree contents.
  *
+ * Thin layer over StateTree: builds a snapshot, derives changed files,
+ * then deletes staging copies as requested.
+ *
  * No args: dry run, list staged files.
  * Paths: delete specific staging copies.
  * --all: delete all staging contents.
@@ -8,7 +11,8 @@
 
 import type { SystemOperations } from "../util/system-ops.js";
 import type { SoulguardConfig, Result } from "../util/types.js";
-import { STAGING_DIR } from "./staging.js";
+import { StateTree } from "./state.js";
+import { stagingPath } from "./staging.js";
 import { ok } from "../util/result.js";
 
 export type ResetOptions = {
@@ -27,21 +31,15 @@ export type ResetResult = {
 
 export type ResetError = { kind: "reset_failed"; message: string };
 
-/**
- * List all staged files (paths relative to STAGING_DIR).
- */
-async function listStagedFiles(ops: SystemOperations): Promise<string[]> {
-  const result = await ops.listDir(STAGING_DIR);
-  if (!result.ok) return [];
-
-  const prefix = STAGING_DIR + "/";
-  return result.value.filter((p) => p.startsWith(prefix)).map((p) => p.slice(prefix.length));
-}
-
 export async function reset(options: ResetOptions): Promise<Result<ResetResult, ResetError>> {
-  const { ops, paths, all } = options;
+  const { ops, config, paths, all } = options;
 
-  const stagedFiles = await listStagedFiles(ops);
+  const treeResult = await StateTree.build({ ops, config });
+  if (!treeResult.ok) {
+    return { ok: false, error: { kind: "reset_failed", message: treeResult.error.message } };
+  }
+
+  const stagedFiles = treeResult.value.stagedFiles().map((f) => f.path);
 
   if (stagedFiles.length === 0) {
     return ok({ stagedFiles: [], deleted: false });
@@ -55,7 +53,7 @@ export async function reset(options: ResetOptions): Promise<Result<ResetResult, 
   // --all: delete everything
   if (all) {
     for (const f of stagedFiles) {
-      await ops.deleteFile(STAGING_DIR + "/" + f);
+      await ops.deleteFile(stagingPath(f));
     }
     return ok({ stagedFiles, deleted: true });
   }
@@ -63,10 +61,9 @@ export async function reset(options: ResetOptions): Promise<Result<ResetResult, 
   // Selective: delete specific paths
   const affected: string[] = [];
   for (const p of paths!) {
-    // Find matching staged files (exact match or directory prefix)
     const matching = stagedFiles.filter((f) => f === p || f.startsWith(p + "/"));
     for (const f of matching) {
-      await ops.deleteFile(STAGING_DIR + "/" + f);
+      await ops.deleteFile(stagingPath(f));
       affected.push(f);
     }
   }
