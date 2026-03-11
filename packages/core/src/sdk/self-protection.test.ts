@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { MockSystemOps } from "../util/system-ops-mock.js";
-import { diff } from "./diff.js";
 import { apply } from "./apply.js";
+import { StateTree } from "./state.js";
 import type { SoulguardConfig, FileOwnership } from "../util/types.js";
 
 const protectOwnership: FileOwnership = { user: "soulguardian", group: "soulguard", mode: "444" };
 
-async function getApprovalHash(ops: MockSystemOps, config: SoulguardConfig): Promise<string> {
-  const result = await diff({ ops, config });
-  if (!result.ok) throw new Error("diff failed");
-  return result.value.approvalHash!;
+async function buildTree(ops: MockSystemOps, config: SoulguardConfig): Promise<StateTree> {
+  const result = await StateTree.build({ ops, config });
+  if (!result.ok) throw new Error("tree build failed");
+  return result.value;
 }
 
 describe("self-protection", () => {
@@ -32,8 +32,8 @@ describe("self-protection", () => {
       mode: "644",
     });
 
-    const hash = await getApprovalHash(ops, config);
-    const result = await apply({ ops, config, hash, protectOwnership });
+    const tree = await buildTree(ops, config);
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("self_protection");
@@ -62,8 +62,8 @@ describe("self-protection", () => {
       mode: "644",
     });
 
-    const hash = await getApprovalHash(ops, config);
-    const result = await apply({ ops, config, hash, protectOwnership });
+    const tree = await buildTree(ops, config);
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("self_protection");
@@ -91,8 +91,8 @@ describe("self-protection", () => {
       { owner: "agent", group: "soulguard", mode: "644" },
     );
 
-    const hash = await getApprovalHash(ops, config);
-    const result = await apply({ ops, config, hash, protectOwnership });
+    const tree = await buildTree(ops, config);
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
     expect(result.ok).toBe(true);
   });
 
@@ -130,8 +130,8 @@ describe("self-protection", () => {
       { owner: "agent", group: "soulguard", mode: "644" },
     );
 
-    const hash = await getApprovalHash(ops, config);
-    const result = await apply({ ops, config, hash, protectOwnership });
+    const tree = await buildTree(ops, config);
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
     expect(result.ok).toBe(true);
   });
 
@@ -154,9 +154,15 @@ describe("self-protection", () => {
       mode: "644",
     });
 
-    const hash = await getApprovalHash(ops, config);
+    const tree = await buildTree(ops, config);
     // Explicitly pass empty policies — self-protection still runs
-    const result = await apply({ ops, config, hash, protectOwnership, policies: [] });
+    const result = await apply({
+      ops,
+      tree,
+      hash: tree.approvalHash!,
+      protectOwnership,
+      policies: [],
+    });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("self_protection");
