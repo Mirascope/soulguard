@@ -26,10 +26,10 @@ e2e("transitions: protect → watch downgrades permissions", (t) => {
   t.$(`stat -c '%U:%G %a' SOUL.md`)
     .expect(`
       exit 0
-      soulguardian:soulguard 444
+      soulguardian_agent:soulguard 444
     `)
     .exits(0)
-    .outputs(/soulguardian:soulguard 444/);
+    .outputs(/soulguardian_agent:soulguard 444/);
 
   t.$(`sudo soulguard watch SOUL.md`)
     .expect(`
@@ -77,10 +77,10 @@ e2e("transitions: protect → release restores default ownership", (t) => {
   t.$(`stat -c '%U:%G %a' SOUL.md`)
     .expect(`
       exit 0
-      soulguardian:soulguard 444
+      soulguardian_agent:soulguard 444
     `)
     .exits(0)
-    .outputs(/soulguardian:soulguard 444/);
+    .outputs(/soulguardian_agent:soulguard 444/);
 
   t.$(`sudo soulguard release SOUL.md`)
     .expect(`

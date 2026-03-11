@@ -5,7 +5,8 @@ import { formatIssue } from "../util/types.js";
 import type { DriftIssue } from "../util/types.js";
 
 const WORKSPACE = "/test/workspace";
-const VAULT_OWNERSHIP = { user: "soulguardian", group: "soulguard", mode: "444" };
+const GUARDIAN = "soulguardian_agent";
+const VAULT_OWNERSHIP = { user: GUARDIAN, group: "soulguard", mode: "444" };
 
 function makeMock() {
   const ops = new MockSystemOps(WORKSPACE);
@@ -15,7 +16,7 @@ function makeMock() {
 }
 
 function opts(
-  config: { version: 1; files: Record<string, "protect" | "watch"> },
+  config: { version: 1; guardian: string; files: Record<string, "protect" | "watch"> },
   ops: MockSystemOps,
 ) {
   return { config, ops };
@@ -32,7 +33,9 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
+    const result = await status(
+      opts({ version: 1, guardian: GUARDIAN, files: { "SOUL.md": "protect" } }, ops),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -53,7 +56,9 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
+    const result = await status(
+      opts({ version: 1, guardian: GUARDIAN, files: { "SOUL.md": "protect" } }, ops),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -90,7 +95,9 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(opts({ version: 1, files: { "skills/": "protect" } }, ops));
+    const result = await status(
+      opts({ version: 1, guardian: GUARDIAN, files: { "skills/": "protect" } }, ops),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -107,7 +114,9 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
+    const result = await status(
+      opts({ version: 1, guardian: GUARDIAN, files: { "SOUL.md": "protect" } }, ops),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -119,7 +128,9 @@ describe("status", () => {
   test("config entry with no file on disk is not reported", async () => {
     const ops = makeMock();
 
-    const result = await status(opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
+    const result = await status(
+      opts({ version: 1, guardian: GUARDIAN, files: { "SOUL.md": "protect" } }, ops),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -137,7 +148,9 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
+    const result = await status(
+      opts({ version: 1, guardian: GUARDIAN, files: { "SOUL.md": "protect" } }, ops),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -157,7 +170,9 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
+    const result = await status(
+      opts({ version: 1, guardian: GUARDIAN, files: { "SOUL.md": "protect" } }, ops),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -173,7 +188,9 @@ describe("status", () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", { owner: "agent", group: "staff", mode: "777" });
 
-    const result = await status(opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
+    const result = await status(
+      opts({ version: 1, guardian: GUARDIAN, files: { "SOUL.md": "protect" } }, ops),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -194,7 +211,9 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(opts({ version: 1, files: { "notes.md": "watch" } }, ops));
+    const result = await status(
+      opts({ version: 1, guardian: GUARDIAN, files: { "notes.md": "watch" } }, ops),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -216,7 +235,9 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(opts({ version: 1, files: { "skills/": "protect" } }, ops));
+    const result = await status(
+      opts({ version: 1, guardian: GUARDIAN, files: { "skills/": "protect" } }, ops),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -236,7 +257,9 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(opts({ version: 1, files: { "skills/": "protect" } }, ops));
+    const result = await status(
+      opts({ version: 1, guardian: GUARDIAN, files: { "skills/": "protect" } }, ops),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -253,7 +276,9 @@ describe("status", () => {
       mode: "444", // wrong — should be 555
     });
 
-    const result = await status(opts({ version: 1, files: { "skills/": "protect" } }, ops));
+    const result = await status(
+      opts({ version: 1, guardian: GUARDIAN, files: { "skills/": "protect" } }, ops),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -292,7 +317,9 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(opts({ version: 1, files: { "skills/": "protect" } }, ops));
+    const result = await status(
+      opts({ version: 1, guardian: GUARDIAN, files: { "skills/": "protect" } }, ops),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -315,7 +342,9 @@ describe("status", () => {
       { owner: "agent", group: "staff", mode: "644" },
     );
 
-    const result = await status(opts({ version: 1, files: { "SOUL.md": "protect" } }, ops));
+    const result = await status(
+      opts({ version: 1, guardian: GUARDIAN, files: { "SOUL.md": "protect" } }, ops),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -348,7 +377,9 @@ describe("status", () => {
       { owner: "agent", group: "staff", mode: "644" },
     );
 
-    const result = await status(opts({ version: 1, files: { "skills/": "protect" } }, ops));
+    const result = await status(
+      opts({ version: 1, guardian: GUARDIAN, files: { "skills/": "protect" } }, ops),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -381,7 +412,9 @@ describe("status", () => {
       { owner: "agent", group: "staff", mode: "644" },
     );
 
-    const result = await status(opts({ version: 1, files: { "memory/": "protect" } }, ops));
+    const result = await status(
+      opts({ version: 1, guardian: GUARDIAN, files: { "memory/": "protect" } }, ops),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -397,10 +430,10 @@ describe("status", () => {
 
   test("formatIssue produces readable strings", () => {
     const issues: DriftIssue[] = [
-      { kind: "wrong_owner", expected: "soulguardian", actual: "agent" },
+      { kind: "wrong_owner", expected: GUARDIAN, actual: "agent" },
       { kind: "wrong_mode", expected: "444", actual: "644" },
     ];
-    expect(formatIssue(issues[0]!)).toBe("owner is agent, expected soulguardian");
+    expect(formatIssue(issues[0]!)).toBe(`owner is agent, expected ${GUARDIAN}`);
     expect(formatIssue(issues[1]!)).toBe("mode is 644, expected 444");
   });
 });

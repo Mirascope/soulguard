@@ -9,7 +9,7 @@
 
 import type { ConsoleOutput } from "../util/console.js";
 import type { SystemOperations } from "../util/system-ops.js";
-import type { FileOwnership, SoulguardConfig } from "../util/types.js";
+import type { SoulguardConfig } from "../util/types.js";
 import type { Policy } from "../sdk/policy.js";
 import { apply } from "../sdk/apply.js";
 import { diff } from "../sdk/diff.js";
@@ -18,7 +18,6 @@ import { StateTree } from "../sdk/state.js";
 export type ApplyCommandOptions = {
   ops: SystemOperations;
   config: SoulguardConfig;
-  protectOwnership: FileOwnership;
   policies?: Policy[];
   /** Pre-computed hash for cryptographic verification mode */
   hash?: string;
@@ -47,7 +46,10 @@ export class ApplyCommand {
       hash = undefined;
     } else if (!hash) {
       // Interactive mode: show diff, compute hash, prompt
-      const diffResult = await diff({ ops: this.opts.ops, config: this.opts.config });
+      const diffResult = await diff({
+        ops: this.opts.ops,
+        config: this.opts.config,
+      });
       if (!diffResult.ok) {
         this.out.error(`Diff failed: ${diffResult.error.message}`);
         return 1;
@@ -80,7 +82,10 @@ export class ApplyCommand {
     }
 
     // Build StateTree for apply
-    const treeResult = await StateTree.build({ ops: this.opts.ops, config: this.opts.config });
+    const treeResult = await StateTree.build({
+      ops: this.opts.ops,
+      config: this.opts.config,
+    });
     if (!treeResult.ok) {
       this.out.error(`State tree build failed: ${treeResult.error.message}`);
       return 1;
@@ -90,7 +95,6 @@ export class ApplyCommand {
       ops: this.opts.ops,
       tree: treeResult.value,
       hash,
-      protectOwnership: this.opts.protectOwnership,
       policies: this.opts.policies,
     });
 

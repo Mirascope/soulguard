@@ -1,11 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { MockSystemOps } from "../util/system-ops-mock.js";
 import { readConfig, ensureConfig } from "./config.js";
-import { DEFAULT_CONFIG } from "../util/constants.js";
+import { makeDefaultConfig } from "../util/constants.js";
 import type { SoulguardConfig } from "../util/types.js";
+
+const GUARDIAN = "soulguardian_agent";
 
 const testConfig: SoulguardConfig = {
   version: 1,
+  guardian: GUARDIAN,
   files: { "SOUL.md": "protect" },
 };
 
@@ -55,7 +58,7 @@ describe("ensureConfig", () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile("soulguard.json", JSON.stringify(testConfig));
 
-    const result = await ensureConfig(ops);
+    const result = await ensureConfig(ops, GUARDIAN);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.created).toBe(false);
@@ -65,24 +68,24 @@ describe("ensureConfig", () => {
   test("writes default config when missing, created=true", async () => {
     const ops = new MockSystemOps("/workspace");
 
-    const result = await ensureConfig(ops);
+    const result = await ensureConfig(ops, GUARDIAN);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.created).toBe(true);
-    expect(result.value.config).toEqual(DEFAULT_CONFIG);
+    expect(result.value.config).toEqual(makeDefaultConfig(GUARDIAN));
 
     // Verify file contents match default config
     const raw = await ops.readFile("soulguard.json");
     expect(raw.ok).toBe(true);
     if (!raw.ok) return;
-    expect(raw.value).toBe(JSON.stringify(DEFAULT_CONFIG, null, 2) + "\n");
+    expect(raw.value).toBe(JSON.stringify(makeDefaultConfig(GUARDIAN), null, 2) + "\n");
   });
 
   test("returns error on malformed existing config", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile("soulguard.json", "{bad json");
 
-    const result = await ensureConfig(ops);
+    const result = await ensureConfig(ops, GUARDIAN);
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("parse_failed");

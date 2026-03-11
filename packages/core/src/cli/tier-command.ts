@@ -9,6 +9,7 @@ import type { ConsoleOutput } from "../util/console.js";
 import type { SystemOperations } from "../util/system-ops.js";
 import type { FileOwnership, Tier } from "../util/types.js";
 import { readConfig, writeConfig } from "../sdk/config.js";
+import { getProtectOwnership } from "../util/constants.js";
 import { setTier, release } from "../sdk/tier.js";
 import { stagingPath } from "../sdk/staging.js";
 import { isGitEnabled, gitCommit } from "../util/git.js";
@@ -19,7 +20,6 @@ export type TierCommandOptions = {
   ops: SystemOperations;
   files: string[];
   action: TierAction;
-  expectedProtectOwnership: FileOwnership;
 };
 
 /** Format a summary like "1 file", "2 directories", "1 file and 2 directories". */
@@ -96,7 +96,7 @@ export class TierCommand {
   ) {}
 
   async execute(): Promise<number> {
-    const { ops, files, action, expectedProtectOwnership } = this.opts;
+    const { ops, files, action } = this.opts;
 
     if (files.length === 0) {
       this.out.error("No files specified.");
@@ -175,6 +175,7 @@ export class TierCommand {
     // ── Surgical enforcement (no full sync) ────────────────────────────
 
     if (action.kind === "set" && action.tier === "protect") {
+      const expectedProtectOwnership = getProtectOwnership(configResult.value.guardian);
       for (const file of changedPaths) {
         const result = await enforceProtect(ops, file, expectedProtectOwnership);
         if (!result.ok) {

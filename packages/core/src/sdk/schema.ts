@@ -18,6 +18,7 @@ const ownershipSchema = z.object({
 
 export const soulguardConfigSchema: z.ZodType<SoulguardConfig> = z.object({
   version: z.literal(1),
+  guardian: z.string(),
   files: z.record(z.string(), tierSchema),
   git: z.boolean().optional(),
   defaultOwnership: ownershipSchema.optional(),

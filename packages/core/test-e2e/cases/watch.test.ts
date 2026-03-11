@@ -3,23 +3,23 @@ import { e2e } from "../harness";
 e2e("watch: adds file and updates config", (t) => {
   t.$(`echo '# Notes' > notes.md`)
     .expect(`
-    exit 0
-  `)
+      exit 0
+    `)
     .exits(0);
   t.$(`sudo soulguard init .`)
     .expect(`
-    exit 0
-    ✓ Soulguard initialized.
-  `)
+      exit 0
+      ✓ Soulguard initialized.
+    `)
     .exits(0)
     .outputs(/Soulguard initialized/);
   t.$(`sudo soulguard watch notes.md`)
     .expect(`
-    exit 0
-      + notes.md → watch
+      exit 0
+        + notes.md → watch
 
-    Updated. 1 file now watched.
-  `)
+      Updated. 1 file now watched.
+    `)
     .exits(0)
     .outputs(/watch/);
 
@@ -36,6 +36,7 @@ e2e("watch: adds file and updates config", (t) => {
       exit 0
       {
         "version": 1,
+        "guardian": "soulguardian_agent",
         "files": {
           "soulguard.json": "protect",
           "notes.md": "watch"

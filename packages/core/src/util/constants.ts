@@ -4,20 +4,26 @@
 
 import type { FileOwnership, SoulguardConfig } from "./types.js";
 
-/** System user/group identity for soulguard */
-export const SOULGUARDIAN_IDENTITY = { user: "soulguardian", group: "soulguard" } as const;
+/** Shared system group for all soulguard guardians */
+export const SOULGUARD_GROUP = "soulguard";
 
-/** Default protected file ownership */
-export const PROTECT_OWNERSHIP: FileOwnership = {
-  user: SOULGUARDIAN_IDENTITY.user,
-  group: SOULGUARDIAN_IDENTITY.group,
-  mode: "444",
-} as const;
+/** Derive the protect-tier ownership from a guardian username. */
+export function getProtectOwnership(guardian: string): FileOwnership {
+  return { user: guardian, group: SOULGUARD_GROUP, mode: "444" };
+}
 
-/** Sensible default config — protects soulguard's own config */
-export const DEFAULT_CONFIG: SoulguardConfig = {
-  version: 1 as const,
-  files: {
-    "soulguard.json": "protect",
-  },
-} as const;
+/** Derive the guardian username from the agent's OS username. */
+export function guardianName(agentUser: string): string {
+  return `soulguardian_${agentUser}`;
+}
+
+/** Build the default config for a new workspace. */
+export function makeDefaultConfig(guardian: string): SoulguardConfig {
+  return {
+    version: 1 as const,
+    guardian,
+    files: {
+      "soulguard.json": "protect",
+    },
+  };
+}

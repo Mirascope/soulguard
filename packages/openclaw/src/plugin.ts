@@ -11,12 +11,14 @@ import {
   NodeSystemOps,
   protectPatterns,
   formatIssue,
+  guardianName,
   type SoulguardConfig,
 } from "@soulguard/core";
 
 /** OpenClaw-specific default config — also protects openclaw.json */
 const OPENCLAW_DEFAULT_CONFIG: SoulguardConfig = {
   version: 1 as const,
+  guardian: guardianName("openclaw"),
   files: {
     "openclaw.json": "protect",
     "soulguard.json": "protect",
@@ -79,7 +81,10 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
           parameters: { type: "object", properties: {}, required: [] },
           async execute(_id, _params) {
             const ops = createOps();
-            const result = await status({ config, ops });
+            const result = await status({
+              config,
+              ops,
+            });
             if (!result.ok) {
               return { content: [{ type: "text" as const, text: "Status check failed" }] };
             }
@@ -122,7 +127,11 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
           async execute(_id, params) {
             const ops = createOps();
             const files = Array.isArray(params.files) ? (params.files as string[]) : undefined;
-            const result = await diff({ ops, config, files });
+            const result = await diff({
+              ops,
+              config,
+              files,
+            });
             if (!result.ok) {
               return {
                 content: [{ type: "text" as const, text: `Diff failed: ${result.error.message}` }],

@@ -4,6 +4,7 @@ import type { SoulguardConfig } from "../util/types.js";
 
 const baseConfig: SoulguardConfig = {
   version: 1,
+  guardian: "soulguardian_agent",
   files: {
     "SOUL.md": "protect",
     "soulguard.json": "protect",

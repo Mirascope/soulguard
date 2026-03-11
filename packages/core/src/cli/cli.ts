@@ -21,8 +21,6 @@ import { TierCommand } from "./tier-command.js";
 import { NodeSystemOps } from "../util/system-ops-node.js";
 import { parseConfig } from "../sdk/schema.js";
 
-import { PROTECT_OWNERSHIP } from "../util/constants.js";
-
 async function makeBaseOptions(workspace: string) {
   const ops = new NodeSystemOps(resolve(workspace));
   const configPath = resolve(workspace, "soulguard.json");
@@ -36,11 +34,7 @@ async function makeBaseOptions(workspace: string) {
 
   const config = parseConfig(JSON.parse(raw));
 
-  return {
-    config,
-    expectedProtectOwnership: PROTECT_OWNERSHIP,
-    ops,
-  };
+  return { config, ops };
 }
 
 function getVersion(): string {
@@ -149,7 +143,6 @@ program
         {
           ops: statusOpts.ops,
           config: statusOpts.config,
-          protectOwnership: PROTECT_OWNERSHIP,
           hash: opts.hash,
           skipHashVerification: opts.yes,
           prompt:
@@ -242,7 +235,6 @@ program
           ops: base.ops,
           files,
           action: { kind: "set", tier: "protect" },
-          expectedProtectOwnership: PROTECT_OWNERSHIP,
         },
         out,
       );
@@ -272,7 +264,6 @@ program
           ops: base.ops,
           files,
           action: { kind: "set", tier: "watch" },
-          expectedProtectOwnership: PROTECT_OWNERSHIP,
         },
         out,
       );
@@ -302,7 +293,6 @@ program
           ops: base.ops,
           files,
           action: { kind: "release" },
-          expectedProtectOwnership: PROTECT_OWNERSHIP,
         },
         out,
       );

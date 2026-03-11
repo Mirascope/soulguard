@@ -52,7 +52,12 @@ export type { SyncError, SyncResult, SyncOptions } from "./sdk/sync.js";
 
 // Init
 export type { InitResult, InitError, InitOptions } from "./sdk/init.js";
-export { DEFAULT_CONFIG } from "./util/constants.js";
+export {
+  makeDefaultConfig,
+  getProtectOwnership,
+  guardianName,
+  SOULGUARD_GROUP,
+} from "./util/constants.js";
 
 // Console output
 export type { ConsoleOutput } from "./util/console.js";

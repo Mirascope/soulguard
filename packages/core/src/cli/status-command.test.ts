@@ -4,7 +4,8 @@ import { MockConsoleOutput } from "../util/console-mock.js";
 import { StatusCommand } from "./status-command.js";
 import type { StatusOptions } from "../sdk/status.js";
 
-const VAULT_MOCK = { owner: "soulguardian", group: "soulguard", mode: "444" };
+const GUARDIAN = "soulguardian_agent";
+const VAULT_MOCK = { owner: GUARDIAN, group: "soulguard", mode: "444" };
 const LEDGER_MOCK = { owner: "agent", group: "soulguard", mode: "644" };
 
 async function setup(
@@ -21,7 +22,7 @@ async function setup(
   configureMock(ops);
   const out = new MockConsoleOutput();
   const opts: StatusOptions = {
-    config: { version: 1, files },
+    config: { version: 1, guardian: GUARDIAN, files },
     ops,
   };
   return { cmd: new StatusCommand(opts, out), out };
@@ -80,7 +81,7 @@ describe("StatusCommand", () => {
   it("shows staged directory changes per file", async () => {
     const { cmd, out } = await setup(
       (ops) => {
-        ops.addDirectory("skills", { owner: "soulguardian", group: "soulguard", mode: "555" });
+        ops.addDirectory("skills", { owner: GUARDIAN, group: "soulguard", mode: "555" });
         ops.addFile("skills/a.md", "a", VAULT_MOCK);
         ops.addDirectory(".soulguard-staging/skills", {
           owner: "agent",

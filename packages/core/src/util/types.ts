@@ -8,6 +8,8 @@
 export type SoulguardConfig = {
   /** Schema version for forward compatibility */
   version: 1;
+  /** Per-agent guardian system user (e.g. "soulguardian_agent_a"). Set by `init`. */
+  guardian: string;
   /**
    * Map from file path or directory path to its protection tier.
    * Literal paths only — no globs.

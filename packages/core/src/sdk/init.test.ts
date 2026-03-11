@@ -6,6 +6,7 @@ import type { InitOptions } from "./init.js";
 function makeOptions(ops: MockSystemOps, overrides?: Partial<InitOptions>): InitOptions {
   return {
     ops,
+    agentUser: "agent",
     _skipRootCheck: true,
     ...overrides,
   };
@@ -26,7 +27,7 @@ describe("init", () => {
 
   test("skips existing user and group", async () => {
     const ops = new MockSystemOps("/workspace");
-    ops.addUser("soulguardian");
+    ops.addUser("soulguardian_agent");
     ops.addGroup("soulguard");
 
     const result = await init(makeOptions(ops));
@@ -41,7 +42,11 @@ describe("init", () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile(
       "soulguard.json",
-      JSON.stringify({ version: 1, files: { "SOUL.md": "protect", "soulguard.json": "protect" } }),
+      JSON.stringify({
+        version: 1,
+        guardian: "soulguardian_agent",
+        files: { "SOUL.md": "protect", "soulguard.json": "protect" },
+      }),
     );
 
     const result = await init(makeOptions(ops));
@@ -65,7 +70,11 @@ describe("init", () => {
     ops.addFile("SOUL.md", "# My Soul", { owner: "agent", group: "staff", mode: "644" });
     ops.addFile(
       "soulguard.json",
-      JSON.stringify({ version: 1, files: { "SOUL.md": "protect", "soulguard.json": "protect" } }),
+      JSON.stringify({
+        version: 1,
+        guardian: "soulguardian_agent",
+        files: { "SOUL.md": "protect", "soulguard.json": "protect" },
+      }),
     );
 
     const result = await init(makeOptions(ops));

@@ -38,8 +38,6 @@ export type ApplyOptions = {
    *  If omitted, up-front hash verification is skipped. Per-file integrity
    *  checks still run unconditionally. */
   hash?: string;
-  /** Expected protect ownership to restore after writing */
-  protectOwnership: FileOwnership;
   /** Named policy hooks — all evaluated before applying changes.
    *  Duplicate policy names are rejected with policy_name_collision error. */
   policies?: Policy[];
@@ -79,7 +77,8 @@ function collectParentDirs(prefix: string, paths: string[]): string[] {
  * Apply staging changes to protect.
  */
 export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, ApplyError>> {
-  const { ops, tree, hash, protectOwnership, policies } = options;
+  const { ops, tree, hash, policies } = options;
+  const protectOwnership = tree.protectOwnership;
 
   // ── Phase 0: Validate policies + verify approval hash up front ──────
   if (policies && policies.length > 0) {

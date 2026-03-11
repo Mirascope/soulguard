@@ -3,39 +3,40 @@ import { e2e } from "../harness";
 e2e("protect: sets correct ownership and permissions", (t) => {
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
-    exit 0
-  `)
+      exit 0
+    `)
     .exits(0);
   t.$(`sudo soulguard init .`)
     .expect(`
-    exit 0
-    ✓ Soulguard initialized.
-  `)
+      exit 0
+      ✓ Soulguard initialized.
+    `)
     .exits(0)
     .outputs(/Soulguard initialized/);
   t.$(`sudo soulguard protect SOUL.md`)
     .expect(`
-    exit 0
-      + SOUL.md → protect
+      exit 0
+        + SOUL.md → protect
 
-    Updated. 1 file now protected.
-  `)
+      Updated. 1 file now protected.
+    `)
     .exits(0)
     .outputs(/protect/);
 
   t.$(`stat -c '%U:%G %a' SOUL.md`)
     .expect(`
       exit 0
-      soulguardian:soulguard 444
+      soulguardian_agent:soulguard 444
     `)
     .exits(0)
-    .outputs(/soulguardian:soulguard 444/);
+    .outputs(/soulguardian_agent:soulguard 444/);
 
   t.$(`cat soulguard.json`)
     .expect(`
       exit 0
       {
         "version": 1,
+        "guardian": "soulguardian_agent",
         "files": {
           "soulguard.json": "protect",
           "SOUL.md": "protect"
@@ -120,18 +121,18 @@ e2e("protect: directory protection blocks new file creation", (t) => {
   t.$(`stat -c '%U:%G %a' skills`)
     .expect(`
       exit 0
-      soulguardian:soulguard 555
+      soulguardian_agent:soulguard 555
     `)
     .exits(0)
-    .outputs(/soulguardian:soulguard/);
+    .outputs(/soulguardian_agent:soulguard/);
 
   t.$(`stat -c '%U:%G %a' skills/python.md`)
     .expect(`
       exit 0
-      soulguardian:soulguard 444
+      soulguardian_agent:soulguard 444
     `)
     .exits(0)
-    .outputs(/soulguardian:soulguard 444/);
+    .outputs(/soulguardian_agent:soulguard 444/);
 
   t.$(
     `sh -c "echo malicious > $(pwd)/skills/malicious.md" 2>&1 && echo "CREATE SUCCEEDED (BAD)" || echo "CREATE BLOCKED (GOOD)"`,

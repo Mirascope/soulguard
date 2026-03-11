@@ -27,8 +27,8 @@ import { createHash } from "node:crypto";
 import type { SystemOperations } from "../util/system-ops.js";
 import type { SoulguardConfig, FileOwnership, Tier, DriftIssue, Result } from "../util/types.js";
 import { ok, err } from "../util/result.js";
-import { PROTECT_OWNERSHIP } from "../util/constants.js";
 import { STAGING_DIR, stagingPath, isDeleteSentinel } from "./staging.js";
+import { getProtectOwnership } from "../util/constants.js";
 
 /** Protect-tier directory mode (directories need execute bit for traversal). */
 export const PROTECT_DIR_MODE = "555";
@@ -113,10 +113,17 @@ export class StateTree {
   readonly entities: StateEntity[];
   /** Config as loaded */
   readonly config: SoulguardConfig;
+  /** Expected ownership for protect-tier files */
+  readonly protectOwnership: FileOwnership;
 
-  private constructor(entities: StateEntity[], config: SoulguardConfig) {
+  private constructor(
+    entities: StateEntity[],
+    config: SoulguardConfig,
+    protectOwnership: FileOwnership,
+  ) {
     this.entities = entities;
     this.config = config;
+    this.protectOwnership = protectOwnership;
   }
 
   /**
@@ -132,6 +139,7 @@ export class StateTree {
    */
   static async build(options: BuildStateOptions): Promise<Result<StateTree, StateError>> {
     const { ops, config } = options;
+    const protectOwnership = getProtectOwnership(config.guardian);
     const entities: StateEntity[] = [];
 
     for (const [key, tier] of Object.entries(config.files)) {
@@ -159,7 +167,7 @@ export class StateTree {
       }
     }
 
-    return ok(new StateTree(entities, config));
+    return ok(new StateTree(entities, config, protectOwnership));
   }
 
   // ── Derivations ─────────────────────────────────────────────────────
@@ -216,11 +224,11 @@ export class StateTree {
   /**
    * All entities whose actual ownership doesn't match expectations
    * for their config tier. Protect-tier files should be
-   * soulguardian:soulguard 444, directories 555.
+   * guardian:soulguard 444, directories 555.
    * Watch-tier entities are not checked.
    */
   driftedEntities(): Drift[] {
-    return collectDrifts(this.entities);
+    return collectDrifts(this.entities, this.protectOwnership);
   }
 }
 
@@ -238,24 +246,24 @@ function collectFiles(entities: StateEntity[]): StateFile[] {
   return files;
 }
 
-function collectDrifts(entities: StateEntity[]): Drift[] {
+function collectDrifts(entities: StateEntity[], protectOwnership: FileOwnership): Drift[] {
   const drifts: Drift[] = [];
   for (const entity of entities) {
     if (entity.configTier === "protect" && entity.ownership) {
       const details: DriftIssue[] = [];
-      const expectedMode = entity.kind === "directory" ? PROTECT_DIR_MODE : PROTECT_OWNERSHIP.mode;
+      const expectedMode = entity.kind === "directory" ? PROTECT_DIR_MODE : protectOwnership.mode;
 
-      if (entity.ownership.user !== PROTECT_OWNERSHIP.user) {
+      if (entity.ownership.user !== protectOwnership.user) {
         details.push({
           kind: "wrong_owner",
-          expected: PROTECT_OWNERSHIP.user,
+          expected: protectOwnership.user,
           actual: entity.ownership.user,
         });
       }
-      if (entity.ownership.group !== PROTECT_OWNERSHIP.group) {
+      if (entity.ownership.group !== protectOwnership.group) {
         details.push({
           kind: "wrong_group",
-          expected: PROTECT_OWNERSHIP.group,
+          expected: protectOwnership.group,
           actual: entity.ownership.group,
         });
       }
@@ -268,7 +276,7 @@ function collectDrifts(entities: StateEntity[]): Drift[] {
       }
     }
     if (entity.kind === "directory") {
-      drifts.push(...collectDrifts(entity.children));
+      drifts.push(...collectDrifts(entity.children, protectOwnership));
     }
   }
   return drifts;

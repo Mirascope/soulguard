@@ -15,6 +15,7 @@ describe("isGitEnabled", () => {
     expect(
       await isGitEnabled(ops, {
         version: 1,
+        guardian: "soulguardian_agent",
         files: {},
       }),
     ).toBe(true);
@@ -26,6 +27,7 @@ describe("isGitEnabled", () => {
     expect(
       await isGitEnabled(ops, {
         version: 1,
+        guardian: "soulguardian_agent",
         files: {},
         git: true,
       }),
@@ -38,6 +40,7 @@ describe("isGitEnabled", () => {
     expect(
       await isGitEnabled(ops, {
         version: 1,
+        guardian: "soulguardian_agent",
         files: {},
         git: false,
       }),
@@ -49,6 +52,7 @@ describe("isGitEnabled", () => {
     expect(
       await isGitEnabled(ops, {
         version: 1,
+        guardian: "soulguardian_agent",
         files: {},
       }),
     ).toBe(false);
@@ -179,6 +183,7 @@ describe("commitWatchFiles", () => {
 
     const result = await commitWatchFiles(ops, {
       version: 1,
+      guardian: "soulguardian_agent",
       files: {
         "MEMORY.md": "watch",
         "memory/day1.md": "watch",
@@ -199,6 +204,7 @@ describe("commitWatchFiles", () => {
     const ops = new MockSystemOps("/workspace");
     const result = await commitWatchFiles(ops, {
       version: 1,
+      guardian: "soulguardian_agent",
       files: {
         "MEMORY.md": "watch",
       },
@@ -215,6 +221,7 @@ describe("commitWatchFiles", () => {
     ops.addFile(".soulguard/.git", "");
     const result = await commitWatchFiles(ops, {
       version: 1,
+      guardian: "soulguardian_agent",
       files: {},
       git: true,
     });
@@ -229,6 +236,7 @@ describe("commitWatchFiles", () => {
     ops.addFile(".soulguard/.git", "");
     const result = await commitWatchFiles(ops, {
       version: 1,
+      guardian: "soulguardian_agent",
       files: {
         "MEMORY.md": "watch",
       },
