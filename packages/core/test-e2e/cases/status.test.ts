@@ -17,7 +17,7 @@ e2e("status: reports all files ok when clean", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
   t.$(`sudo soulguard sync`)
@@ -58,7 +58,7 @@ e2e("status: reports drifted ownership and permissions", (t) => {
     exit 0
       + SOUL.md → protect
 
-    Updated. 1 file(s) now protected.
+    Updated. 1 file now protected.
   `)
     .exits(0);
   t.$(`sudo soulguard sync`)
@@ -119,7 +119,7 @@ e2e("status: shows staged change indicators", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
   t.$(`sudo soulguard sync`)
@@ -174,7 +174,7 @@ e2e("status: shows directory protection", (t) => {
       exit 0
         + skills/ → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 directory now protected.
     `)
     .exits(0);
   t.$(`sudo soulguard sync`)
@@ -215,7 +215,7 @@ e2e("status: shows new file in protected directory as created", (t) => {
       exit 0
         + skills/ → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 directory now protected.
     `)
     .exits(0);
   t.$(`sudo soulguard sync`)
@@ -271,7 +271,7 @@ e2e("status: shows deleted protected file", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
   t.$(`sudo soulguard sync`)
@@ -321,7 +321,7 @@ e2e("status: shows deleted file in protected directory", (t) => {
       exit 0
         + skills/ → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 directory now protected.
     `)
     .exits(0);
   t.$(`sudo soulguard sync`)
@@ -373,7 +373,7 @@ e2e("status: shows deleted protected directory with all children", (t) => {
       exit 0
         + memory/ → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 directory now protected.
     `)
     .exits(0);
   t.$(`sudo soulguard sync`)

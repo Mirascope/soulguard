@@ -18,7 +18,7 @@ e2e("watch: adds file and updates config", (t) => {
     exit 0
       + notes.md → watch
 
-    Updated. 1 file(s) now watched.
+    Updated. 1 file now watched.
   `)
     .exits(0)
     .outputs(/watch/);

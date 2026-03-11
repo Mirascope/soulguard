@@ -18,7 +18,7 @@ e2e("protect: sets correct ownership and permissions", (t) => {
     exit 0
       + SOUL.md → protect
 
-    Updated. 1 file(s) now protected.
+    Updated. 1 file now protected.
   `)
     .exits(0)
     .outputs(/protect/);
@@ -68,7 +68,7 @@ e2e("protect: blocks agent writes", (t) => {
     exit 0
       + SOUL.md → protect
 
-    Updated. 1 file(s) now protected.
+    Updated. 1 file now protected.
   `)
     .exits(0);
 
@@ -103,17 +103,17 @@ e2e("protect: directory protection blocks new file creation", (t) => {
     .exits(0);
   t.$(`sudo soulguard init .`)
     .expect(`
-    exit 0
-    ✓ Soulguard initialized.
-  `)
+      exit 0
+      ✓ Soulguard initialized.
+    `)
     .exits(0);
   t.$(`sudo soulguard protect skills/`)
     .expect(`
-    exit 0
-      + skills/ → protect
+      exit 0
+        + skills/ → protect
 
-    Updated. 1 file(s) now protected.
-  `)
+      Updated. 1 directory now protected.
+    `)
     .exits(0)
     .outputs(/protect/);
 
@@ -163,7 +163,7 @@ e2e("protect: already protected file is no-op", (t) => {
     exit 0
       + SOUL.md → protect
 
-    Updated. 1 file(s) now protected.
+    Updated. 1 file now protected.
   `)
     .exits(0);
 

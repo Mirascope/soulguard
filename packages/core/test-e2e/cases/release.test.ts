@@ -17,7 +17,7 @@ e2e("release: restores default ownership and cleans staging", (t) => {
     exit 0
       + SOUL.md → protect
 
-    Updated. 1 file(s) now protected.
+    Updated. 1 file now protected.
   `)
     .exits(0);
 
@@ -26,7 +26,7 @@ e2e("release: restores default ownership and cleans staging", (t) => {
       exit 0
         - SOUL.md (released)
 
-      Released. 1 file(s) untracked.
+      Released. 1 file untracked.
     `)
     .exits(0)
     .outputs(/Released/);

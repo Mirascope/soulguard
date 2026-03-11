@@ -24,7 +24,7 @@ e2e("apply: applies staged changes with -y", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
 
@@ -86,7 +86,7 @@ e2e("apply: handles file deletion through staging", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
 
@@ -143,7 +143,7 @@ e2e("apply: applies modified file inside protected directory", (t) => {
       exit 0
         + memories → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
 
@@ -208,7 +208,7 @@ e2e("apply: verifies hash with --hash flag", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
 
@@ -261,7 +261,7 @@ e2e("apply: rejects with wrong hash", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
 
@@ -311,7 +311,7 @@ e2e("apply: rejects using both --yes and --hash", (t) => {
     exit 0
       + SOUL.md → protect
 
-    Updated. 1 file(s) now protected.
+    Updated. 1 file now protected.
   `)
     .exits(0);
 
