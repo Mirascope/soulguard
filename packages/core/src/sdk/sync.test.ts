@@ -3,7 +3,8 @@ import { sync } from "./sync.js";
 import { MockSystemOps } from "../util/system-ops-mock.js";
 
 const WORKSPACE = "/test/workspace";
-const VAULT_OWNERSHIP = { user: "soulguardian", group: "soulguard", mode: "444" };
+const GUARDIAN = "soulguardian_agent";
+const VAULT_OWNERSHIP = { user: GUARDIAN, group: "soulguard", mode: "444" };
 
 function makeMock() {
   const ops = new MockSystemOps(WORKSPACE);
@@ -13,7 +14,12 @@ function makeMock() {
 }
 
 function opts(
-  config: { version: 1; files: Record<string, "protect" | "watch"> },
+  config: {
+    version: 1;
+    guardian: string;
+    files: Record<string, "protect" | "watch">;
+    git?: boolean;
+  },
   ops: MockSystemOps,
 ) {
   return { config, ops };
@@ -28,6 +34,7 @@ describe("sync", () => {
       opts(
         {
           version: 1,
+          guardian: GUARDIAN,
           files: {
             "SOUL.md": "protect",
           },
@@ -55,6 +62,7 @@ describe("sync", () => {
       opts(
         {
           version: 1,
+          guardian: GUARDIAN,
           files: {
             "SOUL.md": "protect",
           },
@@ -76,6 +84,7 @@ describe("sync", () => {
       opts(
         {
           version: 1,
+          guardian: GUARDIAN,
           files: {
             "SOUL.md": "protect",
           },
@@ -102,6 +111,7 @@ describe("sync", () => {
       opts(
         {
           version: 1,
+          guardian: GUARDIAN,
           files: {
             "SOUL.md": "protect",
           },
@@ -128,6 +138,7 @@ describe("sync", () => {
       opts(
         {
           version: 1,
+          guardian: GUARDIAN,
           files: {
             "notes.md": "watch",
           },
@@ -159,6 +170,7 @@ describe("sync", () => {
       opts(
         {
           version: 1,
+          guardian: GUARDIAN,
           files: {
             "SOUL.md": "protect",
             "AGENTS.md": "protect",
@@ -199,12 +211,13 @@ describe("sync", () => {
       opts(
         {
           version: 1,
+          guardian: GUARDIAN,
           files: {
             "SOUL.md": "protect",
             "notes.md": "watch",
           },
           git: true,
-        } as never,
+        },
         ops,
       ),
     );
@@ -229,11 +242,12 @@ describe("sync", () => {
       opts(
         {
           version: 1,
+          guardian: GUARDIAN,
           files: {
             "SOUL.md": "protect",
           },
           git: false,
-        } as never,
+        },
         ops,
       ),
     );

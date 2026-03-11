@@ -33,7 +33,12 @@ export type SyncResult = {
 };
 
 export type SyncOptions = {
-  config: { version: 1; files: Record<string, "protect" | "watch">; git?: boolean };
+  config: {
+    version: 1;
+    guardian: string;
+    files: Record<string, "protect" | "watch">;
+    git?: boolean;
+  };
   ops: import("../util/system-ops.js").SystemOperations;
 };
 

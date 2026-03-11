@@ -11,7 +11,7 @@
 import type { SystemOperations } from "../util/system-ops.js";
 import type { SoulguardConfig, Result } from "../util/types.js";
 import { ok, err } from "../util/result.js";
-import { SOULGUARDIAN_IDENTITY } from "../util/constants.js";
+import { SOULGUARD_GROUP, guardianName } from "../util/constants.js";
 import { ensureConfig, writeConfig } from "./config.js";
 import type { ConfigError } from "./config.js";
 import { status } from "./status.js";
@@ -33,18 +33,21 @@ export type InitError =
 
 export type InitOptions = {
   ops: SystemOperations;
+  /** Override agent username (defaults to process.env.SUDO_USER) */
+  agentUser?: string;
   /** @internal Skip root check (for testing only) */
   _skipRootCheck?: boolean;
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-/** Create soulguardian user and soulguard group if they don't exist. */
+/** Create guardian user and soulguard group if they don't exist. */
 async function ensureGuardianExists(
   ops: SystemOperations,
+  guardian: string,
 ): Promise<Result<{ userCreated: boolean; groupCreated: boolean }, InitError>> {
   let groupCreated = false;
-  const groupExists = await ops.groupExists(SOULGUARDIAN_IDENTITY.group);
+  const groupExists = await ops.groupExists(SOULGUARD_GROUP);
   if (!groupExists.ok) {
     return err({
       kind: "system_error",
@@ -52,7 +55,7 @@ async function ensureGuardianExists(
     });
   }
   if (!groupExists.value) {
-    const result = await ops.createGroup(SOULGUARDIAN_IDENTITY.group);
+    const result = await ops.createGroup(SOULGUARD_GROUP);
     if (!result.ok) {
       return err({ kind: "system_error", message: `create group failed: ${result.error.message}` });
     }
@@ -60,12 +63,12 @@ async function ensureGuardianExists(
   }
 
   let userCreated = false;
-  const userExists = await ops.userExists(SOULGUARDIAN_IDENTITY.user);
+  const userExists = await ops.userExists(guardian);
   if (!userExists.ok) {
     return err({ kind: "system_error", message: `user check failed: ${userExists.error.message}` });
   }
   if (!userExists.value) {
-    const result = await ops.createUser(SOULGUARDIAN_IDENTITY.user, SOULGUARDIAN_IDENTITY.group);
+    const result = await ops.createUser(guardian, SOULGUARD_GROUP);
     if (!result.ok) {
       return err({ kind: "system_error", message: `create user failed: ${result.error.message}` });
     }
@@ -75,8 +78,11 @@ async function ensureGuardianExists(
   return ok({ userCreated, groupCreated });
 }
 
-/** Create .soulguard/ directory owned by soulguardian:soulguard 755. */
-async function ensureSoulguardDir(ops: SystemOperations): Promise<Result<void, InitError>> {
+/** Create .soulguard/ directory owned by guardian:soulguard 755. */
+async function ensureSoulguardDir(
+  ops: SystemOperations,
+  guardian: string,
+): Promise<Result<void, InitError>> {
   const exists = await ops.exists(".soulguard");
   if (exists.ok && !exists.value) {
     const mkResult = await ops.mkdir(".soulguard");
@@ -88,8 +94,8 @@ async function ensureSoulguardDir(ops: SystemOperations): Promise<Result<void, I
     }
   }
   const chown = await ops.chown(".soulguard", {
-    user: SOULGUARDIAN_IDENTITY.user,
-    group: SOULGUARDIAN_IDENTITY.group,
+    user: guardian,
+    group: SOULGUARD_GROUP,
   });
   if (!chown.ok) {
     return err({ kind: "system_error", message: `chown .soulguard failed: ${chown.error.kind}` });
@@ -218,8 +224,19 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     });
   }
 
+  // ── 0b. Derive guardian name ─────────────────────────────────────────
+  const agentUser = options.agentUser ?? process.env.SUDO_USER;
+  if (!agentUser) {
+    return err({
+      kind: "not_root",
+      message:
+        "Cannot determine agent user. Run with sudo (SUDO_USER is set automatically) or pass agentUser option.",
+    });
+  }
+  const guardian = guardianName(agentUser);
+
   // ── 1. Ensure config ─────────────────────────────────────────────────
-  const configResult = await ensureConfig(ops);
+  const configResult = await ensureConfig(ops, guardian);
   if (!configResult.ok) {
     return err(configErrorToInitError(configResult.error));
   }
@@ -254,14 +271,14 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   }
 
   // ── 2. Ensure guardian user/group ─────────────────────────────────────
-  const guardianResult = await ensureGuardianExists(ops);
+  const guardianResult = await ensureGuardianExists(ops, guardian);
   if (!guardianResult.ok) return guardianResult;
   const { userCreated, groupCreated } = guardianResult.value;
 
   // ── 2b. Enforce soulguard.json ownership ──────────────────────────────
   const sgJsonChown = await ops.chown("soulguard.json", {
-    user: SOULGUARDIAN_IDENTITY.user,
-    group: SOULGUARDIAN_IDENTITY.group,
+    user: guardian,
+    group: SOULGUARD_GROUP,
   });
   if (!sgJsonChown.ok) {
     return err({
@@ -278,7 +295,7 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   }
 
   // ── 3. Ensure .soulguard/ directory ──────────────────────────────────
-  const sgDirResult = await ensureSoulguardDir(ops);
+  const sgDirResult = await ensureSoulguardDir(ops, guardian);
   if (!sgDirResult.ok) return sgDirResult;
 
   // ── 4. Ensure .soulguard-staging/ directory ──────────────────────────
@@ -292,7 +309,10 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
 
   // ── 6. Status check ──────────────────────────────────────────────────
   let issueCount = 0;
-  const statusResult = await status({ config, ops });
+  const statusResult = await status({
+    config,
+    ops,
+  });
   if (statusResult.ok) {
     issueCount = statusResult.value.drifts.length;
   }

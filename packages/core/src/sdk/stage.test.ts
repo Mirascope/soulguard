@@ -13,7 +13,7 @@ function makeMock() {
 function makeConfig(protect: string[] = ["SOUL.md"]): SoulguardConfig {
   const files: Record<string, Tier> = {};
   for (const p of protect) files[p] = "protect";
-  return { version: 1, files };
+  return { version: 1, guardian: "soulguardian_agent", files };
 }
 
 describe("stage", () => {

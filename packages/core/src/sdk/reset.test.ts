@@ -3,8 +3,11 @@ import { MockSystemOps } from "../util/system-ops-mock.js";
 import { reset } from "./reset.js";
 import type { SoulguardConfig } from "../util/types.js";
 
+const GUARDIAN = "soulguardian_agent";
+
 const config: SoulguardConfig = {
   version: 1,
+  guardian: GUARDIAN,
   files: {
     "SOUL.md": "protect",
     "skills/": "protect",
@@ -14,17 +17,17 @@ const config: SoulguardConfig = {
 function setup() {
   const ops = new MockSystemOps("/workspace");
   ops.addFile("SOUL.md", "original soul", {
-    owner: "soulguardian",
+    owner: GUARDIAN,
     group: "soulguard",
     mode: "444",
   });
   ops.addDirectory("skills", {
-    owner: "soulguardian",
+    owner: GUARDIAN,
     group: "soulguard",
     mode: "555",
   });
   ops.addFile("skills/python.md", "python skill on disk", {
-    owner: "soulguardian",
+    owner: GUARDIAN,
     group: "soulguard",
     mode: "444",
   });
@@ -59,7 +62,11 @@ describe("reset", () => {
 
   test("reset specific file removes only that staging copy", async () => {
     const ops = setup();
-    const result = await reset({ ops, config, paths: ["SOUL.md"] });
+    const result = await reset({
+      ops,
+      config,
+      paths: ["SOUL.md"],
+    });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.deleted).toBe(true);
@@ -91,7 +98,7 @@ describe("reset", () => {
 
   test("returns empty when nothing staged", async () => {
     const ops = new MockSystemOps("/workspace");
-    ops.addFile("SOUL.md", "original", { owner: "soulguardian", group: "soulguard", mode: "444" });
+    ops.addFile("SOUL.md", "original", { owner: GUARDIAN, group: "soulguard", mode: "444" });
 
     const result = await reset({ ops, config });
     expect(result.ok).toBe(true);
@@ -102,7 +109,11 @@ describe("reset", () => {
 
   test("reset nonexistent path is no-op", async () => {
     const ops = setup();
-    const result = await reset({ ops, config, paths: ["nonexistent.md"] });
+    const result = await reset({
+      ops,
+      config,
+      paths: ["nonexistent.md"],
+    });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.stagedFiles).toEqual([]);
@@ -111,7 +122,11 @@ describe("reset", () => {
 
   test("reset directory removes all files under it", async () => {
     const ops = setup();
-    const result = await reset({ ops, config, paths: ["skills"] });
+    const result = await reset({
+      ops,
+      config,
+      paths: ["skills"],
+    });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.deleted).toBe(true);

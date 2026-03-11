@@ -5,6 +5,7 @@ import { MockConsoleOutput } from "../util/console-mock.js";
 import type { SoulguardConfig, Tier } from "../util/types.js";
 
 const WORKSPACE = "/test/workspace";
+const GUARDIAN = "soulguardian_agent";
 
 function makeMock() {
   return new MockSystemOps(WORKSPACE);
@@ -13,7 +14,7 @@ function makeMock() {
 function makeConfig(protect: string[] = ["SOUL.md"]): SoulguardConfig {
   const files: Record<string, Tier> = {};
   for (const p of protect) files[p] = "protect";
-  return { version: 1, files };
+  return { version: 1, guardian: GUARDIAN, files };
 }
 
 describe("ApplyCommand", () => {
@@ -27,7 +28,6 @@ describe("ApplyCommand", () => {
       {
         ops,
         config: makeConfig(),
-        protectOwnership: { user: "soulguardian", group: "soulguard", mode: "444" },
         hash: "somehash",
         skipHashVerification: true,
       },
@@ -49,7 +49,6 @@ describe("ApplyCommand", () => {
       {
         ops,
         config: makeConfig(),
-        protectOwnership: { user: "soulguardian", group: "soulguard", mode: "444" },
         skipHashVerification: true,
       },
       out,

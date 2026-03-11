@@ -14,7 +14,7 @@ e2e("init: happy path creates dirs, config, git", (t) => {
   t.$(`stat -c '%U:%G %a' .soulguard`)
     .expect(`
       exit 0
-      soulguardian:soulguard 755
+      soulguardian_agent:soulguard 755
     `)
     .exits(0);
 
@@ -31,10 +31,10 @@ e2e("init: happy path creates dirs, config, git", (t) => {
   t.$(`stat -c '%U:%G %a' soulguard.json`)
     .expect(`
       exit 0
-      soulguardian:soulguard 444
+      soulguardian_agent:soulguard 444
     `)
     .exits(0)
-    .outputs(/soulguardian:soulguard 444/);
+    .outputs(/soulguardian_agent:soulguard 444/);
 
   // Verify soulguard.json was written with default config
   t.$(`cat soulguard.json`)
@@ -42,6 +42,7 @@ e2e("init: happy path creates dirs, config, git", (t) => {
       exit 0
       {
         "version": 1,
+        "guardian": "soulguardian_agent",
         "files": {
           "soulguard.json": "protect"
         },
@@ -89,7 +90,7 @@ e2e("init: preserves pre-existing config", (t) => {
   t.$(`
     echo '# My Soul' > SOUL.md
     cat > soulguard.json <<'JSON'
-{"version":1,"files":{"SOUL.md":"protect","soulguard.json":"protect"}}
+{"version":1,"guardian":"soulguardian_agent","files":{"SOUL.md":"protect","soulguard.json":"protect"}}
 JSON
   `)
     .expect(`
@@ -112,6 +113,7 @@ JSON
       exit 0
       {
         "version": 1,
+        "guardian": "soulguardian_agent",
         "files": {
           "SOUL.md": "protect",
           "soulguard.json": "protect"
@@ -132,7 +134,7 @@ e2e("init: does not enforce protection", (t) => {
   t.$(`
     echo '# My Soul' > SOUL.md
     cat > soulguard.json <<'JSON'
-{"version":1,"files":{"SOUL.md":"protect","soulguard.json":"protect"}}
+{"version":1,"guardian":"soulguardian_agent","files":{"SOUL.md":"protect","soulguard.json":"protect"}}
 JSON
   `)
     .expect(`

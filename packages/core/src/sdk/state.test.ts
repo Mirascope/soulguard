@@ -5,13 +5,14 @@ import type { SoulguardConfig, Tier } from "../util/types.js";
 import { DELETE_SENTINEL } from "./staging.js";
 
 const WORKSPACE = "/test/workspace";
+const GUARDIAN = "soulguardian_agent";
 
 function makeMock() {
   return new MockSystemOps(WORKSPACE);
 }
 
 function makeConfig(files: Record<string, Tier>): SoulguardConfig {
-  return { version: 1, files };
+  return { version: 1, guardian: GUARDIAN, files };
 }
 
 async function build(ops: MockSystemOps, config: SoulguardConfig) {
@@ -27,7 +28,7 @@ describe("protect file: exists on disk, no staging", () => {
   const setup = async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
@@ -45,7 +46,7 @@ describe("protect file: exists on disk, no staging", () => {
           "ownership": {
             "group": "soulguard",
             "mode": "444",
-            "user": "soulguardian",
+            "user": "soulguardian_agent",
           },
           "path": "SOUL.md",
           "stagedHash": null,
@@ -84,7 +85,7 @@ describe("protect file: exists on disk + different staged copy", () => {
   const setup = async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "original", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
@@ -103,7 +104,7 @@ describe("protect file: exists on disk + different staged copy", () => {
           "ownership": {
             "group": "soulguard",
             "mode": "444",
-            "user": "soulguardian",
+            "user": "soulguardian_agent",
           },
           "path": "SOUL.md",
           "stagedHash": "b80012851cf027c6d8adda328907d400c95773958fb4fec3e544a02cd5eeab0e",
@@ -138,7 +139,7 @@ describe("protect file: exists on disk + identical staged copy", () => {
   const setup = async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "same content", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
@@ -232,7 +233,7 @@ describe("protect file: delete sentinel in staging", () => {
   const setup = async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
@@ -251,7 +252,7 @@ describe("protect file: delete sentinel in staging", () => {
           "ownership": {
             "group": "soulguard",
             "mode": "444",
-            "user": "soulguardian",
+            "user": "soulguardian_agent",
           },
           "path": "SOUL.md",
           "stagedHash": null,
@@ -321,17 +322,17 @@ describe("protect directory: children listed with hashes", () => {
   const setup = async () => {
     const ops = makeMock();
     ops.addDirectory("skills", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "555",
     });
     ops.addFile("skills/search.md", "# Search", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
     ops.addFile("skills/tool.md", "# Tool", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
@@ -351,7 +352,7 @@ describe("protect directory: children listed with hashes", () => {
               "ownership": {
                 "group": "soulguard",
                 "mode": "444",
-                "user": "soulguardian",
+                "user": "soulguardian_agent",
               },
               "path": "skills/search.md",
               "stagedHash": null,
@@ -364,7 +365,7 @@ describe("protect directory: children listed with hashes", () => {
               "ownership": {
                 "group": "soulguard",
                 "mode": "444",
-                "user": "soulguardian",
+                "user": "soulguardian_agent",
               },
               "path": "skills/tool.md",
               "stagedHash": null,
@@ -377,7 +378,7 @@ describe("protect directory: children listed with hashes", () => {
           "ownership": {
             "group": "soulguard",
             "mode": "555",
-            "user": "soulguardian",
+            "user": "soulguardian_agent",
           },
           "path": "skills",
         },
@@ -415,17 +416,17 @@ describe("protect directory: child with staged modification", () => {
   const setup = async () => {
     const ops = makeMock();
     ops.addDirectory("skills", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "555",
     });
     ops.addFile("skills/tool.md", "original", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
     ops.addFile("skills/unchanged.md", "same", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
@@ -448,7 +449,7 @@ describe("protect directory: child with staged modification", () => {
               "ownership": {
                 "group": "soulguard",
                 "mode": "444",
-                "user": "soulguardian",
+                "user": "soulguardian_agent",
               },
               "path": "skills/tool.md",
               "stagedHash": "b80012851cf027c6d8adda328907d400c95773958fb4fec3e544a02cd5eeab0e",
@@ -461,7 +462,7 @@ describe("protect directory: child with staged modification", () => {
               "ownership": {
                 "group": "soulguard",
                 "mode": "444",
-                "user": "soulguardian",
+                "user": "soulguardian_agent",
               },
               "path": "skills/unchanged.md",
               "stagedHash": "0967115f2813a3541eaef77de9d9d5773f1c0c04314b0bbfe4ff3b3b1c55b5d5",
@@ -474,7 +475,7 @@ describe("protect directory: child with staged modification", () => {
           "ownership": {
             "group": "soulguard",
             "mode": "555",
-            "user": "soulguardian",
+            "user": "soulguardian_agent",
           },
           "path": "skills",
         },
@@ -502,12 +503,12 @@ describe("protect directory: new file staged in existing dir", () => {
   const setup = async () => {
     const ops = makeMock();
     ops.addDirectory("skills", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "555",
     });
     ops.addFile("skills/tool.md", "# Tool", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
@@ -540,7 +541,7 @@ describe("protect directory: new file staged in existing dir", () => {
               "ownership": {
                 "group": "soulguard",
                 "mode": "444",
-                "user": "soulguardian",
+                "user": "soulguardian_agent",
               },
               "path": "skills/tool.md",
               "stagedHash": "828b23d4af9524129ec75226e2863d0fab8dd7474d698d667020f4a7796992ae",
@@ -553,7 +554,7 @@ describe("protect directory: new file staged in existing dir", () => {
           "ownership": {
             "group": "soulguard",
             "mode": "555",
-            "user": "soulguardian",
+            "user": "soulguardian_agent",
           },
           "path": "skills",
         },
@@ -581,17 +582,17 @@ describe("protect directory: delete sentinel on directory", () => {
   const setup = async () => {
     const ops = makeMock();
     ops.addDirectory("skills", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "555",
     });
     ops.addFile("skills/tool.md", "# Tool", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
     ops.addFile("skills/search.md", "# Search", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
@@ -613,7 +614,7 @@ describe("protect directory: delete sentinel on directory", () => {
               "ownership": {
                 "group": "soulguard",
                 "mode": "444",
-                "user": "soulguardian",
+                "user": "soulguardian_agent",
               },
               "path": "skills/search.md",
               "stagedHash": null,
@@ -626,7 +627,7 @@ describe("protect directory: delete sentinel on directory", () => {
               "ownership": {
                 "group": "soulguard",
                 "mode": "444",
-                "user": "soulguardian",
+                "user": "soulguardian_agent",
               },
               "path": "skills/tool.md",
               "stagedHash": null,
@@ -639,7 +640,7 @@ describe("protect directory: delete sentinel on directory", () => {
           "ownership": {
             "group": "soulguard",
             "mode": "555",
-            "user": "soulguardian",
+            "user": "soulguardian_agent",
           },
           "path": "skills",
         },
@@ -673,22 +674,22 @@ describe("protect directory: delete sentinel with nested subdirectory", () => {
   const setup = async () => {
     const ops = makeMock();
     ops.addDirectory("skills", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "555",
     });
     ops.addDirectory("skills/advanced", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "555",
     });
     ops.addFile("skills/tool.md", "# Tool", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
     ops.addFile("skills/advanced/search.md", "# Search", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
@@ -787,7 +788,7 @@ describe("protect file: ownership drift (wrong owner)", () => {
           "details": [
             {
               "actual": "agent",
-              "expected": "soulguardian",
+              "expected": "soulguardian_agent",
               "kind": "wrong_owner",
             },
           ],
@@ -829,7 +830,7 @@ describe("protect file: all three fields drifted", () => {
       [
         {
           "actual": "agent",
-          "expected": "soulguardian",
+          "expected": "soulguardian_agent",
           "kind": "wrong_owner",
         },
         {
@@ -851,7 +852,7 @@ describe("protect directory: drift on dir and child independently", () => {
   const setup = async () => {
     const ops = makeMock();
     ops.addDirectory("skills", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "755", // wrong — should be 555
     });
@@ -891,7 +892,7 @@ describe("multiple config entries: files and directories", () => {
   const setup = async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
@@ -901,12 +902,12 @@ describe("multiple config entries: files and directories", () => {
       mode: "644",
     });
     ops.addDirectory("skills", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "555",
     });
     ops.addFile("skills/tool.md", "# Tool", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
@@ -931,7 +932,7 @@ describe("multiple config entries: files and directories", () => {
           "ownership": {
             "group": "soulguard",
             "mode": "444",
-            "user": "soulguardian",
+            "user": "soulguardian_agent",
           },
           "path": "SOUL.md",
           "stagedHash": null,
@@ -959,7 +960,7 @@ describe("multiple config entries: files and directories", () => {
               "ownership": {
                 "group": "soulguard",
                 "mode": "444",
-                "user": "soulguardian",
+                "user": "soulguardian_agent",
               },
               "path": "skills/tool.md",
               "stagedHash": null,
@@ -972,7 +973,7 @@ describe("multiple config entries: files and directories", () => {
           "ownership": {
             "group": "soulguard",
             "mode": "555",
-            "user": "soulguardian",
+            "user": "soulguardian_agent",
           },
           "path": "skills",
         },
@@ -1067,7 +1068,7 @@ describe("approvalHash properties", () => {
   test("deterministic — same state → same hash", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "original", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
@@ -1082,7 +1083,7 @@ describe("approvalHash properties", () => {
   test("different staged content → different hash", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "original", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
@@ -1105,7 +1106,7 @@ describe("error propagation: file stat failure (not not_found)", () => {
   test("permission_denied on stat propagates as build_failed", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
@@ -1128,7 +1129,7 @@ describe("error propagation: hash failure on existing file", () => {
   test("hash failure propagates as build_failed", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
@@ -1170,7 +1171,7 @@ describe("error propagation: read failure on staging (delete sentinel check)", (
   test("read failure propagates as build_failed", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
@@ -1193,12 +1194,12 @@ describe("error propagation: directory listDir failure", () => {
   test("listDir failure on canonical dir propagates as build_failed", async () => {
     const ops = makeMock();
     ops.addDirectory("skills", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "555",
     });
     ops.addFile("skills/tool.md", "# Tool", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
@@ -1221,7 +1222,7 @@ describe("error propagation: directory stat failure (not not_found)", () => {
   test("permission_denied on directory stat propagates as build_failed", async () => {
     const ops = makeMock();
     ops.addDirectory("skills", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "555",
     });
@@ -1244,12 +1245,12 @@ describe("error propagation: child hash failure in directory", () => {
   test("hash failure on child propagates as build_failed", async () => {
     const ops = makeMock();
     ops.addDirectory("skills", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "555",
     });
     ops.addFile("skills/tool.md", "# Tool", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });
@@ -1272,12 +1273,12 @@ describe("error propagation: listDir failure on staging dir", () => {
   test("staging listDir failure propagates as build_failed", async () => {
     const ops = makeMock();
     ops.addDirectory("skills", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "555",
     });
     ops.addFile("skills/tool.md", "# Tool", {
-      owner: "soulguardian",
+      owner: "soulguardian_agent",
       group: "soulguard",
       mode: "444",
     });

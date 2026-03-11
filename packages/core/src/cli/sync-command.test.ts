@@ -4,7 +4,8 @@ import { MockConsoleOutput } from "../util/console-mock.js";
 import { SyncCommand } from "./sync-command.js";
 import type { SyncOptions } from "../sdk/sync.js";
 
-const VAULT_MOCK = { owner: "soulguardian", group: "soulguard", mode: "444" };
+const GUARDIAN = "soulguardian_agent";
+const VAULT_MOCK = { owner: GUARDIAN, group: "soulguard", mode: "444" };
 const LEDGER_MOCK = { owner: "agent", group: "soulguard", mode: "644" };
 
 function setup(configureMock: (ops: MockSystemOps) => void): {
@@ -13,13 +14,14 @@ function setup(configureMock: (ops: MockSystemOps) => void): {
   ops: MockSystemOps;
 } {
   const ops = new MockSystemOps("/workspace");
-  ops.addUser("soulguardian");
+  ops.addUser(GUARDIAN);
   ops.addGroup("soulguard");
   configureMock(ops);
   const out = new MockConsoleOutput();
   const opts: SyncOptions = {
     config: {
       version: 1,
+      guardian: GUARDIAN,
       files: {
         "SOUL.md": "protect",
         "memory/today.md": "watch",

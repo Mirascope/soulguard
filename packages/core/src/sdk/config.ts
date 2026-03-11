@@ -28,7 +28,7 @@ import type { SystemOperations } from "../util/system-ops.js";
 import type { Result } from "../util/types.js";
 import { ok, err } from "../util/result.js";
 import { parseConfig } from "./schema.js";
-import { DEFAULT_CONFIG } from "../util/constants.js";
+import { makeDefaultConfig } from "../util/constants.js";
 
 export type ConfigError =
   | { kind: "not_found" }
@@ -88,6 +88,7 @@ export async function writeConfig(
  */
 export async function ensureConfig(
   ops: SystemOperations,
+  guardian: string,
 ): Promise<Result<{ config: SoulguardConfig; created: boolean }, ConfigError>> {
   const result = await readConfig(ops);
 
@@ -99,12 +100,13 @@ export async function ensureConfig(
     return err(result.error);
   }
 
-  // Write default config
-  const content = JSON.stringify(DEFAULT_CONFIG, null, 2) + "\n";
+  // Write default config with the per-agent guardian name
+  const config = makeDefaultConfig(guardian);
+  const content = JSON.stringify(config, null, 2) + "\n";
   const writeResult = await ops.writeFile("soulguard.json", content);
   if (!writeResult.ok) {
     return err({ kind: "io_error", message: `write failed: ${writeResult.error.kind}` });
   }
 
-  return ok({ config: DEFAULT_CONFIG, created: true });
+  return ok({ config, created: true });
 }

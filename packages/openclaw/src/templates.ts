@@ -56,12 +56,12 @@ export type Template = {
   unprotected: readonly string[];
 };
 
-/** Extract just the SoulguardConfig from a template */
-export function templateToConfig(template: Template): SoulguardConfig {
+/** Extract just the SoulguardConfig from a template (guardian filled in at init time) */
+export function templateToConfig(template: Template, guardian: string): SoulguardConfig {
   const files: Record<string, Tier> = {};
   for (const p of template.protect) files[p] = "protect";
   for (const w of template.watch) files[w] = "watch";
-  return { version: 1, files };
+  return { version: 1, guardian, files };
 }
 
 // ── Templates ──────────────────────────────────────────────────────────

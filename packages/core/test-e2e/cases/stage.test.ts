@@ -262,9 +262,9 @@ e2e("stage: soulguard.json succeeds (always protected)", (t) => {
   // Initialize (soulguard.json is auto-created as protected)
   t.$(`sudo soulguard init .`)
     .expect(`
-    exit 0
-    ✓ Soulguard initialized.
-  `)
+      exit 0
+      ✓ Soulguard initialized.
+    `)
     .exits(0);
 
   // Stage soulguard.json (special file that's always protected)
@@ -284,6 +284,7 @@ e2e("stage: soulguard.json succeeds (always protected)", (t) => {
       exit 0
       {
         "version": 1,
+        "guardian": "soulguardian_agent",
         "files": {
           "soulguard.json": "protect"
         },

@@ -39,7 +39,7 @@ e2e("sync: fixes drifted ownership and permissions", (t) => {
       Soulguard Status — /workspace
 
         ⚠️  SOUL.md (protect)
-            owner is root, expected soulguardian
+            owner is root, expected soulguardian_agent
             group is root, expected soulguard
             mode is 644, expected 444
 
@@ -55,7 +55,7 @@ e2e("sync: fixes drifted ownership and permissions", (t) => {
 
       Fixed:
         🔧 SOUL.md
-            owner is root, expected soulguardian
+            owner is root, expected soulguardian_agent
             group is root, expected soulguard
             mode is 644, expected 444
 
