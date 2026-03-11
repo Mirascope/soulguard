@@ -38,7 +38,7 @@ Daemon process (uid=soulguardian_agent_a)        [@soulguard/core daemon]
 ### Key design decisions
 
 - **Runs as soulguardian\_\<agent\>** — the daemon doesn't need sudo, it already has write access to protected files as the guardian user
-- **Systemd service** — `soulguard init` installs a systemd unit per agent
+- **Systemd/launchd service** — `soulguard init` installs a systemd unit (Linux) or launchd plist (macOS) per agent
 - **Filesystem polling** — watches `.soulguard-staging/` for changes, no IPC needed between agent and daemon
 - **Channel-agnostic core** — all polling and lifecycle logic lives in `@soulguard/core`. Channel plugins only handle transport.
 
@@ -47,6 +47,8 @@ Daemon process (uid=soulguardian_agent_a)        [@soulguard/core daemon]
 The daemon has two components:
 
 **Watcher** — Polls `.soulguard-staging/` at a fixed interval. When a change is detected (new, modified, or removed staging entries), it waits for a configurable debounce period (default 3s) after the last write before creating a proposal. This handles the common case where agents stage multiple files in rapid succession.
+
+The agent can opt into **batch mode** by writing a `.soulguard-staging/.wait-for-ready` sentinel. While this file exists, the daemon suppresses proposal creation regardless of debounce. The agent removes the sentinel (or writes `.soulguard-staging/.ready`) to signal the batch is complete and trigger a proposal. A safety timeout (default 5 minutes) prevents a crashed agent from blocking proposals indefinitely — if the sentinel isn't removed within the timeout, the daemon logs a warning and proposes the current staging state anyway.
 
 **Proposal Manager** — State machine for proposal lifecycle:
 
@@ -73,7 +75,7 @@ interface ApprovalChannel {
     approver: string;
   }>;
 
-  postResult(proposalId: string, result: "applied" | "rejected" | "superseded"): Promise<void>;
+  postResult(proposalId: string, result: "applied" | "rejected" | "superseded"): Promise<boolean>;
 
   dispose(): Promise<void>;
 }
@@ -81,7 +83,7 @@ interface ApprovalChannel {
 
 - **`postProposal`** — The channel posts the diff to its platform and returns a channel-specific ID (e.g., Discord message ID, Slack message timestamp). The daemon tracks this.
 - **`waitForApproval`** — Long-lived. Can block (polling) or use events (websocket/webhook). The interface is agnostic to the mechanism.
-- **`postResult`** — Best-effort confirmation. If posting fails, the apply/reject has already happened.
+- **`postResult`** — Best-effort confirmation (returns `boolean` for logging). If posting fails, the apply/reject has already happened.
 - **`dispose`** — Cleanup: close connections, stop listeners.
 
 ### Agent-provided description
@@ -105,6 +107,7 @@ All daemon and channel config lives in `soulguard.json` under a `"daemon"` key, 
   "daemon": {
     "channel": "discord",
     "debounceMs": 3000,
+    "batchReadyTimeoutMs": 300000,
     "discord": {
       "botToken": "...",
       "channelId": "123456789",
@@ -116,6 +119,7 @@ All daemon and channel config lives in `soulguard.json` under a `"daemon"` key, 
 
 - **`daemon.channel`** — Which `ApprovalChannel` implementation to use
 - **`daemon.debounceMs`** — Wait this long after the last staging write before creating a proposal
+- **`daemon.batchReadyTimeoutMs`** — Maximum time to wait for a `.wait-for-ready` sentinel to be removed before proposing anyway (default 300000 / 5 minutes)
 - **`daemon.<channel>`** — Channel-specific config block. Core validates daemon-level fields and passes through the channel block without interpretation.
 
 `soulguard.json` is always protected — the agent can't tamper with daemon or channel config.
@@ -137,18 +141,23 @@ All daemon and channel config lives in `soulguard.json` under a `"daemon"` key, 
 
 The human's Discord user ID. Discord's auth model guarantees a bot token can only act _as the bot_, never _as a human user_. The agent cannot forge a reaction from an approved human.
 
-#### Threat: agent edits the proposal message
+#### Primary defense: content verification at approval time
 
-1. Plugin posts: "Agent proposes `<evil diff>` — hash: `abc123`"
-2. Agent (which has the bot token) edits message to: "Agent proposes `<innocent diff>` — hash: `abc123`"
-3. Human reads innocent description, approves
-4. Plugin applies the evil hash
+When the human reacts to approve, the channel implementation re-derives the canonical diff from the current staging state tree and verifies it matches the message content exactly (both diff text and hash). If they don't match — whether due to editing, message replacement, or state drift — the approval is rejected.
 
-**Defense:** At reaction time, check `edited_timestamp != null` on the message. If edited, reject and post a warning. The hash alone doesn't prevent this because the human trusts the message text, not the opaque hash.
+This single invariant covers multiple attack vectors: message editing, fake message posting, and staging changes between proposal and approval. The hash ensures the staging tree hasn't been modified; the content check ensures the human saw an accurate representation of what will be applied.
+
+#### Defense in depth: edit detection
+
+As an early warning, the channel checks `edited_timestamp != null` on the proposal message. If edited, the proposal is immediately invalidated with a visible warning ("⚠️ This proposal was modified externally and has been invalidated") — catching tampering _before_ the human reacts, which is better UX than a silent rejection after approval.
+
+#### Reconnect behavior
+
+If the channel connection drops and reconnects, the daemon locates its existing proposal message (by tracked message ID) and verifies the content still matches the current state tree. If it matches, it resumes waiting for approval. If the message is missing or content doesn't match, it supersedes and posts a fresh proposal.
 
 #### Threat: agent deletes message and posts a lookalike
 
-**Defense:** The channel implementation tracks its own message ID. Only accepts reactions on that specific message. If the message is gone, something is wrong — reject.
+**Defense:** The channel implementation tracks its own message ID. Only accepts reactions on that specific message. Additionally, content verification at approval time ensures any replacement message would need to contain the exact canonical diff — which the agent cannot forge without knowing the correct staging state (which it does know, but cannot produce a diff that misrepresents the contents while matching the hash).
 
 #### Threat: agent reacts with ✅ itself
 
@@ -198,4 +207,4 @@ For example, a Slack implementation might use thread-based approval (proposal po
 
 ## Open questions
 
-None currently.
+- **Secret management for bot tokens** — Currently stored as plaintext in `soulguard.json` (which is protected). Future consideration: support env var references or OS keychain integration for channel secrets.
