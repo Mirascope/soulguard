@@ -1,6 +1,6 @@
 {
   "name": "@soulguard/core",
-  "version": "0.1.3",
+  "version": "2.0.0",
   "bin": {
     "soulguard": "dist/cli/cli.js"
   },

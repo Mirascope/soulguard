@@ -1,6 +1,6 @@
 {
   "name": "soulguard-monorepo",
-  "version": "0.1.4",
+  "version": "2.0.0",
   "private": true,
   "homepage": "https://soulguard.ai",
   "license": "MIT",
@@ -22,6 +22,8 @@
     "lint": "oxlint packages/*/src",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
+    "bump-version": "bun scripts/bump-version.ts",
+    "check-versions": "bun scripts/bump-version.ts --check",
     "prepare": "husky",
     "publish:all": "bun scripts/publish.ts"
   },
