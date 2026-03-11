@@ -24,7 +24,7 @@ e2e("stage: stages a protected file for editing", (t) => {
     exit 0
       + SOUL.md → protect
 
-    Updated. 1 file(s) now protected.
+    Updated. 1 file now protected.
   `)
     .exits(0);
 
@@ -67,7 +67,7 @@ e2e("stage: no-op when staging copy already exists", (t) => {
     exit 0
       + SOUL.md → protect
 
-    Updated. 1 file(s) now protected.
+    Updated. 1 file now protected.
   `)
     .exits(0);
 
@@ -112,7 +112,7 @@ e2e("stage: errors on watched file", (t) => {
     exit 0
       + notes.md → watch
 
-    Updated. 1 file(s) now watched.
+    Updated. 1 file now watched.
   `)
     .exits(0);
 
@@ -146,7 +146,7 @@ e2e("stage: stages file for deletion with -d", (t) => {
     exit 0
       + SOUL.md → protect
 
-    Updated. 1 file(s) now protected.
+    Updated. 1 file now protected.
   `)
     .exits(0);
 
@@ -191,7 +191,7 @@ e2e("stage: stages subdirectory path for deletion with -d", (t) => {
     exit 0
       + docs/guide.md → protect
 
-    Updated. 1 file(s) now protected.
+    Updated. 1 file now protected.
   `)
     .exits(0);
 
@@ -318,7 +318,7 @@ e2e("stage: non-existent file in protected directory succeeds", (t) => {
       exit 0
         + skills → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
 
@@ -359,7 +359,7 @@ e2e("stage: non-existent file at nested path in protected directory succeeds", (
       exit 0
         + skills → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
 
@@ -403,7 +403,7 @@ e2e("stage: multiple files at once", (t) => {
       + SOUL.md → protect
       + GOALS.md → protect
 
-    Updated. 2 file(s) now protected.
+    Updated. 2 files now protected.
   `)
     .exits(0);
 
@@ -453,7 +453,7 @@ e2e("stage: directory staging recursively stages all files", (t) => {
       exit 0
         + memory → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
 
@@ -503,7 +503,7 @@ e2e("stage: directory for deletion with -d", (t) => {
       exit 0
         + memory → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
 
@@ -550,7 +550,7 @@ e2e("stage: staging for edit after staging for delete overwrites sentinel", (t) 
     exit 0
       + SOUL.md → protect
 
-    Updated. 1 file(s) now protected.
+    Updated. 1 file now protected.
   `)
     .exits(0);
 
@@ -603,7 +603,7 @@ e2e("stage: staging for delete after staging for edit overwrites with sentinel",
     exit 0
       + SOUL.md → protect
 
-    Updated. 1 file(s) now protected.
+    Updated. 1 file now protected.
   `)
     .exits(0);
 

@@ -22,7 +22,7 @@ e2e("diff: shows no changes for unmodified staging", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
 
@@ -83,7 +83,7 @@ e2e("diff: shows unified diff for modified staging", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
 
@@ -159,7 +159,7 @@ e2e("diff: shows new file when protected copy is missing", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
 
@@ -234,7 +234,7 @@ e2e("diff: directory staged recursively with no changes shows clean", (t) => {
       exit 0
         + memory → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
   t.$(`sudo soulguard sync`)
@@ -305,7 +305,7 @@ e2e("diff: directory staged recursively with modified file shows diff", (t) => {
       exit 0
         + memory → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
   t.$(`sudo soulguard sync`)
@@ -390,7 +390,7 @@ e2e("diff: soulguard.json staged with no changes shows clean", (t) => {
       exit 0
         + memory → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
   t.$(`sudo soulguard sync`)
@@ -460,7 +460,7 @@ e2e("diff: new file staged in protected directory shows new file diff", (t) => {
       exit 0
         + skills → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
   t.$(`sudo soulguard sync`)
@@ -546,7 +546,7 @@ e2e("diff: stage -d file shows deletion cleanly", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
 
@@ -619,7 +619,7 @@ e2e("diff: stage -d directory shows deletion cleanly", (t) => {
       exit 0
         + memory → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
   t.$(`sudo soulguard sync`)

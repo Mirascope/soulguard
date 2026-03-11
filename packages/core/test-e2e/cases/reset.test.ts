@@ -17,7 +17,7 @@ e2e("reset: dry run lists staged files", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
   t.$(`soulguard stage SOUL.md`)
@@ -66,7 +66,7 @@ e2e("reset: specific file removes staging copy", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
   t.$(`soulguard stage SOUL.md`)
@@ -113,7 +113,7 @@ e2e("reset: --all empties staging tree", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
   t.$(`soulguard stage SOUL.md`)
@@ -177,7 +177,7 @@ e2e("reset: selective reset keeps other staged files", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
   t.$(`sudo soulguard protect notes.md`)
@@ -185,7 +185,7 @@ e2e("reset: selective reset keeps other staged files", (t) => {
       exit 0
         + notes.md → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
   t.$(`soulguard stage SOUL.md && soulguard stage notes.md`)

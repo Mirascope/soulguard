@@ -19,7 +19,7 @@ e2e("sync: fixes drifted ownership and permissions", (t) => {
       exit 0
         + SOUL.md → protect
 
-      Updated. 1 file(s) now protected.
+      Updated. 1 file now protected.
     `)
     .exits(0);
 

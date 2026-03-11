@@ -22,6 +22,16 @@ export type TierCommandOptions = {
   expectedProtectOwnership: FileOwnership;
 };
 
+/** Format a summary like "1 file", "2 directories", "1 file and 2 directories". */
+function formatSummary(paths: string[]): string {
+  const dirs = paths.filter((p) => p.endsWith("/")).length;
+  const files = paths.length - dirs;
+  const parts: string[] = [];
+  if (files > 0) parts.push(`${files} ${files === 1 ? "file" : "files"}`);
+  if (dirs > 0) parts.push(`${dirs} ${dirs === 1 ? "directory" : "directories"}`);
+  return parts.join(" and ");
+}
+
 /** Arrow/label for reporting tier transitions. */
 function formatChange(action: TierAction, from?: Tier): { prefix: string; suffix: string } {
   if (action.kind === "release") {
@@ -208,11 +218,10 @@ export class TierCommand {
     // Summary
     this.out.write("");
     if (action.kind === "set") {
-      this.out.success(
-        `Updated. ${changedPaths.length} file(s) now ${action.tier === "protect" ? "protected" : "watched"}.`,
-      );
+      const label = action.tier === "protect" ? "protected" : "watched";
+      this.out.success(`Updated. ${formatSummary(changedPaths)} now ${label}.`);
     } else {
-      this.out.success(`Released. ${changedPaths.length} file(s) untracked.`);
+      this.out.success(`Released. ${formatSummary(changedPaths)} untracked.`);
     }
     return 0;
   }
