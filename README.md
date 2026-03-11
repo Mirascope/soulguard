@@ -29,7 +29,8 @@ npm install -g soulguard
 # Navigate to your agent workspace (e.g. ~/.openclaw)
 cd ~/my-agent-workspace
 
-# Initialize soulguard (creates system user, group, and .soulguard/ directory)
+# Initialize soulguard (creates system user, group, .soulguard/ directory)
+# soulguard.json is automatically protected — the agent can't tamper with the config
 sudo soulguard init
 
 # Protect your core identity files
@@ -113,6 +114,21 @@ sudo soulguard apply --hash <hash>
 ```
 
 **Security Note**: The `-y` / `--yes` flag is convenient for trusted environments and provides the same security model as interactive mode. Use `--hash` for cryptographic verification when security is paramount or for automation.
+
+### Proposing file deletions
+
+To delete a protected file or directory, stage it with the `-d` flag:
+
+```bash
+# Stage a file for deletion
+soulguard stage -d old-config.md
+
+# Review the deletion
+soulguard diff
+
+# Apply (deletes the file and removes it from soulguard.json)
+sudo soulguard apply -y
+```
 
 ### Releasing files
 
@@ -217,17 +233,8 @@ Soulguard maintains an internal git repository inside `.soulguard/` for audit tr
 - **`init`** creates the git repo and commits all tracked files as an initial snapshot
 - **`apply`** auto-commits protected changes after applying them
 - **`sync`** commits all tracked files (protect + watch) after fixing any drift
-- **`log`** shows the git history for tracked files
 
 All commits use author `SoulGuardian <soulguardian@soulguard.ai>`. Git operations are best-effort — failures never block core security operations. If the staging area has pre-existing staged changes, soulguard skips the commit to avoid absorbing unrelated work.
-
-```bash
-# View audit history
-soulguard log
-
-# View history for a specific file
-soulguard log . SOUL.md
-```
 
 ## CLI Reference
 
@@ -256,7 +263,6 @@ soulguard log . SOUL.md
 | `soulguard stage <paths...>`      | Stage protected files for editing or deletion (use -d flag for deletion)     |
 | `soulguard diff [dir] [files...]` | Show pending changes as unified diff + approval hash                         |
 | `soulguard reset [paths...] [-a]` | List, selectively reset, or clear all staged changes                         |
-| `soulguard log [dir] [file]`      | Show git history for tracked files                                           |
 
 **Exit codes:** `diff` and `status` exit with code 1 when changes or drifts are found (like `git diff`), not just on errors.
 
@@ -300,7 +306,7 @@ workspace/
 ├── memory/
 │   └── notes.md                   # Watched file (644, tracked in git)
 ├── .soulguard-staging/
-│   └── SOUL.md                    # Staging copy (777, agent-writable)
+│   └── SOUL.md                    # Staging copy (agent-writable, default permissions)
 └── .soulguard/
     ├── backup/                    # Temporary backups during apply
     └── .git/                      # Internal git repo for audit trail
@@ -316,7 +322,7 @@ workspace/
 
 ## E2E Testing
 
-E2E tests run soulguard CLI commands inside Docker containers with real OS users, file permissions, and sudo — testing the actual security boundary. We recommend [Colima](https://github.com/abetlen/colima) for local Docker on macOS.
+E2E tests run soulguard CLI commands inside Docker containers with real OS users, file permissions, and sudo — testing the actual security boundary. We recommend [Colima](https://github.com/abiosoft/colima) for local Docker on macOS.
 
 ```bash
 # Run all e2e tests
