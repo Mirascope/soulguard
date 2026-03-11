@@ -8,11 +8,18 @@
  */
 
 import type { ConsoleOutput } from "../util/console.js";
-import type { ApplyOptions } from "../sdk/apply.js";
+import type { SystemOperations } from "../util/system-ops.js";
+import type { FileOwnership, SoulguardConfig } from "../util/types.js";
+import type { Policy } from "../sdk/policy.js";
 import { apply } from "../sdk/apply.js";
 import { diff } from "../sdk/diff.js";
+import { StateTree } from "../sdk/state.js";
 
-export type ApplyCommandOptions = Omit<ApplyOptions, "hash"> & {
+export type ApplyCommandOptions = {
+  ops: SystemOperations;
+  config: SoulguardConfig;
+  protectOwnership: FileOwnership;
+  policies?: Policy[];
   /** Pre-computed hash for cryptographic verification mode */
   hash?: string;
   /** Skip hash verification (--yes mode) */
@@ -72,13 +79,23 @@ export class ApplyCommand {
       hash = diffResult.value.approvalHash!;
     }
 
-    const result = await apply({ ...this.opts, hash });
+    // Build StateTree for apply
+    const treeResult = await StateTree.build({ ops: this.opts.ops, config: this.opts.config });
+    if (!treeResult.ok) {
+      this.out.error(`State tree build failed: ${treeResult.error.message}`);
+      return 1;
+    }
+
+    const result = await apply({
+      ops: this.opts.ops,
+      tree: treeResult.value,
+      hash,
+      protectOwnership: this.opts.protectOwnership,
+      policies: this.opts.policies,
+    });
 
     if (!result.ok) {
       switch (result.error.kind) {
-        case "no_changes":
-          this.out.info("No changes to apply — staging matches protect-tier.");
-          return 0;
         case "hash_mismatch":
           this.out.error(result.error.message);
           this.out.info("Please run `soulguard diff` again and re-review.");
@@ -97,9 +114,6 @@ export class ApplyCommand {
           return 1;
         case "apply_failed":
           this.out.error(`Apply failed: ${result.error.message}`);
-          return 1;
-        case "diff_failed":
-          this.out.error(`Diff failed: ${result.error.message}`);
           return 1;
       }
     }

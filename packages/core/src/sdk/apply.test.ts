@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { MockSystemOps } from "../util/system-ops-mock.js";
 import { diff } from "./diff.js";
 import { apply } from "./apply.js";
+import { StateTree } from "./state.js";
 import type { SoulguardConfig, FileOwnership } from "../util/types.js";
 import type { Policy } from "./policy.js";
 import { ok, err } from "../util/result.js";
@@ -38,19 +39,19 @@ function setup() {
   return ops;
 }
 
-/** Helper to compute hash from current staging diff */
-async function getApprovalHash(ops: MockSystemOps, cfg: SoulguardConfig): Promise<string> {
-  const result = await diff({ ops, config: cfg });
-  if (!result.ok) throw new Error("diff failed");
-  return result.value.approvalHash!;
+/** Build a StateTree and return it (throws on failure). */
+async function buildTree(ops: MockSystemOps, cfg: SoulguardConfig): Promise<StateTree> {
+  const result = await StateTree.build({ ops, config: cfg });
+  if (!result.ok) throw new Error("tree build failed");
+  return result.value;
 }
 
 describe("apply (implicit proposals)", () => {
   test("applies changes when hash matches", async () => {
     const ops = setup();
-    const hash = await getApprovalHash(ops, config);
+    const tree = await buildTree(ops, config);
 
-    const result = await apply({ ops, config, hash, protectOwnership });
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.appliedFiles).toEqual(["SOUL.md"]);
@@ -61,7 +62,7 @@ describe("apply (implicit proposals)", () => {
     if (content.ok) expect(content.value).toBe("modified soul");
   });
 
-  test("rejects when no changes exist", async () => {
+  test("succeeds with empty appliedFiles when no changes exist", async () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile("SOUL.md", "same", { owner: "soulguardian", group: "soulguard", mode: "444" });
     ops.addFile(".soulguard-staging/SOUL.md", "same", {
@@ -70,24 +71,26 @@ describe("apply (implicit proposals)", () => {
       mode: "644",
     });
 
-    const result = await apply({ ops, config, hash: "anyhash", protectOwnership });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.kind).toBe("no_changes");
+    const tree = await buildTree(ops, config);
+    const result = await apply({ ops, tree, hash: "anyhash", protectOwnership });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.appliedFiles).toEqual([]);
   });
 
   test("rejects hash mismatch (staging changed since review)", async () => {
     const ops = setup();
-    const hash = await getApprovalHash(ops, config);
+    const tree = await buildTree(ops, config);
 
-    // Agent sneaks in a change after hash was computed
+    // Agent sneaks in a change after tree was built
     ops.addFile(".soulguard-staging/SOUL.md", "sneaky different content", {
       owner: "agent",
       group: "soulguard",
       mode: "644",
     });
 
-    const result = await apply({ ops, config, hash, protectOwnership });
+    // Per-file hash verification catches the tampering after write
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("hash_mismatch");
@@ -116,7 +119,7 @@ describe("apply (implicit proposals)", () => {
       mode: "644",
     });
 
-    const hash = await getApprovalHash(ops, multiConfig);
+    const tree = await buildTree(ops, multiConfig);
 
     // Inject failure: make chown fail on AGENTS.md
     const originalChown = ops.chown.bind(ops);
@@ -127,7 +130,7 @@ describe("apply (implicit proposals)", () => {
       return originalChown(path, owner);
     };
 
-    const result = await apply({ ops, config: multiConfig, hash, protectOwnership });
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("apply_failed");
@@ -140,9 +143,9 @@ describe("apply (implicit proposals)", () => {
 
   test("syncs staging after successful apply", async () => {
     const ops = setup();
-    const hash = await getApprovalHash(ops, config);
+    const tree = await buildTree(ops, config);
 
-    const result = await apply({ ops, config, hash, protectOwnership });
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
     expect(result.ok).toBe(true);
 
     // Staging should now match protect tier (no diff)
@@ -153,10 +156,10 @@ describe("apply (implicit proposals)", () => {
 
   test("blocks on policy violation", async () => {
     const ops = setup();
-    const hash = await getApprovalHash(ops, config);
+    const tree = await buildTree(ops, config);
     const policies: Policy[] = [{ name: "block-all", check: () => err("blocked by policy") }];
 
-    const result = await apply({ ops, config, hash, protectOwnership, policies });
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership, policies });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("policy_violation");
@@ -172,22 +175,22 @@ describe("apply (implicit proposals)", () => {
 
   test("passes with allowing policy", async () => {
     const ops = setup();
-    const hash = await getApprovalHash(ops, config);
+    const tree = await buildTree(ops, config);
     const policies: Policy[] = [{ name: "allow-all", check: () => ok(undefined) }];
 
-    const result = await apply({ ops, config, hash, protectOwnership, policies });
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership, policies });
     expect(result.ok).toBe(true);
   });
 
   test("rejects duplicate policy names", async () => {
     const ops = setup();
-    const hash = await getApprovalHash(ops, config);
+    const tree = await buildTree(ops, config);
     const policies: Policy[] = [
       { name: "dupe", check: () => ok(undefined) },
       { name: "dupe", check: () => ok(undefined) },
     ];
 
-    const result = await apply({ ops, config, hash, protectOwnership, policies });
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership, policies });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("policy_name_collision");
@@ -196,9 +199,9 @@ describe("apply (implicit proposals)", () => {
     }
   });
 
-  test("policy receives frozen pending content", async () => {
+  test("policy receives staging content", async () => {
     const ops = setup();
-    const hash = await getApprovalHash(ops, config);
+    const tree = await buildTree(ops, config);
     let capturedFinal: string | undefined;
     const policies: Policy[] = [
       {
@@ -210,21 +213,8 @@ describe("apply (implicit proposals)", () => {
       },
     ];
 
-    await apply({ ops, config, hash, protectOwnership, policies });
+    await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership, policies });
     expect(capturedFinal).toBe("modified soul");
-  });
-
-  test("cleans up pending directory after apply", async () => {
-    const ops = setup();
-    const hash = await getApprovalHash(ops, config);
-
-    const result = await apply({ ops, config, hash, protectOwnership });
-    expect(result.ok).toBe(true);
-
-    // Entire pending directory should be cleaned up
-    const pendingExists = await ops.exists(".soulguard/pending");
-    expect(pendingExists.ok).toBe(true);
-    if (pendingExists.ok) expect(pendingExists.value).toBe(false);
   });
 
   test("auto-commits protect-tier changes when git enabled", async () => {
@@ -236,8 +226,8 @@ describe("apply (implicit proposals)", () => {
     );
 
     const gitConfig: SoulguardConfig = { ...config, git: true };
-    const hash = await getApprovalHash(ops, gitConfig);
-    const result = await apply({ ops, config: gitConfig, hash, protectOwnership });
+    const tree = await buildTree(ops, gitConfig);
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -253,8 +243,8 @@ describe("apply (implicit proposals)", () => {
     ops.addFile(".soulguard/.git", "");
 
     const gitConfig: SoulguardConfig = { ...config, git: false };
-    const hash = await getApprovalHash(ops, gitConfig);
-    const result = await apply({ ops, config: gitConfig, hash, protectOwnership });
+    const tree = await buildTree(ops, gitConfig);
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -271,8 +261,8 @@ describe("apply (implicit proposals)", () => {
     // Staging has DELETE_SENTINEL — agent wants to delete it
     ops.addFile(".soulguard-staging/SOUL.md", JSON.stringify(DELETE_SENTINEL));
 
-    const hash = await getApprovalHash(ops, config);
-    const result = await apply({ ops, config, hash, protectOwnership });
+    const tree = await buildTree(ops, config);
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -300,8 +290,8 @@ describe("apply (implicit proposals)", () => {
     // Staging has DELETE_SENTINEL — agent trying to delete config
     ops.addFile(".soulguard-staging/soulguard.json", JSON.stringify(DELETE_SENTINEL));
 
-    const hash = await getApprovalHash(ops, sgConfig);
-    const result = await apply({ ops, config: sgConfig, hash, protectOwnership });
+    const tree = await buildTree(ops, sgConfig);
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -328,8 +318,8 @@ describe("apply (implicit proposals)", () => {
       mode: "644",
     });
 
-    const hash = await getApprovalHash(ops, multiConfig);
-    const result = await apply({ ops, config: multiConfig, hash, protectOwnership });
+    const tree = await buildTree(ops, multiConfig);
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -366,12 +356,12 @@ describe("apply (implicit proposals)", () => {
     ops.addFile(".soulguard-staging/SOUL.md", JSON.stringify(DELETE_SENTINEL));
     ops.addFile(".soulguard-staging/AGENTS.md", JSON.stringify(DELETE_SENTINEL));
 
-    const hash = await getApprovalHash(ops, twoDeleteConfig);
+    const tree = await buildTree(ops, twoDeleteConfig);
 
     // Make AGENTS.md deletion fail (SOUL.md deletes first alphabetically)
     ops.failingDeletes.add("AGENTS.md");
 
-    const result = await apply({ ops, config: twoDeleteConfig, hash, protectOwnership });
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -399,8 +389,8 @@ describe("apply (implicit proposals)", () => {
     );
 
     const gitConfig: SoulguardConfig = { ...config, git: true };
-    const hash = await getApprovalHash(ops, gitConfig);
-    const result = await apply({ ops, config: gitConfig, hash, protectOwnership });
+    const tree = await buildTree(ops, gitConfig);
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -455,9 +445,9 @@ describe("apply (directory support)", () => {
 
   test("applies modified file inside protected directory", async () => {
     const ops = setupDir();
-    const hash = await getApprovalHash(ops, dirConfig);
+    const tree = await buildTree(ops, dirConfig);
 
-    const result = await apply({ ops, config: dirConfig, hash, protectOwnership });
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.appliedFiles).toEqual(["mydir/file1.txt"]);
@@ -482,8 +472,8 @@ describe("apply (directory support)", () => {
       mode: "644",
     });
 
-    const hash = await getApprovalHash(ops, dirConfig);
-    const result = await apply({ ops, config: dirConfig, hash, protectOwnership });
+    const tree = await buildTree(ops, dirConfig);
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.appliedFiles).toContain("mydir/file1.txt");
@@ -496,16 +486,6 @@ describe("apply (directory support)", () => {
   });
 
   test("applies deletion of file inside protected directory", async () => {
-    const ops = setupDir();
-    // Remove file2 from staging (deletion)
-    ops.addFile(".soulguard-staging/mydir/file1.txt", "original file1", {
-      owner: "agent",
-      group: "soulguard",
-      mode: "644",
-    });
-    // Delete file2 from staging by not having it there
-    // But we need to remove the existing staging entry
-    // Use a different approach: staging has file1 unchanged, file2 missing → file2 deleted
     const ops2 = new MockSystemOps("/workspace");
     ops2.addDirectory("mydir", { owner: "soulguardian", group: "soulguard", mode: "755" });
     ops2.addFile("mydir/file1.txt", "original file1", {
@@ -531,8 +511,8 @@ describe("apply (directory support)", () => {
     // file2 has DELETE_SENTINEL in staging → deletion
     ops2.addFile(".soulguard-staging/mydir/file2.txt", JSON.stringify(DELETE_SENTINEL));
 
-    const hash = await getApprovalHash(ops2, dirConfig);
-    const result = await apply({ ops: ops2, config: dirConfig, hash, protectOwnership });
+    const tree = await buildTree(ops2, dirConfig);
+    const result = await apply({ ops: ops2, tree, hash: tree.approvalHash!, protectOwnership });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.appliedFiles).toContain("mydir/file2.txt");
@@ -569,8 +549,8 @@ describe("apply (directory support)", () => {
       mode: "644",
     });
 
-    const hash = await getApprovalHash(ops, mixedConfig);
-    const result = await apply({ ops, config: mixedConfig, hash, protectOwnership });
+    const tree = await buildTree(ops, mixedConfig);
+    const result = await apply({ ops, tree, hash: tree.approvalHash!, protectOwnership });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.appliedFiles).toContain("SOUL.md");
