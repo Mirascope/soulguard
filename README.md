@@ -377,6 +377,41 @@ Each `t.$("command")` is a step that runs in the container. `.expect()` holds th
 
 Running with `--update` rewrites the `.expect()` strings in-place to match actual output. Invariant failures still cause the test to fail even during updates, so you can safely update snapshots without accidentally accepting broken behavior.
 
+## Development
+
+### Versioning
+
+All packages are versioned in lockstep. Use `bump-version` to update everywhere at once:
+
+```bash
+# Set an explicit version
+bun run bump-version 2.1.0
+
+# Or bump relative to current
+bun run bump-version --patch   # 2.0.0 → 2.0.1
+bun run bump-version --minor   # 2.0.0 → 2.1.0
+bun run bump-version --major   # 2.0.0 → 3.0.0
+```
+
+A pre-commit hook verifies all package versions match — commits will fail if they're out of sync.
+
+### Local testing
+
+Build all packages and link the `soulguard` CLI globally:
+
+```bash
+bun run build-and-link
+soulguard --version  # 2.0.0
+```
+
+### Publishing
+
+```bash
+bun run publish
+```
+
+This verifies versions are in sync, then builds and publishes all public packages to npm in dependency order, skipping any that are already published.
+
 ## Links
 
 - **Website:** [soulguard.ai](https://soulguard.ai)
