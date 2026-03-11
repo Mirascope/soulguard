@@ -16,12 +16,21 @@ const ownershipSchema = z.object({
   mode: z.string(),
 });
 
+const daemonConfigSchema = z
+  .object({
+    channel: z.string(),
+    debounceMs: z.number().int().positive().optional(),
+    batchReadyTimeoutMs: z.number().int().positive().optional(),
+  })
+  .passthrough(); // Allow channel-specific keys (e.g. "discord": { ... })
+
 export const soulguardConfigSchema: z.ZodType<SoulguardConfig> = z.object({
   version: z.literal(1),
   guardian: z.string(),
   files: z.record(z.string(), tierSchema),
   git: z.boolean().optional(),
   defaultOwnership: ownershipSchema.optional(),
+  daemon: daemonConfigSchema.optional(),
 });
 
 /**

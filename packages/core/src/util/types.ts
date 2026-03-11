@@ -19,6 +19,8 @@ export type SoulguardConfig = {
   git?: boolean;
   /** Default ownership to restore when releasing protected files. Captured at init time. */
   defaultOwnership?: FileOwnership;
+  /** Remote approval daemon configuration. Opt-in — omit to disable the daemon. */
+  daemon?: DaemonConfig;
 };
 
 // ── Tiers ──────────────────────────────────────────────────────────────
@@ -98,3 +100,17 @@ export type SystemIdentity = {
 // Re-export Result from result.ts for convenience
 export type { Result } from "./result.js";
 export { ok, err } from "./result.js";
+
+// ── Daemon config ──────────────────────────────────────────────────────
+
+/** Configuration for the remote approval daemon. */
+export type DaemonConfig = {
+  /** Which ApprovalChannel implementation to use (e.g. "discord"). */
+  channel: string;
+  /** Debounce period (ms) after last staging write before creating a proposal. Default: 3000. */
+  debounceMs?: number;
+  /** Max time (ms) to wait for .wait-for-ready sentinel removal. Default: 300000 (5 min). */
+  batchReadyTimeoutMs?: number;
+  /** Channel-specific config block. Validated by the channel plugin, not core. */
+  [channelName: string]: unknown;
+};
