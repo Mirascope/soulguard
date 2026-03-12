@@ -44,12 +44,6 @@ describe("DiscordChannel", () => {
     // Message has edited_timestamp → post warning, reject
   });
 
-  // ── Security: content verification ─────────────────────────────────
-
-  test.skip("rejects approval if message content doesn't match retained payload", () => {
-    // Re-render from retained payload, compare → mismatch → reject
-  });
-
   // ── Abort signal ───────────────────────────────────────────────────
 
   test.skip("waitForApproval throws on abort signal", () => {
@@ -69,8 +63,8 @@ describe("DiscordChannel", () => {
 
   // ── Reconnect ──────────────────────────────────────────────────────
 
-  test.skip("resumes waiting if existing message matches payload on reconnect", () => {});
-  test.skip("re-proposes if existing message content doesn't match", () => {});
+  test.skip("resumes waiting if existing message found on reconnect", () => {});
+  test.skip("re-proposes if existing message is missing on reconnect", () => {});
 });
 
 describe("DiscordConfig", () => {

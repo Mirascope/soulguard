@@ -43,24 +43,21 @@ type DiscordConfig = {
   Returns `{ channel: "discord", proposalId: discordMessageId }`.
 - **waitForApproval**: Listen for ✅ / ❌ reactions on the proposal message.
   Filter by `approverUserIds`. Check `edited_timestamp` on reaction as
-  defense-in-depth. Re-render canonical message from retained payload and
-  verify content matches displayed message before accepting approval.
-  Respects AbortSignal for supersession.
+  defense-in-depth. Respects AbortSignal for supersession.
+  Note: content/hash verification happens in the ProposalManager (core),
+  not in the channel implementation.
 - **postResult**: Edit original message or post follow-up with outcome.
 - **dispose**: Disconnect Discord client.
 
 ### Security defenses (from design doc)
 
-1. **Content verification at approval time**: Re-render from retained payload,
-   compare against message content. Mismatch → reject.
-2. **Edit detection (defense-in-depth)**: Check `edited_timestamp` on the
+1. **Edit detection (defense-in-depth)**: Check `edited_timestamp` on the
    proposal message when a reaction is received. If edited, invalidate
    with visible warning.
-3. **Tracked message ID**: Only accept reactions on the daemon's own message.
-4. **User ID filtering**: Only `approverUserIds` reactions accepted.
+2. **Tracked message ID**: Only accept reactions on the daemon's own message.
+3. **User ID filtering**: Only `approverUserIds` reactions accepted.
    Bot's own user ID always excluded.
-5. **Reconnect**: On reconnect, find existing message by tracked ID,
-   verify content matches current payload, resume or re-propose.
+4. **Reconnect**: On reconnect, find existing message by tracked ID, resume or re-propose.
 
 ### Key test scenarios (mock Discord.js client)
 

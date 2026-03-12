@@ -21,9 +21,6 @@ export class DiscordChannel implements ApprovalChannel {
 
   private readonly _config: DiscordConfig;
 
-  /** Retained payload for content verification at approval time. */
-  private _retainedPayload: ProposalPayload | null = null;
-
   constructor(config: DiscordConfig) {
     this._config = config;
   }
