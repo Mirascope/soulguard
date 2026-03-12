@@ -4,7 +4,7 @@
  * Uses MockSystemOps to simulate filesystem state without touching disk.
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, test } from "bun:test";
 import { StagingWatcher } from "./watcher.js";
 
 describe("StagingWatcher", () => {
@@ -18,13 +18,13 @@ describe("StagingWatcher", () => {
   test.skip("resets debounce timer on subsequent changes", () => {
     // Setup: watcher with 100ms debounce
     // Action: write file A, wait 50ms, write file B
-    // Expect: single proposal event ~100ms after file B, containing both files
+    // Expect: single proposal event ~100ms after file B
   });
 
   test.skip("rapid writes produce single emission", () => {
     // Setup: watcher with 100ms debounce
     // Action: write 10 files in quick succession
-    // Expect: single proposal event, snapshot contains all 10 files
+    // Expect: single proposal event
   });
 
   // ── Batch mode ─────────────────────────────────────────────────────
@@ -34,13 +34,13 @@ describe("StagingWatcher", () => {
     // Expect: no proposal event despite debounce expiring
   });
 
-  test.skip("emits immediately when .wait-for-ready is removed", () => {
+  test.skip("emits when .wait-for-ready is removed", () => {
     // Setup: .wait-for-ready exists, files staged
     // Action: remove .wait-for-ready
     // Expect: proposal event on next poll
   });
 
-  test.skip("emits immediately when .ready appears", () => {
+  test.skip("emits when .ready appears", () => {
     // Setup: .wait-for-ready exists, files staged
     // Action: write .ready
     // Expect: proposal event on next poll
@@ -48,54 +48,37 @@ describe("StagingWatcher", () => {
 
   test.skip("batch safety timeout emits after batchReadyTimeoutMs", () => {
     // Setup: .wait-for-ready exists, batchReadyTimeoutMs = 200ms
-    // Expect: proposal event emitted ~200ms later with warning
+    // Expect: proposal event emitted ~200ms later
   });
 
   // ── Change detection ───────────────────────────────────────────────
 
-  test.skip("does not emit when no files have changed since last snapshot", () => {
+  test.skip("does not emit when no files have changed since last emission", () => {
     // Setup: staging has files, first proposal emitted
     // Expect: no second proposal on subsequent polls
   });
 
-  test.skip("emits when file content changes (same filename, different hash)", () => {
-    // Setup: first proposal with file A (hash1)
-    // Action: overwrite file A with different content (hash2)
+  test.skip("emits when file content changes", () => {
+    // Setup: first proposal emitted
+    // Action: overwrite file with different content
     // Expect: second proposal event
   });
 
   test.skip("emits when file is added", () => {
-    // Setup: first proposal with file A
-    // Action: add file B
-    // Expect: second proposal event with both files
+    // Action: add new file to staging
+    // Expect: proposal event
   });
 
-  test.skip("emits when file is removed from staging", () => {
-    // Setup: first proposal with files A and B
-    // Action: remove file B
-    // Expect: second proposal event with only file A
+  test.skip("emits when file is removed", () => {
+    // Action: remove file from staging
+    // Expect: proposal event
   });
 
   // ── Empty staging ──────────────────────────────────────────────────
 
-  test.skip("does not emit when staging directory is empty", () => {
-    // Staging dir exists but has no files (or only metadata files)
-  });
+  test.skip("does not emit when staging directory is empty", () => {});
 
-  test.skip("does not emit when staging has only metadata files", () => {
-    // Only .description and/or .wait-for-ready present, no real files
-  });
-
-  // ── Description ────────────────────────────────────────────────────
-
-  test.skip("includes .description content in snapshot", () => {
-    // .description contains "Updated SOUL.md for clarity"
-    // snapshot.description should be "Updated SOUL.md for clarity"
-  });
-
-  test.skip("excludes .description from file map", () => {
-    // .description should not appear in snapshot.files
-  });
+  test.skip("does not emit when staging has only metadata files", () => {});
 
   // ── Lifecycle ──────────────────────────────────────────────────────
 
@@ -108,14 +91,11 @@ describe("StagingWatcher", () => {
     // No further events emitted
   });
 
-  test.skip("can be restarted after stop", () => {
-    // start → stop → start should work
-  });
+  test.skip("can be restarted after stop", () => {});
 
   // ── Error handling ─────────────────────────────────────────────────
 
   test.skip("emits error event on permission denied", () => {
-    // MockSystemOps returns permission denied on readdir
     // Expect: error event, watcher continues running
   });
 });

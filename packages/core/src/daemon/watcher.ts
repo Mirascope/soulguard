@@ -1,8 +1,10 @@
 /**
  * Staging watcher — polls .soulguard-staging/ for changes and emits
- * proposal events after debounce / batch-ready.
+ * a bare signal when it's time to create a proposal.
  *
- * Pure filesystem logic. No channel or proposal lifecycle awareness.
+ * Pure timing logic. The watcher doesn't build state trees or diffs —
+ * it just detects changes, debounces, handles batch mode, and says "go."
+ * The proposal manager is responsible for building the actual proposal.
  */
 
 import { EventEmitter } from "node:events";
@@ -10,20 +12,10 @@ import type { SystemOperations } from "../util/system-ops.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
-/** Snapshot of the staging directory at a point in time. */
-export type StagingSnapshot = {
-  /** Staged files: relative path → content SHA-256 hash. */
-  files: Map<string, string>;
-  /** Agent-provided description (from .description file). */
-  description?: string;
-  /** ISO-8601 timestamp when the snapshot was taken. */
-  timestamp: string;
-};
-
 /** Events emitted by the watcher. */
 export type WatcherEvents = {
-  /** Staging changes are ready for a new proposal. */
-  proposal: [snapshot: StagingSnapshot];
+  /** Staging changes are ready — proposal manager should build a proposal. */
+  proposal: [];
   /** An error occurred while watching. */
   error: [error: Error];
 };
@@ -40,7 +32,7 @@ export type WatcherOptions = {
   pollIntervalMs?: number;
 };
 
-/** Metadata files excluded from the staging snapshot file map. */
+/** Metadata files excluded from change detection. */
 const METADATA_FILES = new Set([".wait-for-ready", ".ready", ".description"]);
 
 // ── StagingWatcher ─────────────────────────────────────────────────────
@@ -57,8 +49,8 @@ export class StagingWatcher extends EventEmitter<WatcherEvents> {
   private _debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private _batchTimer: ReturnType<typeof setTimeout> | null = null;
 
-  /** Last known state for change detection: path → hash. */
-  private _lastKnownState = new Map<string, string>();
+  /** Last known staging directory fingerprint for change detection. */
+  private _lastFingerprint: string | null = null;
 
   constructor(options: WatcherOptions) {
     super();
