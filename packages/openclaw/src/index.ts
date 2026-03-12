@@ -17,6 +17,9 @@ export type { SoulguardPluginOptions } from "./plugin.js";
 import { createSoulguardPlugin } from "./plugin.js";
 export default createSoulguardPlugin();
 
+export { onInit } from "./on-init.js";
+export type { OnInitConsole } from "./on-init.js";
+
 export { guardToolCall } from "./guard.js";
 export type { GuardOptions, GuardResult } from "./guard.js";
 
