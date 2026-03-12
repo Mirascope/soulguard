@@ -12,6 +12,7 @@ COPY bun.lock package.json ./
 COPY packages/core/package.json packages/core/package.json
 COPY packages/openclaw/package.json packages/openclaw/package.json
 COPY packages/soulguard/package.json packages/soulguard/package.json
+COPY packages/discord/package.json packages/discord/package.json
 
 # Install deps (cached unless lockfile/package.json changes)
 RUN bun install --frozen-lockfile
