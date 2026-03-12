@@ -1,9 +1,8 @@
 /**
  * before_tool_call guard — blocks writes to protected files and
- * returns a helpful message pointing the agent to the staging workflow.
+ * returns a helpful message guiding the agent to the staging workflow.
  */
 
-import { basename } from "node:path";
 import { isProtectedFile, isStagingPath, stagingPath } from "@soulguard/core";
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -53,18 +52,20 @@ export function guardToolCall(
 
   if (!targetPath) return { blocked: false };
 
-  // Never block writes to staging siblings
+  // Never block writes to staging files
   if (isStagingPath(targetPath)) return { blocked: false };
 
   // Check against protect tier using core SDK
   if (!isProtectedFile(options.protectFiles, targetPath)) return { blocked: false };
 
-  const fileName = basename(targetPath);
   return {
     blocked: true,
-    reason:
-      `${fileName} is protected by soulguard. ` +
-      `To modify it, edit ${stagingPath(targetPath)} instead. ` +
-      `Your changes will be reviewed and approved by the owner.`,
+    reason: [
+      `${targetPath} is protected by soulguard.`,
+      `To propose changes, run \`soulguard stage ${targetPath}\` to create a working copy,`,
+      `then edit the staged file at ${stagingPath(targetPath)}.`,
+      `Run \`soulguard diff\` to review your changes.`,
+      `Your owner will review and apply the changes.`,
+    ].join(" "),
   };
 }

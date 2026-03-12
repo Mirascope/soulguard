@@ -4,7 +4,7 @@
  * Provides:
  * - Configuration templates (default, paranoid, relaxed)
  * - before_tool_call hooks to intercept writes to protected files
- * - Cron and extension directory gating
+ * - before_prompt_build hooks to inject pending changes context
  */
 
 export { templates, defaultTemplate, paranoidTemplate, relaxedTemplate } from "./templates.js";
@@ -14,12 +14,14 @@ export { createSoulguardPlugin } from "./plugin.js";
 export type { SoulguardPluginOptions } from "./plugin.js";
 
 // Default export for OpenClaw plugin discovery
-// createSoulguardPlugin() returns { id, activate(api) } which matches OpenClaw's plugin shape
 import { createSoulguardPlugin } from "./plugin.js";
 export default createSoulguardPlugin();
 
 export { guardToolCall } from "./guard.js";
 export type { GuardOptions, GuardResult } from "./guard.js";
+
+export { getPendingChanges, buildPendingChangesContext } from "./context.js";
+export type { PendingChangesResult } from "./context.js";
 
 export type {
   OpenClawPluginDefinition,
