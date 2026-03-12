@@ -25,23 +25,23 @@ import Layout from '../layouts/Layout.astro';
         <img
           src="/images/hero-night.jpg"
           alt=""
-          class="hero-bg hero-bg--night absolute inset-0 w-full h-full object-cover"
+          class="hero-bg hero-bg--night fixed inset-0 w-full h-full object-cover"
           loading="eager"
         />
         <img
           src="/images/hero-day.jpg"
           alt=""
-          class="hero-bg hero-bg--day absolute inset-0 w-full h-full object-cover opacity-0"
+          class="hero-bg hero-bg--day fixed inset-0 w-full h-full object-cover opacity-0"
           loading="eager"
         />
         <img
           src="/images/hero-sunset.jpg"
           alt=""
-          class="hero-bg hero-bg--sunset absolute inset-0 w-full h-full object-cover opacity-0"
+          class="hero-bg hero-bg--sunset fixed inset-0 w-full h-full object-cover opacity-0"
           loading="eager"
         />
         <!-- Gradient overlay for text readability -->
-        <div class="absolute inset-0 bg-gradient-to-b from-sg-black/60 via-sg-black/40 to-sg-black"></div>
+        <div class="fixed inset-0 bg-gradient-to-b from-sg-black/30 via-transparent to-sg-black/80"></div>
       </div>
 
       <div class="relative z-10 max-w-3xl mx-auto text-center pt-14">
@@ -67,6 +67,8 @@ import Layout from '../layouts/Layout.astro';
       </div>
     </section>
 
+    <!-- Content wrapper with solid bg over the fixed hero -->
+    <div class="relative z-10 bg-sg-black">
     <!-- Why -->
     <section class="py-20 px-6 border-t border-sg-border/50">
       <div class="max-w-3xl mx-auto">
@@ -341,6 +343,7 @@ import Layout from '../layouts/Layout.astro';
         </div>
       </div>
     </footer>
+    </div>
   </main>
 
   <!-- Theme switching script -->
