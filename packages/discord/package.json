@@ -1,0 +1,25 @@
+{
+  "name": "@soulguard/discord",
+  "version": "2.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "test": "bun test src/",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@soulguard/core": "workspace:*",
+    "discord.js": "^14.18.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
