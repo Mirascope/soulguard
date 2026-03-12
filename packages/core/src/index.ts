@@ -146,3 +146,9 @@ export type { WatcherEvents, WatcherOptions } from "./daemon/index.js";
 // Daemon: Proposal Manager
 export { ProposalManager } from "./daemon/index.js";
 export type { ProposalManagerOptions, ProposalManagerEvents } from "./daemon/index.js";
+
+// Daemon: Entrypoint + Service
+export { SoulguardDaemon } from "./daemon/index.js";
+export type { DaemonOptions } from "./daemon/index.js";
+export { generateServiceFile, serviceFilePath } from "./daemon/index.js";
+export type { ServicePlatform, ServiceFileOptions } from "./daemon/index.js";
