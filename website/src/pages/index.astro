@@ -18,25 +18,49 @@ import Layout from '../layouts/Layout.astro';
   </nav>
 
   <main>
-    <!-- Hero -->
-    <section class="pt-32 pb-20 px-6">
-      <div class="max-w-3xl mx-auto text-center">
+    <!-- Hero with background image -->
+    <section class="relative min-h-[85vh] flex items-center justify-center px-6 overflow-hidden">
+      <!-- Background images -->
+      <div class="absolute inset-0 z-0">
+        <img
+          src="/images/hero-night.jpg"
+          alt=""
+          class="hero-bg hero-bg--night absolute inset-0 w-full h-full object-cover"
+          loading="eager"
+        />
+        <img
+          src="/images/hero-day.jpg"
+          alt=""
+          class="hero-bg hero-bg--day absolute inset-0 w-full h-full object-cover opacity-0"
+          loading="eager"
+        />
+        <img
+          src="/images/hero-sunset.jpg"
+          alt=""
+          class="hero-bg hero-bg--sunset absolute inset-0 w-full h-full object-cover opacity-0"
+          loading="eager"
+        />
+        <!-- Gradient overlay for text readability -->
+        <div class="absolute inset-0 bg-gradient-to-b from-sg-black/60 via-sg-black/40 to-sg-black"></div>
+      </div>
+
+      <div class="relative z-10 max-w-3xl mx-auto text-center pt-14">
         <p class="text-sg-accent font-mono text-sm mb-4 tracking-wide uppercase">Identity protection for AI agents</p>
-        <h1 class="text-4xl sm:text-5xl font-bold text-sg-white leading-tight mb-6">
+        <h1 class="text-4xl sm:text-5xl font-bold text-white leading-tight mb-6 drop-shadow-lg">
           Code review for your<br/>
-          <span class="text-sg-muted">agent's soul.</span>
+          <span class="text-white/70">agent's soul.</span>
         </h1>
-        <p class="text-lg text-sg-muted max-w-2xl mx-auto mb-10 leading-relaxed">
+        <p class="text-lg text-white/80 max-w-2xl mx-auto mb-10 leading-relaxed drop-shadow-md">
           Your agent evolves — it updates its memory, refines its identity, learns new skills.
           SoulGuard makes sure those changes are intentional, not the result of an attack.
           Think of it as a guardian that watches over your agent's most important files.
         </p>
         <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
-          <code class="bg-sg-card border border-sg-border rounded-lg px-5 py-3 font-mono text-sm text-sg-white">
+          <code class="bg-sg-black/70 backdrop-blur border border-white/20 rounded-lg px-5 py-3 font-mono text-sm text-white">
             npm install -g soulguard
           </code>
-          <span class="text-sg-muted text-sm">then</span>
-          <code class="bg-sg-card border border-sg-border rounded-lg px-5 py-3 font-mono text-sm text-sg-white">
+          <span class="text-white/60 text-sm">then</span>
+          <code class="bg-sg-black/70 backdrop-blur border border-white/20 rounded-lg px-5 py-3 font-mono text-sm text-white">
             sudo soulguard init
           </code>
         </div>
@@ -318,4 +342,35 @@ import Layout from '../layouts/Layout.astro';
       </div>
     </footer>
   </main>
+
+  <!-- Theme switching script -->
+  <script>
+    function getTheme(): 'day' | 'night' | 'sunset' {
+      const hour = new Date().getHours();
+      // Sunset window: roughly 17:00-18:30 local time
+      if (hour >= 17 && hour < 19) return 'sunset';
+      // Day: 7am - 5pm
+      if (hour >= 7 && hour < 17) return 'day';
+      // Night: everything else
+      return 'night';
+    }
+
+    function applyTheme() {
+      const theme = getTheme();
+      const bgs = document.querySelectorAll('.hero-bg') as NodeListOf<HTMLElement>;
+      bgs.forEach((bg) => {
+        const isActive =
+          (theme === 'day' && bg.classList.contains('hero-bg--day')) ||
+          (theme === 'night' && bg.classList.contains('hero-bg--night')) ||
+          (theme === 'sunset' && bg.classList.contains('hero-bg--sunset'));
+        bg.style.opacity = isActive ? '1' : '0';
+        bg.style.transition = 'opacity 1.5s ease-in-out';
+      });
+    }
+
+    // Apply on load
+    applyTheme();
+    // Re-check every minute in case of time boundary
+    setInterval(applyTheme, 60_000);
+  </script>
 </Layout>
