@@ -22,32 +22,20 @@ with no channel dependency.
 
 ### StagingWatcher
 
+The watcher emits a bare signal — no snapshot or data. The proposal manager
+is responsible for building the StateTree and ProposalPayload when it
+receives the signal.
+
 ```typescript
 type WatcherEvents = {
-  /** Emitted when staging changes are ready for a proposal. */
-  proposal: (snapshot: StagingSnapshot) => void;
+  /** Staging changed and is ready — proposal manager should build a proposal. */
+  proposal: [];
   /** Emitted on errors (e.g. permission denied reading staging dir). */
-  error: (error: Error) => void;
-};
-
-type StagingSnapshot = {
-  /** Files in the staging directory with their hashes. */
-  files: Map<string, string>; // path → content hash
-  /** Agent-provided description if .description exists. */
-  description?: string;
-  /** Timestamp when the snapshot was taken. */
-  timestamp: string;
+  error: [error: Error];
 };
 
 class StagingWatcher extends EventEmitter<WatcherEvents> {
-  constructor(options: {
-    ops: SystemOperations;
-    stagingDir: string;
-    debounceMs: number;
-    batchReadyTimeoutMs: number;
-    pollIntervalMs?: number; // default 1000
-  });
-
+  constructor(options: WatcherOptions);
   start(): void;
   stop(): void;
   readonly running: boolean;
@@ -88,7 +76,6 @@ class StagingWatcher extends EventEmitter<WatcherEvents> {
 - Batch timeout: sentinel present too long → emission with warning
 - Change detection: only emit when files actually changed (not on every poll)
 - Empty staging: no emission
-- Description: included in snapshot when present, excluded from file map
 - Start/stop: clean lifecycle, no leaking timers
 - Error handling: permission denied on staging dir → error event
 

@@ -15,4 +15,4 @@ export type {
 } from "./types.js";
 
 export { StagingWatcher } from "./watcher.js";
-export type { StagingSnapshot, WatcherEvents, WatcherOptions } from "./watcher.js";
+export type { WatcherEvents, WatcherOptions } from "./watcher.js";
