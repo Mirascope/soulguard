@@ -98,6 +98,22 @@ program
     const cmd = new InitCommand(
       {
         ops: nodeOps,
+        postInit: async (ctx) => {
+          // Detect OpenClaw and delegate to @soulguard/openclaw if available
+          const openclawExists = await ctx.ops.exists("openclaw.json");
+          if (!openclawExists.ok || !openclawExists.value) return;
+          try {
+            const mod = (await import("@soulguard/openclaw" as string)) as {
+              onInit?: (ctx: unknown, out: unknown) => Promise<void>;
+            };
+            if (!mod.onInit) return;
+            const { onInit } = mod;
+            await onInit(ctx, out);
+          } catch {
+            out.info("OpenClaw detected. Install the soulguard plugin with:");
+            out.info("  openclaw plugins install @soulguard/openclaw");
+          }
+        },
       },
       out,
     );

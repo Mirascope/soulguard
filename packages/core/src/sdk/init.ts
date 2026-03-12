@@ -31,12 +31,21 @@ export type InitError =
   | { kind: "config_invalid"; message: string }
   | { kind: "system_error"; message: string };
 
+/** Context passed to the postInit callback. */
+export type PostInitContext = {
+  config: SoulguardConfig;
+  ops: SystemOperations;
+  workspace: string;
+};
+
 export type InitOptions = {
   ops: SystemOperations;
   /** Override agent username (defaults to process.env.SUDO_USER) */
   agentUser?: string;
   /** @internal Skip root check (for testing only) */
   _skipRootCheck?: boolean;
+  /** Optional callback invoked after successful init with the final config. */
+  postInit?: (ctx: PostInitContext) => Promise<void>;
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -315,6 +324,15 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   });
   if (statusResult.ok) {
     issueCount = statusResult.value.drifts.length;
+  }
+
+  // ── 7. Post-init hook (framework integrations) ───────────────────
+  if (options.postInit) {
+    try {
+      await options.postInit({ config, ops, workspace: ops.workspace });
+    } catch {
+      // Best-effort — don't fail init if post-hook fails
+    }
   }
 
   return ok({

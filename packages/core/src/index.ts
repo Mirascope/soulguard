@@ -58,7 +58,7 @@ export { sync } from "./sdk/sync.js";
 export type { SyncError, SyncResult, SyncOptions } from "./sdk/sync.js";
 
 // Init
-export type { InitResult, InitError, InitOptions } from "./sdk/init.js";
+export type { InitResult, InitError, InitOptions, PostInitContext } from "./sdk/init.js";
 export {
   makeDefaultConfig,
   getProtectOwnership,
