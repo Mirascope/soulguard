@@ -1,35 +1,23 @@
 /**
- * Soulguard OpenClaw plugin — protects protect files from direct writes.
+ * Soulguard OpenClaw plugin — protects files from direct writes
+ * and injects context about pending staged changes.
  */
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import {
-  status,
-  diff,
-  parseConfig,
-  NodeSystemOps,
-  protectPatterns,
-  formatIssue,
-  guardianName,
-  type SoulguardConfig,
-} from "@soulguard/core";
+import { parseConfig, NodeSystemOps, protectPatterns, type SoulguardConfig } from "@soulguard/core";
 
-/** OpenClaw-specific default config — also protects openclaw.json */
-const OPENCLAW_DEFAULT_CONFIG: SoulguardConfig = {
-  version: 1 as const,
-  guardian: guardianName("openclaw"),
-  files: {
-    "openclaw.json": "protect",
-    "soulguard.json": "protect",
-  },
-};
 import { guardToolCall } from "./guard.js";
+import { buildPendingChangesContext } from "./context.js";
 import type {
   BeforeToolCallEvent,
   BeforeToolCallResult,
   OpenClawPluginDefinition,
 } from "./openclaw-types.js";
+
+// Read version from package.json to stay in sync with the monorepo
+const PKG_VERSION = JSON.parse(readFileSync(join(import.meta.dir, "..", "package.json"), "utf-8"))
+  .version as string;
 
 /** Shared plugin description (plugin.json keeps its own copy). */
 export const PLUGIN_DESCRIPTION = "Identity protection for AI agents";
@@ -47,14 +35,14 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
     id: "soulguard",
     name: "Soulguard",
     description: PLUGIN_DESCRIPTION,
-    version: "0.1.0",
+    version: PKG_VERSION,
 
     activate(api) {
       const workspaceDir = api.resolvePath?.(".") ?? api.runtime.workspaceDir ?? ".";
       const configFile = options?.configPath ?? "soulguard.json";
       const configPath = api.resolvePath?.(configFile) ?? join(workspaceDir, configFile);
 
-      // Load config — fall back to OpenClaw defaults if missing
+      // Load config
       let config: SoulguardConfig;
       let protectFiles: string[];
       try {
@@ -62,105 +50,21 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
         config = parseConfig(raw);
         protectFiles = protectPatterns(config);
       } catch {
-        // No config file — use OpenClaw defaults (includes openclaw.json)
-        config = OPENCLAW_DEFAULT_CONFIG;
-        protectFiles = protectPatterns(config);
-        api.logger?.warn("soulguard: no soulguard.json found — using OpenClaw defaults");
+        api.logger?.warn("soulguard: no soulguard.json found — plugin inactive");
+        return;
       }
 
       if (protectFiles.length === 0) return;
 
-      // Helper to create ops for the workspace
       const createOps = () => new NodeSystemOps(workspaceDir);
-
-      // Status tool
-      api.registerTool(
-        {
-          name: "soulguard_status",
-          description: "Check soulguard protection status of protect and watch files",
-          parameters: { type: "object", properties: {}, required: [] },
-          async execute(_id, _params) {
-            const ops = createOps();
-            const result = await status({
-              config,
-              ops,
-            });
-            if (!result.ok) {
-              return { content: [{ type: "text" as const, text: "Status check failed" }] };
-            }
-            const lines: string[] = ["Soulguard Status:", ""];
-            const { changed, drifts } = result.value;
-            if (changed.length === 0 && drifts.length === 0) {
-              lines.push("All files ok.");
-            } else {
-              for (const f of changed) {
-                lines.push(`  ${f.status === "deleted" ? "❌" : "⚠️"}  ${f.path} — ${f.status}`);
-              }
-              for (const d of drifts) {
-                lines.push(`  ⚠️  ${d.entity.path} — ${d.details.map(formatIssue).join(", ")}`);
-              }
-              const total = changed.length + drifts.length;
-              lines.push("", `${total} issue(s) found.`);
-            }
-            return { content: [{ type: "text" as const, text: lines.join("\n") }] };
-          },
-        },
-        { optional: true },
-      );
-
-      // Diff tool
-      api.registerTool(
-        {
-          name: "soulguard_diff",
-          description: "Show differences between protect files and their staging copies",
-          parameters: {
-            type: "object",
-            properties: {
-              files: {
-                type: "array",
-                items: { type: "string" },
-                description: "Specific files to diff (default: all protect files)",
-              },
-            },
-            required: [],
-          },
-          async execute(_id, params) {
-            const ops = createOps();
-            const files = Array.isArray(params.files) ? (params.files as string[]) : undefined;
-            const result = await diff({
-              ops,
-              config,
-              files,
-            });
-            if (!result.ok) {
-              return {
-                content: [{ type: "text" as const, text: `Diff failed: ${result.error.message}` }],
-              };
-            }
-            if (!result.value.hasChanges) {
-              return {
-                content: [
-                  { type: "text" as const, text: "No differences — staging matches protect." },
-                ],
-              };
-            }
-            const lines = result.value.files.map((d) => d.diff);
-            let text = lines.join("\n\n") || "No modified files.";
-            if (result.value.approvalHash) {
-              text += `\n\n────────────────────────────────────────\nApproval hash: ${result.value.approvalHash}\nTo apply: soulguard apply --hash ${result.value.approvalHash}`;
-            }
-            return { content: [{ type: "text" as const, text }] };
-          },
-        },
-        { optional: true },
-      );
-
-      // Register the guard hook
-      // Use registerHook (OpenClaw's actual API) with fallback to on()
       const hookFn = api.registerHook ?? api.on;
+
+      // ── Hooks ──────────────────────────────────────────────────────
+
+      // Guard: block writes to protected files with a helpful message
+      // guiding the agent to use soulguard CLI commands for staging.
       hookFn("before_tool_call", (...args: unknown[]) => {
         const event = args[0];
-        // Defense in depth — verify event shape before casting
         if (!event || typeof event !== "object" || !("toolName" in event)) {
           return undefined;
         }
@@ -172,6 +76,16 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
           return { block: true, blockReason: result.reason } satisfies BeforeToolCallResult;
         }
         return undefined;
+      });
+
+      // Context injection: notify agent of pending staged changes.
+      // Only fires when there are actual pending changes — zero context
+      // pollution on normal turns.
+      hookFn("before_prompt_build", async (..._args: unknown[]) => {
+        const ops = createOps();
+        const context = await buildPendingChangesContext({ ops, config });
+        if (!context) return undefined;
+        return { prependContext: context };
       });
     },
   };

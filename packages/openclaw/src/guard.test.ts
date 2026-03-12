@@ -10,14 +10,16 @@ describe("guardToolCall", () => {
     const result = guardToolCall("Write", { file_path: "SOUL.md" }, defaultOpts);
     expect(result.blocked).toBe(true);
     expect(result.reason).toContain("protected by soulguard");
+    expect(result.reason).toContain("soulguard stage SOUL.md");
     expect(result.reason).toContain(".soulguard-staging/SOUL.md");
-    expect(result.reason).toContain("reviewed and approved by the owner");
+    expect(result.reason).toContain("Your owner will review and apply");
   });
 
   it("blocks Edit to a protected file", () => {
     const result = guardToolCall("Edit", { path: "IDENTITY.md" }, defaultOpts);
     expect(result.blocked).toBe(true);
     expect(result.reason).toContain("protected by soulguard");
+    expect(result.reason).toContain("soulguard stage IDENTITY.md");
   });
 
   it("allows Write to a non-protected file", () => {
@@ -35,9 +37,6 @@ describe("guardToolCall", () => {
     expect(result.blocked).toBe(false);
   });
 
-  // TODO: re-enable when glob matching is delegated to @soulguard/core isVaulted() API
-  // For 0.1, only exact matches are supported — globs are not evaluated.
-
   it("handles ./prefix in file paths", () => {
     const result = guardToolCall("Write", { path: "./SOUL.md" }, defaultOpts);
     expect(result.blocked).toBe(true);
@@ -53,6 +52,22 @@ describe("guardToolCall", () => {
     expect(result.blocked).toBe(true);
   });
 
-  // TODO: glob pattern tests — re-enable when delegated to @soulguard/core isVaulted() API
-  // For 0.1, "*.md" in protectFiles is treated as a literal string, not a glob.
+  it("includes the original path in the block reason", () => {
+    const result = guardToolCall("Write", { file_path: "./SOUL.md" }, defaultOpts);
+    expect(result.blocked).toBe(true);
+    expect(result.reason).toContain("./SOUL.md");
+  });
+
+  it("blocks writes to files inside a protected directory", () => {
+    const opts: GuardOptions = { protectFiles: ["skills"] };
+    const result = guardToolCall("Write", { file_path: "skills/my-skill.md" }, opts);
+    expect(result.blocked).toBe(true);
+    expect(result.reason).toContain("skills/my-skill.md");
+  });
+
+  it("allows writes to files outside a protected directory", () => {
+    const opts: GuardOptions = { protectFiles: ["skills"] };
+    const result = guardToolCall("Write", { file_path: "memory/notes.md" }, opts);
+    expect(result.blocked).toBe(false);
+  });
 });
