@@ -12,6 +12,7 @@ import { StagingWatcher } from "./watcher.js";
 import { ProposalManager } from "./proposal-manager.js";
 import { DEFAULT_DEBOUNCE_MS, DEFAULT_BATCH_READY_TIMEOUT_MS } from "../sdk/schema.js";
 import { STAGING_DIR } from "../sdk/staging.js";
+import { join } from "node:path";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -47,13 +48,82 @@ export class SoulguardDaemon {
    * Start the daemon: load channel plugin, start watcher, wire events.
    */
   async start(): Promise<void> {
-    throw new Error("Not implemented");
+    if (this._running) return;
+
+    const daemonConfig = this._config.daemon;
+    if (!daemonConfig) {
+      throw new Error("Daemon configuration missing. Add a 'daemon' section to soulguard.json.");
+    }
+
+    const channelName = daemonConfig.channel;
+
+    // Dynamic import of channel plugin
+    let channelModule: { createChannel: CreateChannelFn };
+    try {
+      channelModule = await import(`@soulguard/${channelName}`);
+    } catch {
+      throw new Error(
+        `Failed to load channel plugin. Install @soulguard/${channelName} to use the ${channelName} channel.`,
+      );
+    }
+
+    const channelConfig = daemonConfig[channelName];
+    this._channel = channelModule.createChannel(channelConfig);
+
+    // Create watcher
+    const stagingDir = join(this._workspaceRoot, STAGING_DIR);
+    this._watcher = new StagingWatcher({
+      ops: this._ops,
+      stagingDir,
+      debounceMs: daemonConfig.debounceMs ?? DEFAULT_DEBOUNCE_MS,
+      batchReadyTimeoutMs: daemonConfig.batchReadyTimeoutMs ?? DEFAULT_BATCH_READY_TIMEOUT_MS,
+    });
+
+    // Create proposal manager
+    this._proposalManager = new ProposalManager({
+      ops: this._ops,
+      config: this._config,
+      channel: this._channel,
+      workspaceRoot: this._workspaceRoot,
+    });
+
+    // Wire events
+    this._watcher.on("proposal", () => {
+      this._proposalManager?.onStagingReady().catch((err) => {
+        console.error("[soulguard] Proposal error:", err);
+      });
+    });
+
+    this._watcher.on("error", (err) => {
+      console.error("[soulguard] Watcher error:", err);
+    });
+
+    // Start
+    this._watcher.start();
+    this._running = true;
   }
 
   /**
    * Stop the daemon: dispose channel, stop watcher, cancel proposals.
    */
   async stop(): Promise<void> {
-    throw new Error("Not implemented");
+    if (!this._running) return;
+
+    this._running = false;
+
+    if (this._watcher) {
+      this._watcher.stop();
+      this._watcher = null;
+    }
+
+    if (this._proposalManager) {
+      await this._proposalManager.dispose();
+      this._proposalManager = null;
+    }
+
+    if (this._channel) {
+      await this._channel.dispose();
+      this._channel = null;
+    }
   }
 }
