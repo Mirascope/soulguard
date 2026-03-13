@@ -349,6 +349,7 @@ import Layout from '../layouts/Layout.astro';
   <!-- Theme switching script -->
   <script>
     function getTheme(): 'day' | 'night' | 'sunset' {
+      return 'night'; // TODO: restore time-based switching
       const hour = new Date().getHours();
       // Sunset window: roughly 17:00-18:30 local time
       if (hour >= 17 && hour < 19) return 'sunset';
