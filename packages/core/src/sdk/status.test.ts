@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { status } from "./status.js";
+import { StateTree } from "./state.js";
 import { MockSystemOps } from "../util/system-ops-mock.js";
 import { formatIssue } from "../util/types.js";
 import type { DriftIssue } from "../util/types.js";
@@ -15,13 +16,6 @@ function makeMock() {
   return ops;
 }
 
-function opts(
-  config: { version: 1; guardian: string; files: Record<string, "protect" | "watch"> },
-  ops: MockSystemOps,
-) {
-  return { config, ops };
-}
-
 describe("status", () => {
   // ── Changed files ──────────────────────────────────────────────────
 
@@ -33,9 +27,13 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(
-      opts({ version: 1, guardian: GUARDIAN, files: { "SOUL.md": "protect" } }, ops),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "SOUL.md": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await status({ tree });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -56,9 +54,13 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(
-      opts({ version: 1, guardian: GUARDIAN, files: { "SOUL.md": "protect" } }, ops),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "SOUL.md": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await status({ tree });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -95,9 +97,13 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(
-      opts({ version: 1, guardian: GUARDIAN, files: { "skills/": "protect" } }, ops),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "skills/": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await status({ tree });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -114,9 +120,13 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(
-      opts({ version: 1, guardian: GUARDIAN, files: { "SOUL.md": "protect" } }, ops),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "SOUL.md": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await status({ tree });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -128,9 +138,13 @@ describe("status", () => {
   test("config entry with no file on disk is not reported", async () => {
     const ops = makeMock();
 
-    const result = await status(
-      opts({ version: 1, guardian: GUARDIAN, files: { "SOUL.md": "protect" } }, ops),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "SOUL.md": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await status({ tree });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -148,9 +162,13 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(
-      opts({ version: 1, guardian: GUARDIAN, files: { "SOUL.md": "protect" } }, ops),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "SOUL.md": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await status({ tree });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -170,9 +188,13 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(
-      opts({ version: 1, guardian: GUARDIAN, files: { "SOUL.md": "protect" } }, ops),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "SOUL.md": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await status({ tree });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -188,9 +210,13 @@ describe("status", () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", { owner: "agent", group: "staff", mode: "777" });
 
-    const result = await status(
-      opts({ version: 1, guardian: GUARDIAN, files: { "SOUL.md": "protect" } }, ops),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "SOUL.md": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await status({ tree });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -211,9 +237,13 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(
-      opts({ version: 1, guardian: GUARDIAN, files: { "notes.md": "watch" } }, ops),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "notes.md": "watch" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await status({ tree });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -235,9 +265,13 @@ describe("status", () => {
       mode: "444",
     });
 
-    const result = await status(
-      opts({ version: 1, guardian: GUARDIAN, files: { "skills/": "protect" } }, ops),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "skills/": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await status({ tree });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -257,9 +291,13 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(
-      opts({ version: 1, guardian: GUARDIAN, files: { "skills/": "protect" } }, ops),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "skills/": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await status({ tree });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -276,9 +314,13 @@ describe("status", () => {
       mode: "444", // wrong — should be 555
     });
 
-    const result = await status(
-      opts({ version: 1, guardian: GUARDIAN, files: { "skills/": "protect" } }, ops),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "skills/": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await status({ tree });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -305,7 +347,6 @@ describe("status", () => {
       group: VAULT_OWNERSHIP.group,
       mode: "444",
     });
-    // New file only in staging — doesn't exist on disk
     ops.addDirectory(".soulguard-staging/skills", {
       owner: "agent",
       group: "staff",
@@ -317,9 +358,13 @@ describe("status", () => {
       mode: "644",
     });
 
-    const result = await status(
-      opts({ version: 1, guardian: GUARDIAN, files: { "skills/": "protect" } }, ops),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "skills/": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await status({ tree });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -335,16 +380,19 @@ describe("status", () => {
       group: VAULT_OWNERSHIP.group,
       mode: "444",
     });
-    // Delete sentinel in staging
     ops.addFile(
       ".soulguard-staging/SOUL.md",
       JSON.stringify({ __soulguard_delete_sentinel__: true }),
       { owner: "agent", group: "staff", mode: "644" },
     );
 
-    const result = await status(
-      opts({ version: 1, guardian: GUARDIAN, files: { "SOUL.md": "protect" } }, ops),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "SOUL.md": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await status({ tree });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -365,7 +413,6 @@ describe("status", () => {
       group: VAULT_OWNERSHIP.group,
       mode: "444",
     });
-    // Delete sentinel for one child file
     ops.addDirectory(".soulguard-staging/skills", {
       owner: "agent",
       group: "staff",
@@ -377,9 +424,13 @@ describe("status", () => {
       { owner: "agent", group: "staff", mode: "644" },
     );
 
-    const result = await status(
-      opts({ version: 1, guardian: GUARDIAN, files: { "skills/": "protect" } }, ops),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "skills/": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await status({ tree });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -405,16 +456,19 @@ describe("status", () => {
       group: VAULT_OWNERSHIP.group,
       mode: "444",
     });
-    // Directory-level delete sentinel (a file, not a directory, at the staging path)
     ops.addFile(
       ".soulguard-staging/memory",
       JSON.stringify({ __soulguard_delete_sentinel__: true }),
       { owner: "agent", group: "staff", mode: "644" },
     );
 
-    const result = await status(
-      opts({ version: 1, guardian: GUARDIAN, files: { "memory/": "protect" } }, ops),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "memory/": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await status({ tree });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 

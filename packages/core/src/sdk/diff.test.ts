@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { diff } from "./diff.js";
+import { StateTree } from "./state.js";
 import { MockSystemOps } from "../util/system-ops-mock.js";
 import type { SoulguardConfig, Tier } from "../util/types.js";
 import { DELETE_SENTINEL } from "./staging.js";
@@ -20,11 +21,12 @@ function makeConfig(protect: string[] = ["SOUL.md"]): SoulguardConfig {
 describe("diff", () => {
   test("no changes → empty files, hasChanges false", async () => {
     const ops = makeMock();
-
     ops.addFile("SOUL.md", "# Soul");
     ops.addFile(".soulguard-staging/SOUL.md", "# Soul");
 
-    const result = await diff({ ops, config: makeConfig() });
+    const config = makeConfig();
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -34,11 +36,12 @@ describe("diff", () => {
 
   test("modified file → shows diff, hasChanges true", async () => {
     const ops = makeMock();
-
     ops.addFile("SOUL.md", "# Soul\noriginal");
     ops.addFile(".soulguard-staging/SOUL.md", "# Soul\nmodified");
 
-    const result = await diff({ ops, config: makeConfig() });
+    const config = makeConfig();
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -50,11 +53,12 @@ describe("diff", () => {
 
   test("protected file exists but staging has DELETE_SENTINEL → deleted status", async () => {
     const ops = makeMock();
-
     ops.addFile("SOUL.md", "# Soul");
     ops.addFile(".soulguard-staging/SOUL.md", JSON.stringify(DELETE_SENTINEL));
 
-    const result = await diff({ ops, config: makeConfig() });
+    const config = makeConfig();
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -67,7 +71,9 @@ describe("diff", () => {
   test("neither protected file nor staging exists → no files, no changes", async () => {
     const ops = makeMock();
 
-    const result = await diff({ ops, config: makeConfig() });
+    const config = makeConfig();
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -77,10 +83,11 @@ describe("diff", () => {
 
   test("protected file missing → created status", async () => {
     const ops = makeMock();
-
     ops.addFile(".soulguard-staging/SOUL.md", "# New Soul");
 
-    const result = await diff({ ops, config: makeConfig() });
+    const config = makeConfig();
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -90,18 +97,14 @@ describe("diff", () => {
 
   test("specific files filter works", async () => {
     const ops = makeMock();
-
     ops.addFile("SOUL.md", "# Soul");
     ops.addFile(".soulguard-staging/SOUL.md", "# Soul modified");
     ops.addFile("AGENTS.md", "# Agents");
     ops.addFile(".soulguard-staging/AGENTS.md", "# Agents modified");
 
     const config = makeConfig(["SOUL.md", "AGENTS.md"]);
-    const result = await diff({
-      ops,
-      config,
-      files: ["SOUL.md"],
-    });
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops, files: ["SOUL.md"] });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -111,14 +114,14 @@ describe("diff", () => {
 
   test("multiple literal files", async () => {
     const ops = makeMock();
-
     ops.addFile("SOUL.md", "original");
     ops.addFile(".soulguard-staging/SOUL.md", "modified");
     ops.addFile("memory/day1.md", "notes");
     ops.addFile(".soulguard-staging/memory/day1.md", "modified notes");
 
     const config = makeConfig(["SOUL.md", "memory/day1.md"]);
-    const result = await diff({ ops, config });
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -129,25 +132,27 @@ describe("diff", () => {
 
   test("approvalHash is present when changes exist", async () => {
     const ops = makeMock();
-
     ops.addFile("SOUL.md", "original");
     ops.addFile(".soulguard-staging/SOUL.md", "modified");
 
-    const result = await diff({ ops, config: makeConfig() });
+    const config = makeConfig();
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.approvalHash).toBeDefined();
     expect(typeof result.value.approvalHash).toBe("string");
-    expect(result.value.approvalHash!.length).toBe(64); // SHA-256 hex
+    expect(result.value.approvalHash!.length).toBe(64);
   });
 
   test("approvalHash is undefined when no changes", async () => {
     const ops = makeMock();
-
     ops.addFile("SOUL.md", "same");
     ops.addFile(".soulguard-staging/SOUL.md", "same");
 
-    const result = await diff({ ops, config: makeConfig() });
+    const config = makeConfig();
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.approvalHash).toBeUndefined();
@@ -155,12 +160,14 @@ describe("diff", () => {
 
   test("approvalHash is deterministic", async () => {
     const ops = makeMock();
-
     ops.addFile("SOUL.md", "original");
     ops.addFile(".soulguard-staging/SOUL.md", "modified");
 
-    const r1 = await diff({ ops, config: makeConfig() });
-    const r2 = await diff({ ops, config: makeConfig() });
+    const config = makeConfig();
+    const t1 = await StateTree.buildOrThrow({ ops, config });
+    const r1 = await diff({ tree: t1, ops });
+    const t2 = await StateTree.buildOrThrow({ ops, config });
+    const r2 = await diff({ tree: t2, ops });
     expect(r1.ok && r2.ok).toBe(true);
     if (r1.ok && r2.ok) {
       expect(r1.value.approvalHash).toBe(r2.value.approvalHash);
@@ -169,14 +176,16 @@ describe("diff", () => {
 
   test("approvalHash changes when staging content changes", async () => {
     const ops = makeMock();
-
     ops.addFile("SOUL.md", "original");
     ops.addFile(".soulguard-staging/SOUL.md", "modified-v1");
 
-    const r1 = await diff({ ops, config: makeConfig() });
+    const config = makeConfig();
+    const t1 = await StateTree.buildOrThrow({ ops, config });
+    const r1 = await diff({ tree: t1, ops });
 
     ops.addFile(".soulguard-staging/SOUL.md", "modified-v2");
-    const r2 = await diff({ ops, config: makeConfig() });
+    const t2 = await StateTree.buildOrThrow({ ops, config });
+    const r2 = await diff({ tree: t2, ops });
 
     expect(r1.ok && r2.ok).toBe(true);
     if (r1.ok && r2.ok) {
@@ -188,11 +197,12 @@ describe("diff", () => {
 
   test("file with delete sentinel in staging → deleted status", async () => {
     const ops = makeMock();
-
     ops.addFile("SOUL.md", "# Soul");
     ops.addFile(".soulguard-staging/SOUL.md", JSON.stringify(DELETE_SENTINEL));
 
-    const result = await diff({ ops, config: makeConfig() });
+    const config = makeConfig();
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -204,12 +214,12 @@ describe("diff", () => {
 
   test("directory: no staging → no changes", async () => {
     const ops = makeMock();
-
     ops.addDirectory("memory/");
     ops.addFile("memory/day1.md", "notes");
 
     const config = makeConfig(["memory/"]);
-    const result = await diff({ ops, config });
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -219,14 +229,14 @@ describe("diff", () => {
 
   test("directory: modified file in staging → shows diff", async () => {
     const ops = makeMock();
-
     ops.addDirectory("memory/");
     ops.addFile("memory/day1.md", "original notes");
     ops.addDirectory(".soulguard-staging/memory");
     ops.addFile(".soulguard-staging/memory/day1.md", "modified notes");
 
     const config = makeConfig(["memory/"]);
-    const result = await diff({ ops, config });
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -240,14 +250,14 @@ describe("diff", () => {
 
   test("directory: unchanged files are skipped", async () => {
     const ops = makeMock();
-
     ops.addDirectory("memory/");
     ops.addFile("memory/day1.md", "same notes");
     ops.addDirectory(".soulguard-staging/memory");
     ops.addFile(".soulguard-staging/memory/day1.md", "same notes");
 
     const config = makeConfig(["memory/"]);
-    const result = await diff({ ops, config });
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -257,7 +267,6 @@ describe("diff", () => {
 
   test("directory: new file in staging → created", async () => {
     const ops = makeMock();
-
     ops.addDirectory("memory/");
     ops.addFile("memory/day1.md", "notes");
     ops.addDirectory(".soulguard-staging/memory");
@@ -265,7 +274,8 @@ describe("diff", () => {
     ops.addFile(".soulguard-staging/memory/day2.md", "new notes");
 
     const config = makeConfig(["memory/"]);
-    const result = await diff({ ops, config });
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -277,17 +287,16 @@ describe("diff", () => {
 
   test("directory: file has DELETE_SENTINEL in staging → deleted status", async () => {
     const ops = makeMock();
-
     ops.addDirectory("memory/");
     ops.addFile("memory/day1.md", "notes");
     ops.addFile("memory/day2.md", "more notes");
     ops.addDirectory(".soulguard-staging/memory");
     ops.addFile(".soulguard-staging/memory/day1.md", "notes");
-    // day2.md has DELETE_SENTINEL in staging → deletion
     ops.addFile(".soulguard-staging/memory/day2.md", JSON.stringify(DELETE_SENTINEL));
 
     const config = makeConfig(["memory/"]);
-    const result = await diff({ ops, config });
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -299,15 +308,14 @@ describe("diff", () => {
 
   test("directory: delete sentinel on staging dir → deletes all files", async () => {
     const ops = makeMock();
-
     ops.addDirectory("memory/");
     ops.addFile("memory/day1.md", "notes");
     ops.addFile("memory/day2.md", "more notes");
-    // Staging path is a file with delete sentinel (not a directory)
     ops.addFile(".soulguard-staging/memory", JSON.stringify(DELETE_SENTINEL));
 
     const config = makeConfig(["memory/"]);
-    const result = await diff({ ops, config });
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -318,7 +326,6 @@ describe("diff", () => {
 
   test("directory: delete sentinel on individual file within dir", async () => {
     const ops = makeMock();
-
     ops.addDirectory("memory/");
     ops.addFile("memory/day1.md", "notes");
     ops.addFile("memory/day2.md", "more notes");
@@ -327,7 +334,8 @@ describe("diff", () => {
     ops.addFile(".soulguard-staging/memory/day2.md", JSON.stringify(DELETE_SENTINEL));
 
     const config = makeConfig(["memory/"]);
-    const result = await diff({ ops, config });
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -335,20 +343,19 @@ describe("diff", () => {
     const deleted = result.value.files.find((f) => f.file.path === "memory/day2.md");
     expect(deleted).toBeDefined();
     expect(deleted!.file.status).toBe("deleted");
-    // day1.md is unchanged, should not appear (changed-only)
     expect(result.value.files.find((f) => f.file.path === "memory/day1.md")).toBeUndefined();
   });
 
   test("directory: approval hash includes individual file paths", async () => {
     const ops = makeMock();
-
     ops.addDirectory("memory/");
     ops.addFile("memory/day1.md", "original");
     ops.addDirectory(".soulguard-staging/memory");
     ops.addFile(".soulguard-staging/memory/day1.md", "modified");
 
     const config = makeConfig(["memory/"]);
-    const result = await diff({ ops, config });
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -358,7 +365,6 @@ describe("diff", () => {
 
   test("directory: mixed with file entries", async () => {
     const ops = makeMock();
-
     ops.addFile("SOUL.md", "# Soul");
     ops.addFile(".soulguard-staging/SOUL.md", "# Soul modified");
     ops.addDirectory("memory/");
@@ -367,7 +373,8 @@ describe("diff", () => {
     ops.addFile(".soulguard-staging/memory/day1.md", "modified notes");
 
     const config = makeConfig(["SOUL.md", "memory/"]);
-    const result = await diff({ ops, config });
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await diff({ tree, ops });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;

@@ -7,6 +7,7 @@ import { join } from "node:path";
 import {
   status,
   diff,
+  StateTree,
   parseConfig,
   NodeSystemOps,
   protectPatterns,
@@ -81,10 +82,8 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
           parameters: { type: "object", properties: {}, required: [] },
           async execute(_id, _params) {
             const ops = createOps();
-            const result = await status({
-              config,
-              ops,
-            });
+            const tree = await StateTree.buildOrThrow({ ops, config });
+            const result = await status({ tree });
             if (!result.ok) {
               return { content: [{ type: "text" as const, text: "Status check failed" }] };
             }
@@ -127,9 +126,13 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
           async execute(_id, params) {
             const ops = createOps();
             const files = Array.isArray(params.files) ? (params.files as string[]) : undefined;
+            const treeResult = await StateTree.build({ ops, config });
+            if (!treeResult.ok) {
+              return { content: [{ type: "text" as const, text: "Diff failed (tree build)" }] };
+            }
             const result = await diff({
+              tree: treeResult.value,
               ops,
-              config,
               files,
             });
             if (!result.ok) {

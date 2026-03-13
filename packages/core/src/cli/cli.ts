@@ -20,6 +20,7 @@ import { LogCommand } from "./log-command.js";
 import { TierCommand } from "./tier-command.js";
 import { NodeSystemOps } from "../util/system-ops-node.js";
 import { parseConfig } from "../sdk/schema.js";
+import { StateTree } from "../sdk/state.js";
 
 async function makeBaseOptions(workspace: string) {
   const ops = new NodeSystemOps(resolve(workspace));
@@ -34,7 +35,9 @@ async function makeBaseOptions(workspace: string) {
 
   const config = parseConfig(JSON.parse(raw));
 
-  return { config, ops };
+  const tree = await StateTree.buildOrThrow({ ops, config });
+
+  return { config, ops, tree };
 }
 
 function getVersion(): string {
@@ -115,8 +118,8 @@ program
       const opts = await makeBaseOptions(workspace);
       const cmd = new DiffCommand(
         {
+          tree: opts.tree,
           ops: opts.ops,
-          config: opts.config,
           files: files.length > 0 ? files : undefined,
         },
         out,
@@ -143,6 +146,7 @@ program
         {
           ops: statusOpts.ops,
           config: statusOpts.config,
+          tree: statusOpts.tree,
           hash: opts.hash,
           skipHashVerification: opts.yes,
           prompt:
@@ -185,8 +189,8 @@ program
 
       const cmd = new ResetCommand(
         {
+          tree: statusOpts.tree,
           ops: statusOpts.ops,
-          config: statusOpts.config,
           paths: paths.length > 0 ? paths : undefined,
           all: opts.all,
         },

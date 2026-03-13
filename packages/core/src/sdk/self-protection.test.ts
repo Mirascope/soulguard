@@ -6,12 +6,6 @@ import type { SoulguardConfig } from "../util/types.js";
 
 const GUARDIAN = "soulguardian_agent";
 
-async function buildTree(ops: MockSystemOps, config: SoulguardConfig): Promise<StateTree> {
-  const result = await StateTree.build({ ops, config });
-  if (!result.ok) throw new Error("tree build failed");
-  return result.value;
-}
-
 describe("self-protection", () => {
   test("blocks invalid JSON in soulguard.json", async () => {
     const config: SoulguardConfig = {
@@ -37,7 +31,7 @@ describe("self-protection", () => {
       mode: "644",
     });
 
-    const tree = await buildTree(ops, config);
+    const tree = await StateTree.buildOrThrow({ ops, config });
     const result = await apply({ ops, tree, hash: tree.approvalHash! });
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -72,7 +66,7 @@ describe("self-protection", () => {
       mode: "644",
     });
 
-    const tree = await buildTree(ops, config);
+    const tree = await StateTree.buildOrThrow({ ops, config });
     const result = await apply({ ops, tree, hash: tree.approvalHash! });
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -106,7 +100,7 @@ describe("self-protection", () => {
       { owner: "agent", group: "soulguard", mode: "644" },
     );
 
-    const tree = await buildTree(ops, config);
+    const tree = await StateTree.buildOrThrow({ ops, config });
     const result = await apply({ ops, tree, hash: tree.approvalHash! });
     expect(result.ok).toBe(true);
   });
@@ -146,7 +140,7 @@ describe("self-protection", () => {
       { owner: "agent", group: "soulguard", mode: "644" },
     );
 
-    const tree = await buildTree(ops, config);
+    const tree = await StateTree.buildOrThrow({ ops, config });
     const result = await apply({ ops, tree, hash: tree.approvalHash! });
     expect(result.ok).toBe(true);
   });
@@ -175,7 +169,7 @@ describe("self-protection", () => {
       mode: "644",
     });
 
-    const tree = await buildTree(ops, config);
+    const tree = await StateTree.buildOrThrow({ ops, config });
     // Explicitly pass empty policies — self-protection still runs
     const result = await apply({
       ops,
