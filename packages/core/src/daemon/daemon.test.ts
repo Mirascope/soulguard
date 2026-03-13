@@ -54,14 +54,6 @@ function baseConfig(overrides?: Partial<SoulguardConfig>): SoulguardConfig {
 
 let mockChannel: ApprovalChannel;
 
-/** Patch the proposal manager's dispose to be a no-op (it's a stub that throws). */
-function patchProposalManagerDispose(daemon: SoulguardDaemon): void {
-  const pm = (daemon as any)._proposalManager;
-  if (pm) {
-    pm.dispose = mock(() => Promise.resolve());
-  }
-}
-
 describe("SoulguardDaemon", () => {
   beforeEach(() => {
     mockChannel = createMockChannel();
@@ -70,7 +62,7 @@ describe("SoulguardDaemon", () => {
     }));
   });
 
-  test("start loads channel plugin and starts watcher", async () => {
+  test("start loads channel plugin and starts proposal manager", async () => {
     const daemon = new SoulguardDaemon({
       ops: createMockOps(),
       config: baseConfig(),
@@ -78,7 +70,9 @@ describe("SoulguardDaemon", () => {
     });
     await daemon.start();
     expect(daemon.running).toBe(true);
-    patchProposalManagerDispose(daemon);
+    const pm = (daemon as any)._proposalManager;
+    expect(pm).toBeTruthy();
+    expect(pm.running).toBe(true);
     await daemon.stop();
   });
 
@@ -104,48 +98,7 @@ describe("SoulguardDaemon", () => {
     );
   });
 
-  test("watcher proposal event triggers proposal manager", async () => {
-    const daemon = new SoulguardDaemon({
-      ops: createMockOps(),
-      config: baseConfig(),
-      workspaceRoot: "/workspace",
-    });
-    await daemon.start();
-
-    const pm = (daemon as any)._proposalManager;
-    const spy = mock(() => Promise.resolve());
-    pm.onStagingReady = spy;
-
-    const watcher = (daemon as any)._watcher;
-    watcher.emit("proposal");
-    await new Promise((r) => setTimeout(r, 10));
-    expect(spy).toHaveBeenCalledTimes(1);
-
-    patchProposalManagerDispose(daemon);
-    await daemon.stop();
-  });
-
-  test("watcher error event is logged", async () => {
-    const daemon = new SoulguardDaemon({
-      ops: createMockOps(),
-      config: baseConfig(),
-      workspaceRoot: "/workspace",
-    });
-    await daemon.start();
-
-    const consoleSpy = mock(() => {});
-    const orig = console.error;
-    console.error = consoleSpy;
-
-    (daemon as any)._watcher.emit("error", new Error("test error"));
-    expect(consoleSpy).toHaveBeenCalled();
-
-    console.error = orig;
-    patchProposalManagerDispose(daemon);
-    await daemon.stop();
-  });
-
-  test("stop disposes channel, stops watcher, and disposes proposal manager", async () => {
+  test("stop disposes channel and proposal manager", async () => {
     const daemon = new SoulguardDaemon({
       ops: createMockOps(),
       config: baseConfig(),
@@ -153,14 +106,9 @@ describe("SoulguardDaemon", () => {
     });
     await daemon.start();
     expect(daemon.running).toBe(true);
-
-    const pmDispose = mock(() => Promise.resolve());
-    (daemon as any)._proposalManager.dispose = pmDispose;
-
     await daemon.stop();
     expect(daemon.running).toBe(false);
     expect(mockChannel.dispose).toHaveBeenCalled();
-    expect(pmDispose).toHaveBeenCalled();
   });
 
   test("stop is safe to call when not running", async () => {
@@ -180,8 +128,8 @@ describe("SoulguardDaemon", () => {
       workspaceRoot: "/workspace",
     });
     await daemon.start();
-    expect((daemon as any)._watcher._debounceMs).toBe(DEFAULT_DEBOUNCE_MS);
-    patchProposalManagerDispose(daemon);
+    const pm = (daemon as any)._proposalManager;
+    expect(pm._debounceMs).toBe(DEFAULT_DEBOUNCE_MS);
     await daemon.stop();
   });
 
@@ -192,8 +140,8 @@ describe("SoulguardDaemon", () => {
       workspaceRoot: "/workspace",
     });
     await daemon.start();
-    expect((daemon as any)._watcher._batchReadyTimeoutMs).toBe(DEFAULT_BATCH_READY_TIMEOUT_MS);
-    patchProposalManagerDispose(daemon);
+    const pm = (daemon as any)._proposalManager;
+    expect(pm._batchReadyTimeoutMs).toBe(DEFAULT_BATCH_READY_TIMEOUT_MS);
     await daemon.stop();
   });
 });

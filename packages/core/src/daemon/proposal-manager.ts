@@ -1,10 +1,11 @@
 /**
  * Proposal manager — orchestrates the proposal lifecycle.
  *
- * Receives "staging ready" signals, builds StateTree + ProposalPayload,
- * posts to the channel, waits for approval, and calls apply().
+ * Polls staging directory, detects changes via StateTree hash comparison,
+ * handles debounce and batch mode, posts proposals to the channel,
+ * waits for approval, and calls apply().
  *
- * Only one proposal is active at a time. New signals supersede pending ones.
+ * Only one proposal is active at a time. New changes supersede pending ones.
  */
 
 import { EventEmitter } from "node:events";
@@ -23,6 +24,12 @@ export type ProposalManagerOptions = {
   config: SoulguardConfig;
   channel: ApprovalChannel;
   workspaceRoot: string;
+  /** Debounce period (ms) after last change before proposing. */
+  debounceMs?: number;
+  /** Max wait (ms) for .wait-for-ready sentinel removal. */
+  batchReadyTimeoutMs?: number;
+  /** Polling interval (ms). Default: 1000. */
+  pollIntervalMs?: number;
 };
 
 /** Events the proposal manager can emit for observability. */
@@ -46,10 +53,22 @@ export class ProposalManager extends EventEmitter<ProposalManagerEvents> {
   private readonly _config: SoulguardConfig;
   private readonly _channel: ApprovalChannel;
   private readonly _workspaceRoot: string;
+  private readonly _debounceMs: number;
+  private readonly _batchReadyTimeoutMs: number;
+  private readonly _pollIntervalMs: number;
 
   private _activeProposal: Proposal | null = null;
   private _abortController: AbortController | null = null;
   private _pendingFlow: Promise<void> | null = null;
+
+  // Polling state
+  private _running = false;
+  private _pollTimer: ReturnType<typeof setInterval> | null = null;
+  private _debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private _batchTimer: ReturnType<typeof setTimeout> | null = null;
+  private _lastProposedHash: string | null = null;
+  private _inBatchMode = false;
+  private _changeDetected = false;
 
   constructor(options: ProposalManagerOptions) {
     super();
@@ -57,62 +76,159 @@ export class ProposalManager extends EventEmitter<ProposalManagerEvents> {
     this._config = options.config;
     this._channel = options.channel;
     this._workspaceRoot = options.workspaceRoot;
+    this._debounceMs = options.debounceMs ?? 3000;
+    this._batchReadyTimeoutMs = options.batchReadyTimeoutMs ?? 300_000;
+    this._pollIntervalMs = options.pollIntervalMs ?? 1000;
   }
 
-  /** Current active proposal, if any. */
   get activeProposal(): Proposal | null {
     return this._activeProposal;
   }
 
-  /**
-   * Handle a "staging ready" signal from the watcher.
-   */
+  get running(): boolean {
+    return this._running;
+  }
+
+  /** Start polling for staging changes. */
+  start(): void {
+    if (this._running) return;
+    this._running = true;
+    this._lastProposedHash = null;
+    this._inBatchMode = false;
+    this._changeDetected = false;
+    this._poll();
+    this._pollTimer = setInterval(() => this._poll(), this._pollIntervalMs);
+  }
+
+  /** Stop polling and cancel any pending approval. */
+  async stop(): Promise<void> {
+    if (!this._running) return;
+    this._running = false;
+    this._clearTimers();
+    await this._abortPending();
+  }
+
+  /** Shut down — alias for stop. */
+  async dispose(): Promise<void> {
+    await this.stop();
+  }
+
+  /** Direct trigger for tests or manual use. */
   async onStagingReady(): Promise<void> {
-    // Step 1: Supersede any pending proposal
+    await this._propose();
+  }
+
+  // ── Polling ────────────────────────────────────────────────────────
+
+  private async _poll(): Promise<void> {
+    try {
+      const treeResult = await StateTree.build({
+        ops: this._ops,
+        config: this._config,
+      });
+
+      if (!treeResult.ok) return;
+
+      const currentHash = treeResult.value.approvalHash;
+      if (currentHash === this._lastProposedHash) return;
+
+      // Check .wait-for-ready sentinel
+      const waitPath = `${this._workspaceRoot}/${STAGING_DIR}/.wait-for-ready`;
+      const waitResult = await this._ops.exists(waitPath);
+      const waitForReady = waitResult.ok && waitResult.value;
+
+      if (waitForReady) {
+        this._changeDetected = true;
+        if (!this._inBatchMode) {
+          this._inBatchMode = true;
+          this._batchTimer = setTimeout(() => {
+            if (this._running && this._changeDetected) {
+              this._triggerProposal();
+            }
+          }, this._batchReadyTimeoutMs);
+        }
+        if (this._debounceTimer) {
+          clearTimeout(this._debounceTimer);
+          this._debounceTimer = null;
+        }
+        return;
+      }
+
+      // Batch mode ended (sentinel removed)
+      if (this._inBatchMode && this._changeDetected) {
+        this._triggerProposal();
+        return;
+      }
+
+      // Normal change — debounce
+      this._changeDetected = true;
+      this._resetDebounce();
+    } catch (e) {
+      this.emit("error", e instanceof Error ? e : new Error(String(e)), "poll");
+    }
+  }
+
+  private _resetDebounce(): void {
+    if (this._debounceTimer) clearTimeout(this._debounceTimer);
+    this._debounceTimer = setTimeout(() => {
+      if (this._running && this._changeDetected) {
+        this._triggerProposal();
+      }
+    }, this._debounceMs);
+  }
+
+  private _triggerProposal(): void {
+    this._changeDetected = false;
+    this._inBatchMode = false;
+    if (this._debounceTimer) {
+      clearTimeout(this._debounceTimer);
+      this._debounceTimer = null;
+    }
+    if (this._batchTimer) {
+      clearTimeout(this._batchTimer);
+      this._batchTimer = null;
+    }
+    this._propose().catch((err) => {
+      this.emit("error", err instanceof Error ? err : new Error(String(err)), "propose");
+    });
+  }
+
+  // ── Proposal lifecycle ─────────────────────────────────────────────
+
+  private async _propose(): Promise<void> {
     await this._supersedePending();
 
-    // Step 2: Build diff
-    const diffResult = await diff({
-      ops: this._ops,
-      config: this._config,
-    });
-
+    const diffResult = await diff({ ops: this._ops, config: this._config });
     if (!diffResult.ok) {
-      const error = new Error(`Failed to build diff: ${diffResult.error.message}`);
-      this.emit("error", error, "onStagingReady:diff");
+      this.emit(
+        "error",
+        new Error(`Failed to build diff: ${diffResult.error.message}`),
+        "propose:diff",
+      );
       return;
     }
 
-    // Step 3: Empty diff → no proposal
-    if (!diffResult.value.hasChanges) {
-      return;
-    }
+    if (!diffResult.value.hasChanges) return;
 
-    // Step 4: Read description if present
-    const descPath = `${STAGING_DIR}/.description`;
+    // Read description
+    const descPath = `${this._workspaceRoot}/${STAGING_DIR}/.description`;
     let description: string | undefined;
     const descContent = await this._ops.readFile(descPath);
     if (descContent.ok) {
       description = descContent.value.trim() || undefined;
     }
 
-    // Step 5: Build ProposalPayload
     const files: ProposalFile[] = diffResult.value.files.map((df) => ({
       path: df.file.path,
       status: df.file.status as "modified" | "created" | "deleted",
       diff: df.diff,
     }));
 
-    const payload: ProposalPayload = {
-      files,
-      hash: diffResult.value.approvalHash!,
-      description,
-    };
+    const hash = diffResult.value.approvalHash!;
+    const payload: ProposalPayload = { files, hash, description };
 
-    // Step 6: Post proposal to channel
     const postResult = await this._channel.postProposal(payload);
 
-    // Step 7: Create Proposal record
     const proposal: Proposal = {
       channel: postResult.channel,
       externalId: postResult.proposalId,
@@ -122,12 +238,12 @@ export class ProposalManager extends EventEmitter<ProposalManagerEvents> {
     };
 
     this._activeProposal = proposal;
+    this._lastProposedHash = hash;
     const ac = new AbortController();
     this._abortController = ac;
 
     this.emit("proposed", proposal);
 
-    // Step 8: Run approval flow
     this._pendingFlow = this._runApprovalFlow(proposal, ac.signal);
     await this._pendingFlow;
   }
@@ -137,11 +253,7 @@ export class ProposalManager extends EventEmitter<ProposalManagerEvents> {
       const approvalResult = await this._channel.waitForApproval(proposal.externalId, signal);
 
       if (approvalResult.approved) {
-        // Content verification: build fresh StateTree, compare hash
-        const freshTree = await StateTree.build({
-          ops: this._ops,
-          config: this._config,
-        });
+        const freshTree = await StateTree.build({ ops: this._ops, config: this._config });
 
         if (!freshTree.ok) {
           const error = new Error(`Failed to build fresh state tree: ${freshTree.error.message}`);
@@ -161,7 +273,6 @@ export class ProposalManager extends EventEmitter<ProposalManagerEvents> {
           return;
         }
 
-        // Apply changes
         const applyResult = await apply({
           ops: this._ops,
           tree: freshTree.value,
@@ -189,12 +300,8 @@ export class ProposalManager extends EventEmitter<ProposalManagerEvents> {
         this.emit("rejected", proposal);
       }
     } catch (e: unknown) {
-      if (e instanceof DOMException && e.name === "AbortError") {
-        return;
-      }
-      if (e instanceof Error && e.name === "AbortError") {
-        return;
-      }
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      if (e instanceof Error && e.name === "AbortError") return;
       const error = e instanceof Error ? e : new Error(String(e));
       this.emit("error", error, "approval:wait");
       proposal.state = "rejected";
@@ -212,7 +319,6 @@ export class ProposalManager extends EventEmitter<ProposalManagerEvents> {
       this._abortController = null;
 
       oldController.abort();
-
       if (this._pendingFlow) {
         await this._pendingFlow.catch(() => {});
         this._pendingFlow = null;
@@ -223,20 +329,28 @@ export class ProposalManager extends EventEmitter<ProposalManagerEvents> {
     }
   }
 
-  /**
-   * Shut down — cancel any pending approval wait.
-   */
-  async dispose(): Promise<void> {
-    if (this._abortController) {
-      this._abortController.abort();
-    }
-
+  private async _abortPending(): Promise<void> {
+    if (this._abortController) this._abortController.abort();
     if (this._pendingFlow) {
       await this._pendingFlow.catch(() => {});
       this._pendingFlow = null;
     }
-
     this._activeProposal = null;
     this._abortController = null;
+  }
+
+  private _clearTimers(): void {
+    if (this._pollTimer) {
+      clearInterval(this._pollTimer);
+      this._pollTimer = null;
+    }
+    if (this._debounceTimer) {
+      clearTimeout(this._debounceTimer);
+      this._debounceTimer = null;
+    }
+    if (this._batchTimer) {
+      clearTimeout(this._batchTimer);
+      this._batchTimer = null;
+    }
   }
 }

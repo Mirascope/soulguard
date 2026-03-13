@@ -51,7 +51,7 @@ class StagingWatcher extends EventEmitter<WatcherEvents> {
    before emitting `proposal`. Reset the timer on each new change.
 
 3. **Batch mode**: If `.soulguard-staging/.wait-for-ready` exists, suppress proposal
-   emission regardless of debounce. When the sentinel is removed (or `.ready` appears),
+   emission regardless of debounce. When the sentinel is removed,
    emit immediately. Safety timeout: if sentinel persists longer than `batchReadyTimeoutMs`,
    log a warning and emit anyway.
 
