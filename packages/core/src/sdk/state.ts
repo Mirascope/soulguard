@@ -95,6 +95,14 @@ export type StateError = {
   message: string;
 };
 
+/** Thrown by StateTree.buildOrThrow() when the tree cannot be built. */
+export class StateTreeBuildError extends Error {
+  constructor(error: StateError) {
+    super(`Failed to build state tree: ${error.message}`);
+    this.name = "StateTreeBuildError";
+  }
+}
+
 // ── StateTree ───────────────────────────────────────────────────────────
 
 /**
@@ -137,6 +145,16 @@ export class StateTree {
    * skipped — no ghost entities. Config: trailing slash explicitly marks a
    * directory; paths without trailing slash are auto-detected via stat.
    */
+  /**
+   * Build a StateTree or throw a StateTreeBuildError.
+   * Use when a failed build is always fatal (most callers).
+   */
+  static async buildOrThrow(options: BuildStateOptions): Promise<StateTree> {
+    const result = await StateTree.build(options);
+    if (!result.ok) throw new StateTreeBuildError(result.error);
+    return result.value;
+  }
+
   static async build(options: BuildStateOptions): Promise<Result<StateTree, StateError>> {
     const { ops, config } = options;
     const protectOwnership = getProtectOwnership(config.guardian);

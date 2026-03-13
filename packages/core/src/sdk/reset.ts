@@ -1,23 +1,19 @@
 /**
  * soulguard reset — manage staging tree contents.
  *
- * Thin layer over StateTree: builds a snapshot, derives changed files,
+ * Thin layer over StateTree: uses a pre-built snapshot, derives changed files,
  * then deletes staging copies as requested.
- *
- * No args: dry run, list staged files.
- * Paths: delete specific staging copies.
- * --all: delete all staging contents.
  */
 
 import type { SystemOperations } from "../util/system-ops.js";
-import type { SoulguardConfig, Result } from "../util/types.js";
-import { StateTree } from "./state.js";
+import type { Result } from "../util/types.js";
+import type { StateTree } from "./state.js";
 import { stagingPath } from "./staging.js";
 import { ok } from "../util/result.js";
 
 export type ResetOptions = {
+  tree: StateTree;
   ops: SystemOperations;
-  config: SoulguardConfig;
   paths?: string[];
   all?: boolean;
 };
@@ -32,14 +28,9 @@ export type ResetResult = {
 export type ResetError = { kind: "reset_failed"; message: string };
 
 export async function reset(options: ResetOptions): Promise<Result<ResetResult, ResetError>> {
-  const { ops, config, paths, all } = options;
+  const { tree, ops, paths, all } = options;
 
-  const treeResult = await StateTree.build({ ops, config });
-  if (!treeResult.ok) {
-    return { ok: false, error: { kind: "reset_failed", message: treeResult.error.message } };
-  }
-
-  const stagedFiles = treeResult.value.stagedFiles().map((f) => f.path);
+  const stagedFiles = tree.stagedFiles().map((f) => f.path);
 
   if (stagedFiles.length === 0) {
     return ok({ stagedFiles: [], deleted: false });

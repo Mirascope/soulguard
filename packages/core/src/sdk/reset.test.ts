@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { MockSystemOps } from "../util/system-ops-mock.js";
 import { reset } from "./reset.js";
+import { StateTree } from "./state.js";
 import type { SoulguardConfig } from "../util/types.js";
 
 const GUARDIAN = "soulguardian_agent";
@@ -49,7 +50,8 @@ function setup() {
 describe("reset", () => {
   test("dry run lists staged files when no args", async () => {
     const ops = setup();
-    const result = await reset({ ops, config });
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await reset({ tree, ops });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.deleted).toBe(false);
@@ -62,11 +64,8 @@ describe("reset", () => {
 
   test("reset specific file removes only that staging copy", async () => {
     const ops = setup();
-    const result = await reset({
-      ops,
-      config,
-      paths: ["SOUL.md"],
-    });
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await reset({ tree, ops, paths: ["SOUL.md"] });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.deleted).toBe(true);
@@ -83,7 +82,8 @@ describe("reset", () => {
 
   test("reset --all removes all staging contents", async () => {
     const ops = setup();
-    const result = await reset({ ops, config, all: true });
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await reset({ tree, ops, all: true });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.deleted).toBe(true);
@@ -100,7 +100,8 @@ describe("reset", () => {
     const ops = new MockSystemOps("/workspace");
     ops.addFile("SOUL.md", "original", { owner: GUARDIAN, group: "soulguard", mode: "444" });
 
-    const result = await reset({ ops, config });
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await reset({ tree, ops });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.stagedFiles).toEqual([]);
@@ -109,11 +110,8 @@ describe("reset", () => {
 
   test("reset nonexistent path is no-op", async () => {
     const ops = setup();
-    const result = await reset({
-      ops,
-      config,
-      paths: ["nonexistent.md"],
-    });
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await reset({ tree, ops, paths: ["nonexistent.md"] });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.stagedFiles).toEqual([]);
@@ -122,11 +120,8 @@ describe("reset", () => {
 
   test("reset directory removes all files under it", async () => {
     const ops = setup();
-    const result = await reset({
-      ops,
-      config,
-      paths: ["skills"],
-    });
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await reset({ tree, ops, paths: ["skills"] });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.deleted).toBe(true);

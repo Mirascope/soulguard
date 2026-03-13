@@ -9,6 +9,7 @@ import { status } from "../sdk/status.js";
 import type { Drift } from "../sdk/state.js";
 import type { FileStatus } from "../sdk/state.js";
 import { formatIssue } from "../util/types.js";
+import type { SystemOperations } from "../util/system-ops.js";
 
 const STAGED_LABELS: Record<FileStatus, string> = {
   modified: "staged",
@@ -17,14 +18,18 @@ const STAGED_LABELS: Record<FileStatus, string> = {
   unchanged: "unchanged",
 };
 
+export type StatusCommandOptions = StatusOptions & {
+  ops: SystemOperations;
+};
+
 export class StatusCommand {
   constructor(
-    private opts: StatusOptions,
+    private opts: StatusCommandOptions,
     private out: ConsoleOutput,
   ) {}
 
   async execute(): Promise<number> {
-    const result = await status(this.opts);
+    const result = await status({ tree: this.opts.tree });
     if (!result.ok) return 1;
 
     const { changed, drifts } = result.value;

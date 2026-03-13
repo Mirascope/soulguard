@@ -40,17 +40,10 @@ function setup() {
   return ops;
 }
 
-/** Build a StateTree and return it (throws on failure). */
-async function buildTree(ops: MockSystemOps, cfg: SoulguardConfig): Promise<StateTree> {
-  const result = await StateTree.build({ ops, config: cfg });
-  if (!result.ok) throw new Error("tree build failed");
-  return result.value;
-}
-
 describe("apply (implicit proposals)", () => {
   test("applies changes when hash matches", async () => {
     const ops = setup();
-    const tree = await buildTree(ops, config);
+    const tree = await StateTree.buildOrThrow({ ops, config });
 
     const result = await apply({ ops, tree, hash: tree.approvalHash! });
     expect(result.ok).toBe(true);
@@ -72,7 +65,7 @@ describe("apply (implicit proposals)", () => {
       mode: "644",
     });
 
-    const tree = await buildTree(ops, config);
+    const tree = await StateTree.buildOrThrow({ ops, config });
     const result = await apply({ ops, tree, hash: "anyhash" });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -81,7 +74,7 @@ describe("apply (implicit proposals)", () => {
 
   test("rejects hash mismatch (staging changed since review)", async () => {
     const ops = setup();
-    const tree = await buildTree(ops, config);
+    const tree = await StateTree.buildOrThrow({ ops, config });
 
     // Agent sneaks in a change after tree was built
     ops.addFile(".soulguard-staging/SOUL.md", "sneaky different content", {
@@ -120,7 +113,7 @@ describe("apply (implicit proposals)", () => {
       mode: "644",
     });
 
-    const tree = await buildTree(ops, multiConfig);
+    const tree = await StateTree.buildOrThrow({ ops, config: multiConfig });
 
     // Inject failure: make chown fail on AGENTS.md
     const originalChown = ops.chown.bind(ops);
@@ -144,20 +137,21 @@ describe("apply (implicit proposals)", () => {
 
   test("syncs staging after successful apply", async () => {
     const ops = setup();
-    const tree = await buildTree(ops, config);
+    const tree = await StateTree.buildOrThrow({ ops, config });
 
     const result = await apply({ ops, tree, hash: tree.approvalHash! });
     expect(result.ok).toBe(true);
 
     // Staging should now match protected files (no diff)
-    const diffResult = await diff({ ops, config });
+    const tree2 = await StateTree.buildOrThrow({ ops, config });
+    const diffResult = await diff({ tree: tree2, ops });
     expect(diffResult.ok).toBe(true);
     if (diffResult.ok) expect(diffResult.value.hasChanges).toBe(false);
   });
 
   test("blocks on policy violation", async () => {
     const ops = setup();
-    const tree = await buildTree(ops, config);
+    const tree = await StateTree.buildOrThrow({ ops, config });
     const policies: Policy[] = [{ name: "block-all", check: () => err("blocked by policy") }];
 
     const result = await apply({ ops, tree, hash: tree.approvalHash!, policies });
@@ -176,7 +170,7 @@ describe("apply (implicit proposals)", () => {
 
   test("passes with allowing policy", async () => {
     const ops = setup();
-    const tree = await buildTree(ops, config);
+    const tree = await StateTree.buildOrThrow({ ops, config });
     const policies: Policy[] = [{ name: "allow-all", check: () => ok(undefined) }];
 
     const result = await apply({ ops, tree, hash: tree.approvalHash!, policies });
@@ -185,7 +179,7 @@ describe("apply (implicit proposals)", () => {
 
   test("rejects duplicate policy names", async () => {
     const ops = setup();
-    const tree = await buildTree(ops, config);
+    const tree = await StateTree.buildOrThrow({ ops, config });
     const policies: Policy[] = [
       { name: "dupe", check: () => ok(undefined) },
       { name: "dupe", check: () => ok(undefined) },
@@ -202,7 +196,7 @@ describe("apply (implicit proposals)", () => {
 
   test("policy receives staging content", async () => {
     const ops = setup();
-    const tree = await buildTree(ops, config);
+    const tree = await StateTree.buildOrThrow({ ops, config });
     let capturedFinal: string | undefined;
     const policies: Policy[] = [
       {
@@ -227,7 +221,7 @@ describe("apply (implicit proposals)", () => {
     );
 
     const gitConfig: SoulguardConfig = { ...config, git: true };
-    const tree = await buildTree(ops, gitConfig);
+    const tree = await StateTree.buildOrThrow({ ops, config: gitConfig });
     const result = await apply({ ops, tree, hash: tree.approvalHash! });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -244,7 +238,7 @@ describe("apply (implicit proposals)", () => {
     ops.addFile(".soulguard/.git", "");
 
     const gitConfig: SoulguardConfig = { ...config, git: false };
-    const tree = await buildTree(ops, gitConfig);
+    const tree = await StateTree.buildOrThrow({ ops, config: gitConfig });
     const result = await apply({ ops, tree, hash: tree.approvalHash! });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -262,7 +256,7 @@ describe("apply (implicit proposals)", () => {
     // Staging has DELETE_SENTINEL — agent wants to delete it
     ops.addFile(".soulguard-staging/SOUL.md", JSON.stringify(DELETE_SENTINEL));
 
-    const tree = await buildTree(ops, config);
+    const tree = await StateTree.buildOrThrow({ ops, config });
     const result = await apply({ ops, tree, hash: tree.approvalHash! });
 
     expect(result.ok).toBe(true);
@@ -292,7 +286,7 @@ describe("apply (implicit proposals)", () => {
     // Staging has DELETE_SENTINEL — agent trying to delete config
     ops.addFile(".soulguard-staging/soulguard.json", JSON.stringify(DELETE_SENTINEL));
 
-    const tree = await buildTree(ops, sgConfig);
+    const tree = await StateTree.buildOrThrow({ ops, config: sgConfig });
     const result = await apply({ ops, tree, hash: tree.approvalHash! });
 
     expect(result.ok).toBe(false);
@@ -320,7 +314,7 @@ describe("apply (implicit proposals)", () => {
       mode: "644",
     });
 
-    const tree = await buildTree(ops, multiConfig);
+    const tree = await StateTree.buildOrThrow({ ops, config: multiConfig });
     const result = await apply({ ops, tree, hash: tree.approvalHash! });
 
     expect(result.ok).toBe(true);
@@ -359,7 +353,7 @@ describe("apply (implicit proposals)", () => {
     ops.addFile(".soulguard-staging/SOUL.md", JSON.stringify(DELETE_SENTINEL));
     ops.addFile(".soulguard-staging/AGENTS.md", JSON.stringify(DELETE_SENTINEL));
 
-    const tree = await buildTree(ops, twoDeleteConfig);
+    const tree = await StateTree.buildOrThrow({ ops, config: twoDeleteConfig });
 
     // Make AGENTS.md deletion fail (SOUL.md deletes first alphabetically)
     ops.failingDeletes.add("AGENTS.md");
@@ -392,7 +386,7 @@ describe("apply (implicit proposals)", () => {
     );
 
     const gitConfig: SoulguardConfig = { ...config, git: true };
-    const tree = await buildTree(ops, gitConfig);
+    const tree = await StateTree.buildOrThrow({ ops, config: gitConfig });
     const result = await apply({ ops, tree, hash: tree.approvalHash! });
 
     expect(result.ok).toBe(true);
@@ -449,7 +443,7 @@ describe("apply (directory support)", () => {
 
   test("applies modified file inside protected directory", async () => {
     const ops = setupDir();
-    const tree = await buildTree(ops, dirConfig);
+    const tree = await StateTree.buildOrThrow({ ops, config: dirConfig });
 
     const result = await apply({ ops, tree, hash: tree.approvalHash! });
     expect(result.ok).toBe(true);
@@ -476,7 +470,7 @@ describe("apply (directory support)", () => {
       mode: "644",
     });
 
-    const tree = await buildTree(ops, dirConfig);
+    const tree = await StateTree.buildOrThrow({ ops, config: dirConfig });
     const result = await apply({ ops, tree, hash: tree.approvalHash! });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -515,7 +509,7 @@ describe("apply (directory support)", () => {
     // file2 has DELETE_SENTINEL in staging → deletion
     ops2.addFile(".soulguard-staging/mydir/file2.txt", JSON.stringify(DELETE_SENTINEL));
 
-    const tree = await buildTree(ops2, dirConfig);
+    const tree = await StateTree.buildOrThrow({ ops: ops2, config: dirConfig });
     const result = await apply({ ops: ops2, tree, hash: tree.approvalHash! });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -554,7 +548,7 @@ describe("apply (directory support)", () => {
       mode: "644",
     });
 
-    const tree = await buildTree(ops, mixedConfig);
+    const tree = await StateTree.buildOrThrow({ ops, config: mixedConfig });
     const result = await apply({ ops, tree, hash: tree.approvalHash! });
     expect(result.ok).toBe(true);
     if (!result.ok) return;

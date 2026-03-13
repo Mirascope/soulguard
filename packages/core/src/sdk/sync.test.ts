@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { sync } from "./sync.js";
+import { StateTree } from "./state.js";
 import { MockSystemOps } from "../util/system-ops-mock.js";
 
 const WORKSPACE = "/test/workspace";
@@ -13,35 +14,18 @@ function makeMock() {
   return ops;
 }
 
-function opts(
-  config: {
-    version: 1;
-    guardian: string;
-    files: Record<string, "protect" | "watch">;
-    git?: boolean;
-  },
-  ops: MockSystemOps,
-) {
-  return { config, ops };
-}
-
 describe("sync", () => {
   test("fixes unprotected protected files", async () => {
     const ops = makeMock();
     ops.addFile("SOUL.md", "# Soul", { owner: "agent", group: "staff", mode: "644" });
 
-    const result = await sync(
-      opts(
-        {
-          version: 1,
-          guardian: GUARDIAN,
-          files: {
-            "SOUL.md": "protect",
-          },
-        },
-        ops,
-      ),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "SOUL.md": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await sync({ tree, ops, config });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -58,18 +42,13 @@ describe("sync", () => {
       mode: "444",
     });
 
-    const result = await sync(
-      opts(
-        {
-          version: 1,
-          guardian: GUARDIAN,
-          files: {
-            "SOUL.md": "protect",
-          },
-        },
-        ops,
-      ),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "SOUL.md": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await sync({ tree, ops, config });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -80,18 +59,13 @@ describe("sync", () => {
   test("missing files are silently skipped", async () => {
     const ops = makeMock();
 
-    const result = await sync(
-      opts(
-        {
-          version: 1,
-          guardian: GUARDIAN,
-          files: {
-            "SOUL.md": "protect",
-          },
-        },
-        ops,
-      ),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "SOUL.md": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await sync({ tree, ops, config });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -107,18 +81,13 @@ describe("sync", () => {
       mode: "644",
     });
 
-    const result = await sync(
-      opts(
-        {
-          version: 1,
-          guardian: GUARDIAN,
-          files: {
-            "SOUL.md": "protect",
-          },
-        },
-        ops,
-      ),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "SOUL.md": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await sync({ tree, ops, config });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -134,18 +103,13 @@ describe("sync", () => {
       mode: "644",
     });
 
-    const result = await sync(
-      opts(
-        {
-          version: 1,
-          guardian: GUARDIAN,
-          files: {
-            "notes.md": "watch",
-          },
-        },
-        ops,
-      ),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "notes.md": "watch" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await sync({ tree, ops, config });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -166,20 +130,17 @@ describe("sync", () => {
       mode: "644",
     });
 
-    const result = await sync(
-      opts(
-        {
-          version: 1,
-          guardian: GUARDIAN,
-          files: {
-            "SOUL.md": "protect",
-            "AGENTS.md": "protect",
-            "notes.md": "watch",
-          },
-        },
-        ops,
-      ),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: {
+        "SOUL.md": "protect" as const,
+        "AGENTS.md": "protect" as const,
+        "notes.md": "watch" as const,
+      },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await sync({ tree, ops, config });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -201,26 +162,19 @@ describe("sync", () => {
       mode: "644",
     });
 
-    // Make post-add diff check fail (= files staged)
     ops.execFailOnCall.set(
       "git --git-dir .soulguard/.git --work-tree . diff --cached --quiet",
       new Set([1]),
     );
 
-    const result = await sync(
-      opts(
-        {
-          version: 1,
-          guardian: GUARDIAN,
-          files: {
-            "SOUL.md": "protect",
-            "notes.md": "watch",
-          },
-          git: true,
-        },
-        ops,
-      ),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "SOUL.md": "protect" as const, "notes.md": "watch" as const },
+      git: true,
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await sync({ tree, ops, config });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.git).toBeDefined();
@@ -238,19 +192,14 @@ describe("sync", () => {
       mode: "444",
     });
 
-    const result = await sync(
-      opts(
-        {
-          version: 1,
-          guardian: GUARDIAN,
-          files: {
-            "SOUL.md": "protect",
-          },
-          git: false,
-        },
-        ops,
-      ),
-    );
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "SOUL.md": "protect" as const },
+      git: false,
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await sync({ tree, ops, config });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.git).toBeUndefined();

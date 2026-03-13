@@ -13,11 +13,12 @@ import type { SoulguardConfig } from "../util/types.js";
 import type { Policy } from "../sdk/policy.js";
 import { apply } from "../sdk/apply.js";
 import { diff } from "../sdk/diff.js";
-import { StateTree } from "../sdk/state.js";
+import type { StateTree } from "../sdk/state.js";
 
 export type ApplyCommandOptions = {
   ops: SystemOperations;
   config: SoulguardConfig;
+  tree: StateTree;
   policies?: Policy[];
   /** Pre-computed hash for cryptographic verification mode */
   hash?: string;
@@ -47,8 +48,8 @@ export class ApplyCommand {
     } else if (!hash) {
       // Interactive mode: show diff, compute hash, prompt
       const diffResult = await diff({
+        tree: this.opts.tree,
         ops: this.opts.ops,
-        config: this.opts.config,
       });
       if (!diffResult.ok) {
         this.out.error(`Diff failed: ${diffResult.error.message}`);
@@ -81,19 +82,10 @@ export class ApplyCommand {
       hash = diffResult.value.approvalHash!;
     }
 
-    // Build StateTree for apply
-    const treeResult = await StateTree.build({
-      ops: this.opts.ops,
-      config: this.opts.config,
-    });
-    if (!treeResult.ok) {
-      this.out.error(`State tree build failed: ${treeResult.error.message}`);
-      return 1;
-    }
-
+    // Use pre-built StateTree for apply
     const result = await apply({
       ops: this.opts.ops,
-      tree: treeResult.value,
+      tree: this.opts.tree,
       hash,
       policies: this.opts.policies,
     });

@@ -15,6 +15,7 @@ import { SOULGUARD_GROUP, guardianName } from "../util/constants.js";
 import { ensureConfig, writeConfig } from "./config.js";
 import type { ConfigError } from "./config.js";
 import { status } from "./status.js";
+import { StateTree } from "./state.js";
 
 /** Result of `soulguard init` — idempotent, booleans report what was done */
 export type InitResult = {
@@ -309,10 +310,10 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
 
   // ── 6. Status check ──────────────────────────────────────────────────
   let issueCount = 0;
-  const statusResult = await status({
-    config,
-    ops,
-  });
+  const treeResult = await StateTree.build({ ops, config });
+  const statusResult = treeResult.ok
+    ? await status({ tree: treeResult.value })
+    : { ok: false as const };
   if (statusResult.ok) {
     issueCount = statusResult.value.drifts.length;
   }

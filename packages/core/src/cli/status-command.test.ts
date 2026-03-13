@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { MockSystemOps } from "../util/system-ops-mock.js";
 import { MockConsoleOutput } from "../util/console-mock.js";
 import { StatusCommand } from "./status-command.js";
-import type { StatusOptions } from "../sdk/status.js";
+import { StateTree } from "../sdk/state.js";
 
 const GUARDIAN = "soulguardian_agent";
 const VAULT_MOCK = { owner: GUARDIAN, group: "soulguard", mode: "444" };
@@ -21,11 +21,9 @@ async function setup(
   const ops = new MockSystemOps("/workspace");
   configureMock(ops);
   const out = new MockConsoleOutput();
-  const opts: StatusOptions = {
-    config: { version: 1, guardian: GUARDIAN, files },
-    ops,
-  };
-  return { cmd: new StatusCommand(opts, out), out };
+  const config = { version: 1 as const, guardian: GUARDIAN, files };
+  const tree = await StateTree.buildOrThrow({ ops, config });
+  return { cmd: new StatusCommand({ tree, ops }, out), out };
 }
 
 describe("StatusCommand", () => {

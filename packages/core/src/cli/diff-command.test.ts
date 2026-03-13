@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { DiffCommand } from "./diff-command.js";
+import { StateTree } from "../sdk/state.js";
 import { MockSystemOps } from "../util/system-ops-mock.js";
 import { MockConsoleOutput } from "../util/console-mock.js";
 import type { SoulguardConfig, Tier } from "../util/types.js";
@@ -24,8 +25,10 @@ describe("DiffCommand", () => {
     ops.addFile("SOUL.md", "# Soul");
     ops.addFile(".soulguard-staging/SOUL.md", "# Soul");
 
+    const config = makeConfig();
+    const tree = await StateTree.buildOrThrow({ ops, config });
     const out = new MockConsoleOutput();
-    const cmd = new DiffCommand({ ops, config: makeConfig() }, out);
+    const cmd = new DiffCommand({ tree, ops }, out);
     const exitCode = await cmd.execute();
 
     expect(exitCode).toBe(0);
@@ -37,8 +40,10 @@ describe("DiffCommand", () => {
     ops.addFile("SOUL.md", "# Soul\noriginal");
     ops.addFile(".soulguard-staging/SOUL.md", "# Soul\nmodified");
 
+    const config = makeConfig();
+    const tree = await StateTree.buildOrThrow({ ops, config });
     const out = new MockConsoleOutput();
-    const cmd = new DiffCommand({ ops, config: makeConfig() }, out);
+    const cmd = new DiffCommand({ tree, ops }, out);
     const exitCode = await cmd.execute();
 
     expect(exitCode).toBe(1);
@@ -53,8 +58,10 @@ describe("DiffCommand", () => {
     ops.addFile("SOUL.md", "# Soul");
     ops.addFile(".soulguard-staging/SOUL.md", JSON.stringify(DELETE_SENTINEL));
 
+    const config = makeConfig();
+    const tree = await StateTree.buildOrThrow({ ops, config });
     const out = new MockConsoleOutput();
-    const cmd = new DiffCommand({ ops, config: makeConfig() }, out);
+    const cmd = new DiffCommand({ tree, ops }, out);
     const exitCode = await cmd.execute();
 
     expect(exitCode).toBe(1);

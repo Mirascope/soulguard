@@ -1,18 +1,15 @@
 /**
  * soulguard diff — thin layer over StateTree.
  *
- * Builds a StateTree, collects changed files, and generates unified
- * diff text for modified ones. No parallel type system — uses StateFile
- * directly from state.ts.
+ * Collects changed files from a pre-built StateTree and generates unified
+ * diff text for modified ones.
  */
 
 import { createTwoFilesPatch } from "diff";
 import type { Result } from "../util/result.js";
 import { ok, err } from "../util/result.js";
-import type { SoulguardConfig } from "../util/types.js";
 import type { SystemOperations } from "../util/system-ops.js";
-import { StateTree } from "./state.js";
-import type { StateFile } from "./state.js";
+import type { StateTree, StateFile } from "./state.js";
 import { stagingPath } from "./staging.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -34,8 +31,8 @@ export type DiffResult = {
 export type DiffError = { kind: "build_failed"; message: string };
 
 export type DiffOptions = {
+  tree: StateTree;
   ops: SystemOperations;
-  config: SoulguardConfig;
   /** Specific files to diff (default: all changed files) */
   files?: string[];
 };
@@ -45,17 +42,10 @@ export type DiffOptions = {
 /**
  * Compare protected files against their staging copies.
  *
- * Builds a StateTree and returns only changed files with unified diffs.
+ * Takes a pre-built StateTree and returns only changed files with unified diffs.
  */
 export async function diff(options: DiffOptions): Promise<Result<DiffResult, DiffError>> {
-  const { ops, config, files: filterFiles } = options;
-
-  const treeResult = await StateTree.build({ ops, config });
-  if (!treeResult.ok) {
-    return err({ kind: "build_failed", message: treeResult.error.message });
-  }
-
-  const tree = treeResult.value;
+  const { tree, ops, files: filterFiles } = options;
 
   // Get changed files (modified/created/deleted)
   let changed = tree.changedFiles();
@@ -83,9 +73,6 @@ export async function diff(options: DiffOptions): Promise<Result<DiffResult, Dif
 
 /**
  * Generate a unified diff for a changed file (like git diff).
- * - modified: old content vs new content
- * - created:  /dev/null vs new content
- * - deleted:  old content vs /dev/null
  */
 async function generateDiff(
   ops: SystemOperations,

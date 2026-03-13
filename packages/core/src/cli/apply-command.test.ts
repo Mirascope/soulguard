@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { ApplyCommand } from "./apply-command.js";
+import { StateTree } from "../sdk/state.js";
 import { MockSystemOps } from "../util/system-ops-mock.js";
 import { MockConsoleOutput } from "../util/console-mock.js";
 import type { SoulguardConfig, Tier } from "../util/types.js";
@@ -23,11 +24,14 @@ describe("ApplyCommand", () => {
     ops.addFile("SOUL.md", "# Soul");
     ops.addFile(".soulguard-staging/SOUL.md", "# Modified");
 
+    const config = makeConfig();
+    const tree = await StateTree.buildOrThrow({ ops, config });
     const out = new MockConsoleOutput();
     const cmd = new ApplyCommand(
       {
         ops,
-        config: makeConfig(),
+        config,
+        tree,
         hash: "somehash",
         skipHashVerification: true,
       },
@@ -44,11 +48,14 @@ describe("ApplyCommand", () => {
     ops.addFile("SOUL.md", "# Soul");
     ops.addFile(".soulguard-staging/SOUL.md", "# Modified");
 
+    const config = makeConfig();
+    const tree = await StateTree.buildOrThrow({ ops, config });
     const out = new MockConsoleOutput();
     const cmd = new ApplyCommand(
       {
         ops,
-        config: makeConfig(),
+        config,
+        tree,
         skipHashVerification: true,
       },
       out,

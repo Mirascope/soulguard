@@ -52,7 +52,6 @@ export class DiffCommand {
       this.out.info("No changes");
     }
 
-    // Exit 1 = differences found (matching `git diff` convention), not an error.
     return hasChanges ? 1 : 0;
   }
 }
