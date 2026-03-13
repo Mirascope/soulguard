@@ -240,8 +240,9 @@ describe("ProposalManager", () => {
       workspaceRoot: WORKSPACE,
     });
 
+    const proposed = new Promise<void>((r) => mgr.once("proposed", () => r()));
     const flow = mgr.onStagingReady();
-    await new Promise((r) => setTimeout(r, 10));
+    await proposed;
 
     await mgr.dispose();
     await flow.catch(() => {});
@@ -327,8 +328,9 @@ describe("ProposalManager", () => {
     channel.waitBehavior = { kind: "hang" };
     const mgr = createManager(ops, channel);
 
+    const proposed = new Promise<void>((r) => mgr.once("proposed", () => r()));
     const flow = mgr.onStagingReady();
-    await new Promise((r) => setTimeout(r, 10));
+    await proposed;
 
     expect(mgr.activeProposal).not.toBeNull();
 

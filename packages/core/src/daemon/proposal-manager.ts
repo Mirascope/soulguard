@@ -108,9 +108,11 @@ export class ProposalManager extends EventEmitter<ProposalManagerEvents> {
     await this._abortPending();
   }
 
-  /** Shut down — alias for stop. */
+  /** Shut down — stop polling and cancel any pending approval. */
   async dispose(): Promise<void> {
-    await this.stop();
+    this._running = false;
+    this._clearTimers();
+    await this._abortPending();
   }
 
   /** Direct trigger for tests or manual use. */
