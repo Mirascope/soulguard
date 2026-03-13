@@ -25,22 +25,10 @@ import Layout from '../layouts/Layout.astro';
         <img
           src="/images/hero-night.jpg"
           alt=""
-          class="hero-bg hero-bg--night fixed inset-0 w-full h-full object-cover"
+          class="fixed inset-0 w-full h-full object-cover"
           loading="eager"
         />
-        <img
-          src="/images/hero-day.jpg"
-          alt=""
-          class="hero-bg hero-bg--day fixed inset-0 w-full h-full object-cover opacity-0"
-          loading="eager"
-        />
-        <img
-          src="/images/hero-sunset.jpg"
-          alt=""
-          class="hero-bg hero-bg--sunset fixed inset-0 w-full h-full object-cover opacity-0"
-          loading="eager"
-        />
-        <!-- Gradient overlay for text readability -->
+<!-- Gradient overlay for text readability -->
         <div class="fixed inset-0 bg-gradient-to-b from-sg-black/30 via-transparent to-sg-black/80"></div>
       </div>
 
@@ -345,36 +333,4 @@ import Layout from '../layouts/Layout.astro';
     </footer>
     </div>
   </main>
-
-  <!-- Theme switching script -->
-  <script>
-    function getTheme(): 'day' | 'night' | 'sunset' {
-      return 'night'; // TODO: restore time-based switching
-      const hour = new Date().getHours();
-      // Sunset window: roughly 17:00-18:30 local time
-      if (hour >= 17 && hour < 19) return 'sunset';
-      // Day: 7am - 5pm
-      if (hour >= 7 && hour < 17) return 'day';
-      // Night: everything else
-      return 'night';
-    }
-
-    function applyTheme() {
-      const theme = getTheme();
-      const bgs = document.querySelectorAll('.hero-bg') as NodeListOf<HTMLElement>;
-      bgs.forEach((bg) => {
-        const isActive =
-          (theme === 'day' && bg.classList.contains('hero-bg--day')) ||
-          (theme === 'night' && bg.classList.contains('hero-bg--night')) ||
-          (theme === 'sunset' && bg.classList.contains('hero-bg--sunset'));
-        bg.style.opacity = isActive ? '1' : '0';
-        bg.style.transition = 'opacity 1.5s ease-in-out';
-      });
-    }
-
-    // Apply on load
-    applyTheme();
-    // Re-check every minute in case of time boundary
-    setInterval(applyTheme, 60_000);
-  </script>
 </Layout>
