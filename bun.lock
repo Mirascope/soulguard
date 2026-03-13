@@ -1,6 +1,5 @@
 {
   "lockfileVersion": 1,
-  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "soulguard",
@@ -38,6 +37,7 @@
       "dependencies": {
         "@soulguard/core": "workspace:*",
         "discord.js": "^14.18.0",
+        "zod": "^3.24.0",
       },
       "devDependencies": {
         "typescript": "^5.9.3",
