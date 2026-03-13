@@ -37,27 +37,20 @@ export class DiscordChannel implements ApprovalChannel {
   readonly name = "discord";
 
   private readonly _config: DiscordConfig;
-  private _client: Client;
-  private _ready: Promise<void>;
+  private readonly _client: Client;
+  private readonly _ready: Promise<void>;
   private _trackedMessages = new Map<string, Message>();
 
-  constructor(config: DiscordConfig, client?: Client) {
+  constructor(config: DiscordConfig) {
     this._config = config;
-    this._client =
-      client ??
-      new Client({
-        intents: [
-          GatewayIntentBits.Guilds,
-          GatewayIntentBits.GuildMessages,
-          GatewayIntentBits.GuildMessageReactions,
-        ],
-      });
-
-    if (client) {
-      this._ready = Promise.resolve();
-    } else {
-      this._ready = this._login();
-    }
+    this._client = new Client({
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildMessageReactions,
+      ],
+    });
+    this._ready = this._login();
   }
 
   private async _login(): Promise<void> {

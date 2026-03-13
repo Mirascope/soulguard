@@ -1,11 +1,11 @@
 /**
  * DiscordChannel tests.
  *
- * Uses a mock Discord.js client to test the approval flow
- * without real Discord API calls.
+ * Mocks discord.js at the module level so DiscordChannel always
+ * constructs its own client (no injection).
  */
 
-import { describe, test, expect, mock } from "bun:test";
+import { describe, test, expect, mock, beforeEach } from "bun:test";
 import { EventEmitter } from "events";
 import { parseDiscordConfig } from "./config.js";
 
@@ -65,6 +65,10 @@ class MockClient extends EventEmitter {
   user = { id: "bot-user-123" };
   private _channels = new Map<string, MockTextChannel>();
 
+  constructor(_opts?: any) {
+    super();
+  }
+
   isReady() {
     return true;
   }
@@ -72,6 +76,11 @@ class MockClient extends EventEmitter {
   addChannel(ch: MockTextChannel) {
     this._channels.set(ch.id, ch);
   }
+
+  login = mock(async (_token: string) => {
+    // Emit ready on next tick to match real client behavior
+    setTimeout(() => this.emit("ready"), 0);
+  });
 
   channels = {
     fetch: mock(async (id: string) => {
@@ -83,6 +92,23 @@ class MockClient extends EventEmitter {
 
   destroy = mock(async () => {});
 }
+
+// Capture the mock client instance created during construction
+let lastMockClient: MockClient;
+
+// Real EmbedBuilder is fine — it's just a data structure
+import { EmbedBuilder, GatewayIntentBits } from "discord.js";
+
+mock.module("discord.js", () => ({
+  Client: class extends MockClient {
+    constructor(opts?: any) {
+      super(opts);
+      lastMockClient = this as any;
+    }
+  },
+  GatewayIntentBits,
+  EmbedBuilder,
+}));
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -120,16 +146,20 @@ function makeReaction(messageId: string, emoji: string, editedTimestamp: number 
   };
 }
 
-async function createChannelWithMocks(configOverrides?: Partial<typeof DEFAULT_CONFIG>) {
+async function createChannel(configOverrides?: Partial<typeof DEFAULT_CONFIG>) {
   const config = { ...DEFAULT_CONFIG, ...configOverrides };
-  const client = new MockClient();
   const textChannel = new MockTextChannel(config.channelId, "msg-1");
-  client.addChannel(textChannel);
 
   const { DiscordChannel } = await import("./discord-channel.js");
-  const channel = new DiscordChannel(config, client as any);
+  const channel = new DiscordChannel(config);
 
-  return { channel, client, textChannel };
+  // Wait for login/ready
+  await new Promise((r) => setTimeout(r, 10));
+
+  // Wire up the text channel on the mock client
+  lastMockClient.addChannel(textChannel);
+
+  return { channel, client: lastMockClient, textChannel };
 }
 
 /** Emit a reaction on the next microtask (after listener is registered). */
@@ -140,10 +170,8 @@ function emitReactionSoon(client: MockClient, reaction: any, user: { id: string 
 // ── Tests ───────────────────────────────────────────────────────────
 
 describe("DiscordChannel", () => {
-  // ── Post proposal ──────────────────────────────────────────────────
-
   test("posts embed with per-file diffs and hash", async () => {
-    const { channel, textChannel } = await createChannelWithMocks();
+    const { channel, textChannel } = await createChannel();
     const proposal = makeProposal();
 
     const result = await channel.postProposal(proposal);
@@ -159,7 +187,7 @@ describe("DiscordChannel", () => {
   });
 
   test("includes description in embed when provided", async () => {
-    const { channel, textChannel } = await createChannelWithMocks();
+    const { channel, textChannel } = await createChannel();
     const proposal = makeProposal({ description: "Fix the bug" });
 
     await channel.postProposal(proposal);
@@ -171,7 +199,7 @@ describe("DiscordChannel", () => {
   });
 
   test("handles large diffs (truncation)", async () => {
-    const { channel, textChannel } = await createChannelWithMocks();
+    const { channel, textChannel } = await createChannel();
     const largeDiff = "x".repeat(2000);
     const proposal = makeProposal({
       files: [{ path: "big.ts", status: "modified", diff: largeDiff }],
@@ -182,15 +210,12 @@ describe("DiscordChannel", () => {
     const sentOpts = textChannel.send.mock.calls[0]![0];
     const embed = sentOpts.embeds[0];
     const fields = embed.data?.fields ?? embed.fields ?? [];
-    // The field value (including code fences) must be <= 1024
     expect(fields[0].value.length).toBeLessThanOrEqual(1024);
     expect(fields[0].value).toContain("truncated");
   });
 
-  // ── Approval ───────────────────────────────────────────────────────
-
   test("resolves with approved=true on ✅ from approved user", async () => {
-    const { channel, client } = await createChannelWithMocks();
+    const { channel, client } = await createChannel();
     const { proposalId } = await channel.postProposal(makeProposal());
 
     const ac = new AbortController();
@@ -206,7 +231,7 @@ describe("DiscordChannel", () => {
   });
 
   test("resolves with approved=false on ❌ from approved user", async () => {
-    const { channel, client } = await createChannelWithMocks();
+    const { channel, client } = await createChannel();
     const { proposalId } = await channel.postProposal(makeProposal());
 
     const ac = new AbortController();
@@ -220,10 +245,8 @@ describe("DiscordChannel", () => {
     expect(result.approver).toBe("user-2");
   });
 
-  // ── Security: user filtering ───────────────────────────────────────
-
   test("ignores reactions from unauthorized users", async () => {
-    const { channel, client } = await createChannelWithMocks();
+    const { channel, client } = await createChannel();
     const { proposalId } = await channel.postProposal(makeProposal());
 
     const ac = new AbortController();
@@ -232,7 +255,6 @@ describe("DiscordChannel", () => {
 
     const promise = channel.waitForApproval(proposalId, ac.signal);
 
-    // Unauthorized first, then authorized
     setTimeout(() => {
       client.emit("messageReactionAdd", badReaction, { id: "random-user" });
       setTimeout(() => client.emit("messageReactionAdd", goodReaction, { id: "user-1" }), 5);
@@ -243,7 +265,7 @@ describe("DiscordChannel", () => {
   });
 
   test("ignores bot's own reactions", async () => {
-    const { channel, client } = await createChannelWithMocks();
+    const { channel, client } = await createChannel();
     const { proposalId } = await channel.postProposal(makeProposal());
 
     const ac = new AbortController();
@@ -261,10 +283,8 @@ describe("DiscordChannel", () => {
     expect(result.approver).toBe("user-1");
   });
 
-  // ── Security: edit detection ───────────────────────────────────────
-
   test("invalidates proposal if message was edited", async () => {
-    const { channel, client } = await createChannelWithMocks();
+    const { channel, client } = await createChannel();
     const { proposalId } = await channel.postProposal(makeProposal());
 
     const ac = new AbortController();
@@ -278,10 +298,8 @@ describe("DiscordChannel", () => {
     expect(replyMock).toHaveBeenCalled();
   });
 
-  // ── Abort signal ───────────────────────────────────────────────────
-
   test("waitForApproval throws on abort signal", async () => {
-    const { channel } = await createChannelWithMocks();
+    const { channel } = await createChannel();
     const { proposalId } = await channel.postProposal(makeProposal());
 
     const ac = new AbortController();
@@ -292,10 +310,8 @@ describe("DiscordChannel", () => {
     await expect(promise).rejects.toThrow("Aborted");
   });
 
-  // ── Post result ────────────────────────────────────────────────────
-
   test("edits original message with applied outcome", async () => {
-    const { channel, textChannel } = await createChannelWithMocks();
+    const { channel, textChannel } = await createChannel();
     const { proposalId } = await channel.postProposal(makeProposal());
 
     const result = await channel.postResult(proposalId, "applied");
@@ -306,7 +322,7 @@ describe("DiscordChannel", () => {
   });
 
   test("edits original message with rejected outcome", async () => {
-    const { channel } = await createChannelWithMocks();
+    const { channel } = await createChannel();
     const { proposalId } = await channel.postProposal(makeProposal());
 
     const result = await channel.postResult(proposalId, "rejected");
@@ -314,7 +330,7 @@ describe("DiscordChannel", () => {
   });
 
   test("edits original message with superseded outcome", async () => {
-    const { channel } = await createChannelWithMocks();
+    const { channel } = await createChannel();
     const { proposalId } = await channel.postProposal(makeProposal());
 
     const result = await channel.postResult(proposalId, "superseded");
@@ -322,7 +338,7 @@ describe("DiscordChannel", () => {
   });
 
   test("returns ok=false if message edit fails", async () => {
-    const { channel, textChannel } = await createChannelWithMocks();
+    const { channel, textChannel } = await createChannel();
     await channel.postProposal(makeProposal());
 
     textChannel.messages.fetch = mock(async () => {
@@ -334,10 +350,8 @@ describe("DiscordChannel", () => {
     expect(result.error).toContain("Not found");
   });
 
-  // ── Dispose ────────────────────────────────────────────────────────
-
   test("disconnects Discord client", async () => {
-    const { channel, client } = await createChannelWithMocks();
+    const { channel, client } = await createChannel();
 
     await channel.dispose();
 
