@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target node",
+    "build": "bun build src/index.ts --outdir dist --target node --format esm --define \"SOULGUARD_VERSION='$(node -p \"require('./package.json').version\")'\" && cp openclaw.plugin.json dist/",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },

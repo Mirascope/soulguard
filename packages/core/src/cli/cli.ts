@@ -17,6 +17,7 @@ import { ResetCommand } from "./reset-command.js";
 import { StageCommand } from "./stage-command.js";
 import { InitCommand } from "./init-command.js";
 import { LogCommand } from "./log-command.js";
+import { InstallPluginCommand } from "./install-plugin-command.js";
 import { TierCommand } from "./tier-command.js";
 import { DaemonCommand } from "./daemon-command.js";
 import { NodeSystemOps } from "../util/system-ops-node.js";
@@ -358,6 +359,22 @@ daemon
       const config = parseConfig(JSON.parse(raw));
 
       const cmd = new DaemonCommand({ ops: nodeOps, config, workspaceRoot: absWorkspace }, out);
+      process.exitCode = await cmd.execute();
+    } catch (e) {
+      out.error(e instanceof Error ? e.message : String(e));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("install-plugin")
+  .description("Install a soulguard plugin into an OpenClaw workspace")
+  .argument("<plugin>", "plugin name (e.g. openclaw)")
+  .option("-w, --workspace <path>", "workspace path", process.cwd())
+  .action(async (plugin: string, opts: { workspace: string }) => {
+    const out = new LiveConsoleOutput();
+    try {
+      const cmd = new InstallPluginCommand({ plugin, workspace: opts.workspace }, out);
       process.exitCode = await cmd.execute();
     } catch (e) {
       out.error(e instanceof Error ? e.message : String(e));

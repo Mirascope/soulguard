@@ -158,3 +158,6 @@ export type { ServicePlatform, ServiceFileOptions } from "./daemon/index.js";
 
 // Channel registry
 export { registerChannel, getChannel } from "./daemon/index.js";
+
+// Plugin registry
+export { registerPlugin, getPluginDir } from "./cli/plugin-registry.js";
