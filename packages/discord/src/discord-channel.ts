@@ -253,12 +253,12 @@ export class DiscordChannel implements ApprovalChannel {
   private _verifyMessageContent(msg: Message, proposalId: string): boolean {
     const expected = this._trackedProposals.get(proposalId);
     if (!expected) {
-      // No tracked proposal (e.g. after restart) — skip verification.
-      // This is expected but worth logging for observability.
+      // No tracked proposal (e.g. after restart) — reject to force re-proposal.
+      // The daemon will supersede and post a fresh proposal with a tracked payload.
       console.warn(
-        `[soulguard:discord] No tracked payload for proposal ${proposalId}, skipping content verification`,
+        `[soulguard:discord] No tracked payload for proposal ${proposalId}, rejecting for safety`,
       );
-      return true;
+      return false;
     }
 
     const embed = msg.embeds?.[0];

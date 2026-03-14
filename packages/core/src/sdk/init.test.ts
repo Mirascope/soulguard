@@ -8,6 +8,7 @@ function makeOptions(ops: MockSystemOps, overrides?: Partial<InitOptions>): Init
     ops,
     agentUser: "agent",
     _skipRootCheck: true,
+    _skipServiceInstall: true,
     ...overrides,
   };
 }

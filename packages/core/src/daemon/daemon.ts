@@ -40,6 +40,10 @@ export class SoulguardDaemon {
     return this._running;
   }
 
+  get proposalManager(): ProposalManager | null {
+    return this._proposalManager;
+  }
+
   async start(): Promise<void> {
     if (this._running) return;
 

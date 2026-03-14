@@ -48,7 +48,7 @@ The daemon has two components:
 
 **Watcher** — Polls `.soulguard-staging/` at a fixed interval. When a change is detected (new, modified, or removed staging entries), it waits for a configurable debounce period (default 3s) after the last write before creating a proposal. This handles the common case where agents stage multiple files in rapid succession.
 
-The agent can opt into **batch mode** by writing a `.soulguard-staging/.wait-for-ready` sentinel. While this file exists, the daemon suppresses proposal creation regardless of debounce. The agent removes the sentinel (or writes `.soulguard-staging/.ready`) to signal the batch is complete and trigger a proposal. A safety timeout (default 5 minutes) prevents a crashed agent from blocking proposals indefinitely — if the sentinel isn't removed within the timeout, the daemon logs a warning and proposes the current staging state anyway.
+The agent can opt into **batch mode** by writing a `.soulguard-staging/.wait-for-ready` sentinel. While this file exists, the daemon suppresses proposal creation regardless of debounce. The agent removes the sentinel to signal the batch is complete and trigger a proposal. A safety timeout (default 5 minutes) prevents a crashed agent from blocking proposals indefinitely — if the sentinel isn't removed within the timeout, the daemon logs a warning and proposes the current staging state anyway.
 
 **Proposal Manager** — State machine for proposal lifecycle:
 
@@ -204,6 +204,10 @@ For example, a Slack implementation might use thread-based approval (proposal po
 - **Fallback when remote channel is unreachable** — The fallback is the existing `sudo soulguard apply` CLI workflow. The daemon is additive, not a replacement.
 - **Multi-party approval (N of M)** — Not in initial scope.
 - **Channel plugin discovery** — Convention-based dynamic import. The daemon resolves `"channel": "discord"` to `@soulguard/discord` via dynamic `import()`. The imported module must export a `createChannel(config)` function that returns an `ApprovalChannel`. If the package isn't installed, the daemon fails with a helpful message ("install @soulguard/discord to use the discord channel"). The `soulguard` meta-package bundles Discord as a default dependency so it works out of the box.
+
+## Future work
+
+- **`sudo soulguard review <hash>`** — CLI command to review proposals that exceed channel display limits (e.g. Discord's embed size). This would be more conveient than running `soulguard diff` and `sudo soulguard apply`.
 
 ## Open questions
 
