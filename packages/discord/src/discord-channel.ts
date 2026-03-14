@@ -33,6 +33,10 @@ const PROPOSAL_TITLE = "Soulguard Proposal";
 const SOULGUARD_COLOR = 0x5865f2;
 /** Discord embed field value max is 1024 chars. Reserve space for code fences. */
 const MAX_DIFF_LENGTH = 1024 - 16;
+/** Discord allows at most 25 fields per embed. */
+const MAX_EMBED_FIELDS = 25;
+/** Discord total character limit across all embeds in a message. */
+const MAX_EMBED_TOTAL_LENGTH = 6000;
 
 // ── Implementation ─────────────────────────────────────────────────────
 
@@ -44,6 +48,8 @@ export class DiscordChannel implements ApprovalChannel {
   private readonly _ready: Promise<void>;
   /** Tracked proposals: messageId → expected payload for content verification. */
   private _trackedProposals = new Map<string, ProposalPayload>();
+  /** Proposals auto-rejected for exceeding Discord display limits. */
+  private _tooLargeProposals = new Set<string>();
 
   constructor(config: DiscordConfig) {
     this._config = config;
@@ -77,6 +83,26 @@ export class DiscordChannel implements ApprovalChannel {
       throw new Error(`Channel ${this._config.channelId} is not a text channel`);
     }
 
+    // Check file count before building embed (addFields throws at >25)
+    if (proposal.files.length > MAX_EMBED_FIELDS) {
+      return this._postTooLargeEmbed(
+        channel,
+        proposal,
+        "Too many files to display in a single Discord embed.",
+      );
+    }
+
+    // Check for files whose diffs exceed the field value limit
+    const oversizedFiles = proposal.files.filter((f) => (f.diff || "").length > MAX_DIFF_LENGTH);
+    if (oversizedFiles.length > 0) {
+      const names = oversizedFiles.map((f) => `\`${f.path}\``).join(", ");
+      return this._postTooLargeEmbed(
+        channel,
+        proposal,
+        `The following file(s) have diffs too large for a Discord embed field: ${names}`,
+      );
+    }
+
     const embed = new EmbedBuilder().setTitle(`📋 ${PROPOSAL_TITLE}`).setColor(SOULGUARD_COLOR);
 
     if (proposal.description) {
@@ -85,10 +111,7 @@ export class DiscordChannel implements ApprovalChannel {
 
     for (const file of proposal.files) {
       const label = `${file.status} ${file.path}`;
-      let diffText = file.diff || "(no diff)";
-      if (diffText.length > MAX_DIFF_LENGTH) {
-        diffText = diffText.slice(0, MAX_DIFF_LENGTH - 20) + "\n… (truncated)";
-      }
+      const diffText = file.diff || "(no diff)";
       embed.addFields({
         name: label,
         value: `\`\`\`diff\n${diffText}\n\`\`\``,
@@ -96,6 +119,15 @@ export class DiscordChannel implements ApprovalChannel {
     }
 
     embed.setFooter({ text: `Hash: ${proposal.hash}` });
+
+    // Check total length after building (many small diffs may still exceed 6000)
+    if (embed.length > MAX_EMBED_TOTAL_LENGTH) {
+      return this._postTooLargeEmbed(
+        channel,
+        proposal,
+        "Total proposal content exceeds Discord's embed character limit.",
+      );
+    }
 
     const message = await channel.send({ embeds: [embed] });
 
@@ -110,6 +142,11 @@ export class DiscordChannel implements ApprovalChannel {
 
   async waitForApproval(proposalId: string, signal: AbortSignal): Promise<ApprovalResult> {
     await this._ready;
+
+    // Auto-reject proposals that exceeded Discord's display limits
+    if (this._tooLargeProposals.has(proposalId)) {
+      return { approved: false, channel: "discord", approver: "system" };
+    }
 
     if (signal.aborted) {
       const err = new Error("Aborted");
@@ -179,6 +216,34 @@ export class DiscordChannel implements ApprovalChannel {
 
       this._client.on("messageReactionAdd", onReaction);
     });
+  }
+
+  /** Post a "too large" error embed and track for auto-rejection. */
+  private async _postTooLargeEmbed(
+    channel: { send: (opts: { embeds: EmbedBuilder[] }) => Promise<{ id: string }> },
+    proposal: ProposalPayload,
+    reason: string,
+  ): Promise<PostProposalResult> {
+    const fileList = proposal.files.map((f) => `\u2022 \`${f.status}\` ${f.path}`).join("\n");
+    const errorEmbed = new EmbedBuilder()
+      .setTitle("\u26d4 Proposal Too Large")
+      .setColor(0xed4245)
+      .setDescription(
+        [
+          reason,
+          "",
+          `**${proposal.files.length} file(s) changed:**`,
+          fileList,
+          "",
+          `Use \`soulguard review ${proposal.hash}\` to review via CLI,`,
+          "or have your agent split the change into smaller proposals.",
+        ].join("\n"),
+      )
+      .setFooter({ text: `Hash: ${proposal.hash}` });
+
+    const message = await channel.send({ embeds: [errorEmbed] });
+    this._tooLargeProposals.add(message.id);
+    return { channel: "discord", proposalId: message.id };
   }
 
   /**
@@ -252,6 +317,7 @@ export class DiscordChannel implements ApprovalChannel {
 
   async dispose(): Promise<void> {
     this._trackedProposals.clear();
+    this._tooLargeProposals.clear();
     await this._client.destroy();
   }
 }

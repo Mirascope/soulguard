@@ -213,20 +213,42 @@ describe("DiscordChannel", () => {
     expect(desc).toBe("Fix the bug");
   });
 
-  test("handles large diffs (truncation)", async () => {
+  test("accepts proposal with diff at exactly the field limit", async () => {
     const { channel, textChannel } = await createChannel();
-    const largeDiff = "x".repeat(2000);
+    // MAX_DIFF_LENGTH = 1024 - 16 = 1008
     const proposal = makeProposal({
-      files: [{ path: "big.ts", status: "modified", diff: largeDiff }],
+      files: [{ path: "ok.ts", status: "modified", diff: "x".repeat(1008) }],
     });
 
     await channel.postProposal(proposal);
 
     const sentOpts = textChannel.send.mock.calls[0]![0];
     const embed = sentOpts.embeds[0];
-    const fields = embed.data?.fields ?? embed.fields ?? [];
-    expect(fields[0].value.length).toBeLessThanOrEqual(1024);
-    expect(fields[0].value).toContain("truncated");
+    const title = embed.data?.title ?? embed.title;
+    expect(title).toContain("Soulguard Proposal");
+  });
+
+  test("auto-rejects proposal when a file diff exceeds field limit", async () => {
+    const { channel, textChannel } = await createChannel();
+    // 1009 chars = 1 over MAX_DIFF_LENGTH
+    const proposal = makeProposal({
+      files: [{ path: "big.ts", status: "modified", diff: "x".repeat(1009) }],
+    });
+
+    const { proposalId } = await channel.postProposal(proposal);
+
+    const sentOpts = textChannel.send.mock.calls[0]![0];
+    const embed = sentOpts.embeds[0];
+    const title = embed.data?.title ?? embed.title;
+    expect(title).toContain("Too Large");
+
+    const desc = embed.data?.description ?? embed.description;
+    expect(desc).toContain("big.ts");
+
+    const ac = new AbortController();
+    const result = await channel.waitForApproval(proposalId, ac.signal);
+    expect(result.approved).toBe(false);
+    expect(result.approver).toBe("system");
   });
 
   test("resolves with approved=true on ✅ from approved user", async () => {
@@ -382,6 +404,54 @@ describe("DiscordChannel", () => {
     const result = await channel.postResult("nonexistent-msg", "applied");
     expect(result.ok).toBe(false);
     expect(result.error).toContain("Not found");
+  });
+
+  test("auto-rejects proposal with >25 files", async () => {
+    const { channel, textChannel } = await createChannel();
+    const files = Array.from({ length: 26 }, (_, i) => ({
+      path: `src/file${i}.ts`,
+      status: "modified" as const,
+      diff: `- old${i}\n+ new${i}`,
+    }));
+    const proposal = makeProposal({ files });
+
+    const { proposalId } = await channel.postProposal(proposal);
+
+    // Should have posted an error embed (no reaction emojis)
+    expect(textChannel.send).toHaveBeenCalledTimes(1);
+    const sentOpts = textChannel.send.mock.calls[0]![0];
+    const embed = sentOpts.embeds[0];
+    const title = embed.data?.title ?? embed.title;
+    expect(title).toContain("Too Large");
+
+    // waitForApproval should return immediately with approved=false
+    const ac = new AbortController();
+    const result = await channel.waitForApproval(proposalId, ac.signal);
+    expect(result.approved).toBe(false);
+    expect(result.approver).toBe("system");
+  });
+
+  test("auto-rejects proposal exceeding total embed length", async () => {
+    const { channel, textChannel } = await createChannel();
+    // 10 files with 900-char diffs — each field ~920 chars, total well over 6000
+    const files = Array.from({ length: 10 }, (_, i) => ({
+      path: `src/big${i}.ts`,
+      status: "modified" as const,
+      diff: "x".repeat(900),
+    }));
+    const proposal = makeProposal({ files });
+
+    const { proposalId } = await channel.postProposal(proposal);
+
+    const sentOpts = textChannel.send.mock.calls[0]![0];
+    const embed = sentOpts.embeds[0];
+    const title = embed.data?.title ?? embed.title;
+    expect(title).toContain("Too Large");
+
+    const ac = new AbortController();
+    const result = await channel.waitForApproval(proposalId, ac.signal);
+    expect(result.approved).toBe(false);
+    expect(result.approver).toBe("system");
   });
 
   test("disconnects Discord client", async () => {
