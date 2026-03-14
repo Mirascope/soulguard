@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@soulguard/core": "workspace:^",
+    "@soulguard/discord": "workspace:^",
     "@soulguard/openclaw": "workspace:^"
   },
   "devDependencies": {

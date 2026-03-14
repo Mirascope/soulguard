@@ -8,6 +8,7 @@
  * Requires root (sudo).
  */
 
+import { dirname } from "node:path";
 import type { SystemOperations } from "../util/system-ops.js";
 import type { SoulguardConfig, Result } from "../util/types.js";
 import { ok, err } from "../util/result.js";
@@ -16,6 +17,7 @@ import { ensureConfig, writeConfig } from "./config.js";
 import type { ConfigError } from "./config.js";
 import { status } from "./status.js";
 import { StateTree } from "./state.js";
+import { generateServiceFile, serviceFilePath, type ServicePlatform } from "../daemon/service.js";
 
 /** Result of `soulguard init` — idempotent, booleans report what was done */
 export type InitResult = {
@@ -23,6 +25,7 @@ export type InitResult = {
   groupCreated: boolean;
   configCreated: boolean;
   gitInitialized: boolean;
+  serviceInstalled: boolean;
   issueCount: number;
 };
 
@@ -38,6 +41,8 @@ export type InitOptions = {
   agentUser?: string;
   /** @internal Skip root check (for testing only) */
   _skipRootCheck?: boolean;
+  /** @internal Skip daemon service installation (for testing only) */
+  _skipServiceInstall?: boolean;
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -194,6 +199,97 @@ async function ensureGit(
   return ok({ gitInitialized: true });
 }
 
+/** Install daemon service file (systemd or launchd). Idempotent. */
+async function ensureService(
+  ops: SystemOperations,
+  agentUser: string,
+  guardian: string,
+  workspaceRoot: string,
+): Promise<Result<{ serviceInstalled: boolean }, InitError>> {
+  const platform: ServicePlatform = process.platform === "darwin" ? "launchd" : "systemd";
+
+  // Resolve the soulguard binary path
+  const whichResult = await ops.execCapture("which", ["soulguard"]);
+  if (!whichResult.ok) {
+    return err({
+      kind: "system_error",
+      message: "Cannot find soulguard binary. Is it installed globally?",
+    });
+  }
+  const soulguardBin = whichResult.value.trim();
+
+  const serviceOptions = {
+    platform,
+    agentUser,
+    guardianUser: guardian,
+    workspaceRoot,
+    soulguardBin,
+  };
+  const content = generateServiceFile(serviceOptions);
+  const path = serviceFilePath({ platform, guardianUser: guardian });
+
+  // Check if already installed with same content
+  const existingResult = await ops.execCapture("cat", [path]);
+  if (existingResult.ok && existingResult.value === content) {
+    return ok({ serviceInstalled: false });
+  }
+
+  // Write service file via workspace temp file + mv (system path is outside workspace)
+  const tmpName = ".soulguard/.service-tmp";
+  const writeResult = await ops.writeFile(tmpName, content);
+  if (!writeResult.ok) {
+    return err({
+      kind: "system_error",
+      message: `Failed to write temp service file: ${writeResult.error.kind}`,
+    });
+  }
+  const mkdirResult = await ops.exec("mkdir", ["-p", dirname(path)]);
+  if (!mkdirResult.ok) {
+    return err({
+      kind: "system_error",
+      message: `mkdir ${dirname(path)} failed: ${mkdirResult.error.message}`,
+    });
+  }
+  const mvResult = await ops.exec("mv", [`${workspaceRoot}/${tmpName}`, path]);
+  if (!mvResult.ok) {
+    return err({
+      kind: "system_error",
+      message: `Failed to install service file: ${mvResult.error.message}`,
+    });
+  }
+
+  // Enable/load the service
+  if (platform === "systemd") {
+    const reload = await ops.exec("systemctl", ["daemon-reload"]);
+    if (!reload.ok) {
+      return err({
+        kind: "system_error",
+        message: `systemctl daemon-reload failed: ${reload.error.message}`,
+      });
+    }
+    const enable = await ops.exec("systemctl", [
+      "enable",
+      "--now",
+      `soulguard-${guardian}.service`,
+    ]);
+    if (!enable.ok) {
+      return err({
+        kind: "system_error",
+        message: `systemctl enable failed: ${enable.error.message}`,
+      });
+    }
+  } else {
+    // macOS: unload first if updating, then load
+    await ops.exec("launchctl", ["unload", path]).catch(() => {});
+    const load = await ops.exec("launchctl", ["load", path]);
+    if (!load.ok) {
+      return err({ kind: "system_error", message: `launchctl load failed: ${load.error.message}` });
+    }
+  }
+
+  return ok({ serviceInstalled: true });
+}
+
 /** Map ConfigError to InitError. */
 function configErrorToInitError(e: ConfigError): InitError {
   switch (e.kind) {
@@ -308,7 +404,15 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   if (!gitResult.ok) return gitResult;
   const { gitInitialized } = gitResult.value;
 
-  // ── 6. Status check ──────────────────────────────────────────────────
+  // ── 6. Ensure daemon service ─────────────────────────────────────────
+  let serviceInstalled = false;
+  if (!options._skipServiceInstall) {
+    const serviceResult = await ensureService(ops, agentUser, guardian, ops.workspace);
+    if (!serviceResult.ok) return serviceResult;
+    serviceInstalled = serviceResult.value.serviceInstalled;
+  }
+
+  // ── 7. Status check ──────────────────────────────────────────────────
   let issueCount = 0;
   const treeResult = await StateTree.build({ ops, config });
   const statusResult = treeResult.ok
@@ -323,6 +427,7 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
     groupCreated,
     configCreated,
     gitInitialized,
+    serviceInstalled,
     issueCount,
   });
 }

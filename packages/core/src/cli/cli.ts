@@ -18,6 +18,7 @@ import { StageCommand } from "./stage-command.js";
 import { InitCommand } from "./init-command.js";
 import { LogCommand } from "./log-command.js";
 import { TierCommand } from "./tier-command.js";
+import { DaemonCommand } from "./daemon-command.js";
 import { NodeSystemOps } from "../util/system-ops-node.js";
 import { parseConfig } from "../sdk/schema.js";
 import { StateTree } from "../sdk/state.js";
@@ -326,6 +327,36 @@ program
         },
         out,
       );
+      process.exitCode = await cmd.execute();
+    } catch (e) {
+      out.error(e instanceof Error ? e.message : String(e));
+      process.exitCode = 1;
+    }
+  });
+
+const daemon = program.command("daemon").description("Remote approval daemon");
+
+daemon
+  .command("start")
+  .description("Start the approval daemon (foreground)")
+  .argument("[workspace]", "workspace path", process.cwd())
+  .action(async (workspace: string) => {
+    const out = new LiveConsoleOutput();
+    try {
+      const absWorkspace = resolve(workspace);
+      const nodeOps = new NodeSystemOps(absWorkspace);
+      const configPath = resolve(workspace, "soulguard.json");
+
+      let raw: string;
+      try {
+        raw = await readFile(configPath, "utf-8");
+      } catch {
+        throw new Error(`No soulguard.json found in ${workspace}`);
+      }
+
+      const config = parseConfig(JSON.parse(raw));
+
+      const cmd = new DaemonCommand({ ops: nodeOps, config, workspaceRoot: absWorkspace }, out);
       process.exitCode = await cmd.execute();
     } catch (e) {
       out.error(e instanceof Error ? e.message : String(e));

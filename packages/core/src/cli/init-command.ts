@@ -35,6 +35,10 @@ export class InitCommand {
 
     this.out.success("✓ Soulguard initialized.");
 
+    if (result.value.serviceInstalled) {
+      this.out.success("✓ Daemon service installed.");
+    }
+
     if (result.value.issueCount > 0) {
       this.out.warn(
         `${result.value.issueCount} file(s) need protection. Run \`sudo soulguard sync\` to enforce.`,
