@@ -6,7 +6,7 @@ e2e("protect: sets correct ownership and permissions", (t) => {
       exit 0
     `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -58,7 +58,7 @@ e2e("protect: blocks agent writes", (t) => {
     exit 0
   `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.
@@ -102,7 +102,7 @@ e2e("protect: directory protection blocks new file creation", (t) => {
       exit 0
     `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -153,7 +153,7 @@ e2e("protect: already protected file is no-op", (t) => {
     exit 0
   `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.
@@ -179,7 +179,7 @@ e2e("protect: already protected file is no-op", (t) => {
 });
 
 e2e("protect: nonexistent file errors", (t) => {
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.

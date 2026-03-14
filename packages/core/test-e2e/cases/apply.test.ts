@@ -11,7 +11,7 @@ e2e("apply: applies staged changes with -y", (t) => {
     .exits(0);
 
   // Initialize soulguard
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -75,7 +75,7 @@ e2e("apply: handles file deletion through staging", (t) => {
       exit 0
     `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -132,7 +132,7 @@ e2e("apply: applies modified file inside protected directory", (t) => {
     .exits(0);
 
   // Initialize and protect entire directory
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -197,7 +197,7 @@ e2e("apply: verifies hash with --hash flag", (t) => {
       exit 0
     `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -250,7 +250,7 @@ e2e("apply: rejects with wrong hash", (t) => {
       exit 0
     `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -300,7 +300,7 @@ e2e("apply: rejects using both --yes and --hash", (t) => {
     exit 0
   `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.

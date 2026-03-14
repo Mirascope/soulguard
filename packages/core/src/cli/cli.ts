@@ -93,8 +93,8 @@ program
   .command("init")
   .description("Initialize soulguard for a workspace")
   .argument("[workspace]", "workspace path", process.cwd())
-
-  .action(async (workspace: string) => {
+  .option("--no-daemon", "Skip daemon service installation")
+  .action(async (workspace: string, options: { daemon: boolean }) => {
     const out = new LiveConsoleOutput();
     const absWorkspace = resolve(workspace);
     const nodeOps = new NodeSystemOps(absWorkspace);
@@ -102,6 +102,7 @@ program
     const cmd = new InitCommand(
       {
         ops: nodeOps,
+        _skipServiceInstall: !options.daemon,
       },
       out,
     );

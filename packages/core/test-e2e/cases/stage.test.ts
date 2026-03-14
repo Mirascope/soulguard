@@ -11,7 +11,7 @@ e2e("stage: stages a protected file for editing", (t) => {
     .exits(0);
 
   // Initialize soulguard
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.
@@ -56,7 +56,7 @@ e2e("stage: no-op when staging copy already exists", (t) => {
     exit 0
   `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.
@@ -101,7 +101,7 @@ e2e("stage: errors on watched file", (t) => {
     exit 0
   `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.
@@ -135,7 +135,7 @@ e2e("stage: stages file for deletion with -d", (t) => {
     exit 0
   `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.
@@ -180,7 +180,7 @@ e2e("stage: stages subdirectory path for deletion with -d", (t) => {
     exit 0
   `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.
@@ -220,7 +220,7 @@ e2e("stage: stages subdirectory path for deletion with -d", (t) => {
 
 e2e("stage: nonexistent file fails", (t) => {
   // Initialize without any protected files
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.
@@ -239,7 +239,7 @@ e2e("stage: nonexistent file fails", (t) => {
 
 e2e("stage: -d nonexistent file fails", (t) => {
   // Initialize without any protected files
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.
@@ -260,7 +260,7 @@ e2e("stage: -d nonexistent file fails", (t) => {
 
 e2e("stage: soulguard.json succeeds (always protected)", (t) => {
   // Initialize (soulguard.json is auto-created as protected)
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -308,7 +308,7 @@ e2e("stage: non-existent file in protected directory succeeds", (t) => {
       exit 0
     `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -349,7 +349,7 @@ e2e("stage: non-existent file at nested path in protected directory succeeds", (
       exit 0
     `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -392,7 +392,7 @@ e2e("stage: multiple files at once", (t) => {
     exit 0
   `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.
@@ -443,7 +443,7 @@ e2e("stage: directory staging recursively stages all files", (t) => {
       exit 0
     `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -493,7 +493,7 @@ e2e("stage: directory for deletion with -d", (t) => {
       exit 0
     `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -540,7 +540,7 @@ e2e("stage: staging for edit after staging for delete overwrites sentinel", (t) 
     exit 0
   `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.
@@ -593,7 +593,7 @@ e2e("stage: staging for delete after staging for edit overwrites with sentinel",
     exit 0
   `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.
