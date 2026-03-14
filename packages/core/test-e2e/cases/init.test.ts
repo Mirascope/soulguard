@@ -2,7 +2,7 @@ import { e2e } from "../harness";
 
 // 1. Happy path — fresh init, verify side effects
 e2e("init: happy path creates dirs, config, git", (t) => {
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -68,7 +68,7 @@ e2e("init: happy path creates dirs, config, git", (t) => {
 
 // 2. Idempotent — second init succeeds, skips completed steps
 e2e("init: second run is idempotent", (t) => {
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -76,7 +76,7 @@ e2e("init: second run is idempotent", (t) => {
     .exits(0)
     .outputs(/Soulguard initialized/);
 
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -98,7 +98,7 @@ JSON
     `)
     .exits(0);
 
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -142,7 +142,7 @@ JSON
     `)
     .exits(0);
 
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -162,7 +162,7 @@ JSON
 
 // 5. Git commit — soulguard.json in initial commit
 e2e("init: git initial commit contains soulguard.json", (t) => {
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -187,7 +187,7 @@ e2e("init: malformed config bails early", (t) => {
     `)
     .exits(0);
 
-  t.$(`sudo soulguard init . 2>&1`)
+  t.$(`sudo soulguard init --no-daemon . 2>&1`)
     .expect(`
       exit 1
       Invalid soulguard.json: JSON Parse error: Expected '}'
@@ -226,7 +226,7 @@ e2e("init: custom workspace path", (t) => {
     `)
     .exits(0);
 
-  t.$(`sudo soulguard init /tmp/custom-ws`)
+  t.$(`sudo soulguard init --no-daemon /tmp/custom-ws`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.

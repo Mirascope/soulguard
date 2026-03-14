@@ -6,7 +6,7 @@ e2e("reset: dry run lists staged files", (t) => {
       exit 0
     `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -55,7 +55,7 @@ e2e("reset: specific file removes staging copy", (t) => {
       exit 0
     `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -102,7 +102,7 @@ e2e("reset: --all empties staging tree", (t) => {
       exit 0
     `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -144,7 +144,7 @@ e2e("reset: --all empties staging tree", (t) => {
 });
 
 e2e("reset: no staged changes shows clean message", (t) => {
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.
@@ -166,7 +166,7 @@ e2e("reset: selective reset keeps other staged files", (t) => {
       exit 0
     `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.

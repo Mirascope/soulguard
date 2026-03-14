@@ -7,7 +7,7 @@ e2e("log: shows git history after sync", (t) => {
     `)
     .exits(0);
 
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.

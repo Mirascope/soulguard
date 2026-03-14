@@ -7,7 +7,7 @@ e2e("sync: fixes drifted ownership and permissions", (t) => {
     `)
     .exits(0);
 
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.

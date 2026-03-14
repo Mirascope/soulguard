@@ -6,7 +6,7 @@ e2e("watch: adds file and updates config", (t) => {
       exit 0
     `)
     .exits(0);
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.

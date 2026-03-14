@@ -11,7 +11,7 @@ e2e("diff: shows no changes for unmodified staging", (t) => {
     .exits(0);
 
   // Init + protect
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -72,7 +72,7 @@ e2e("diff: shows unified diff for modified staging", (t) => {
     .exits(0);
 
   // Init + protect
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -148,7 +148,7 @@ e2e("diff: shows new file when protected copy is missing", (t) => {
     .exits(0);
 
   // Init + protect
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -223,7 +223,7 @@ e2e("diff: directory staged recursively with no changes shows clean", (t) => {
     .exits(0);
 
   // Init + protect + sync (enforces ownership)
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -294,7 +294,7 @@ e2e("diff: directory staged recursively with modified file shows diff", (t) => {
     .exits(0);
 
   // Init + protect + sync
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -379,7 +379,7 @@ e2e("diff: soulguard.json staged with no changes shows clean", (t) => {
     .exits(0);
 
   // Init + protect + sync
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -449,7 +449,7 @@ e2e("diff: new file staged in protected directory shows new file diff", (t) => {
     .exits(0);
 
   // Init + protect + sync
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -535,7 +535,7 @@ e2e("diff: stage -d file shows deletion cleanly", (t) => {
     .exits(0);
 
   // Init + protect
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -608,7 +608,7 @@ e2e("diff: stage -d directory shows deletion cleanly", (t) => {
     .exits(0);
 
   // Init + protect + sync
-  t.$(`sudo soulguard init .`)
+  t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
