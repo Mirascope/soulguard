@@ -15,9 +15,10 @@ import type {
   OpenClawPluginDefinition,
 } from "./openclaw-types.js";
 
-// Read version from package.json to stay in sync with the monorepo
-const PKG_VERSION = JSON.parse(readFileSync(join(import.meta.dir, "..", "package.json"), "utf-8"))
-  .version as string;
+// Injected at build time via --define (see package.json build script)
+declare const SOULGUARD_VERSION: string;
+const PKG_VERSION: string =
+  typeof SOULGUARD_VERSION !== "undefined" ? SOULGUARD_VERSION : "0.0.0-dev";
 
 /** Shared plugin description (plugin.json keeps its own copy). */
 export const PLUGIN_DESCRIPTION = "Identity protection for AI agents";
@@ -50,7 +51,7 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
         config = parseConfig(raw);
         protectFiles = protectPatterns(config);
       } catch {
-        api.logger?.warn("soulguard: no soulguard.json found — plugin inactive");
+        api.logger?.warn(`soulguard: no config found at ${configPath} — plugin inactive`);
         return;
       }
 
