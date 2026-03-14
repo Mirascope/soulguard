@@ -155,3 +155,6 @@ export { SoulguardDaemon } from "./daemon/index.js";
 export type { DaemonOptions } from "./daemon/index.js";
 export { generateServiceFile, serviceFilePath } from "./daemon/index.js";
 export type { ServicePlatform, ServiceFileOptions } from "./daemon/index.js";
+
+// Channel registry
+export { registerChannel, getChannel } from "./daemon/index.js";

@@ -22,3 +22,5 @@ export type { DaemonOptions } from "./daemon.js";
 
 export { generateServiceFile, serviceFilePath } from "./service.js";
 export type { ServicePlatform, ServiceFileOptions } from "./service.js";
+
+export { registerChannel, getChannel } from "./channel-registry.js";

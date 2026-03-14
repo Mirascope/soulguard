@@ -7,7 +7,8 @@
 
 import type { SystemOperations } from "../util/system-ops.js";
 import type { SoulguardConfig } from "../util/types.js";
-import type { ApprovalChannel, CreateChannelFn } from "./types.js";
+import type { ApprovalChannel } from "./types.js";
+import { getChannel } from "./channel-registry.js";
 import { ProposalManager } from "./proposal-manager.js";
 import { DEFAULT_DEBOUNCE_MS, DEFAULT_BATCH_READY_TIMEOUT_MS } from "../sdk/schema.js";
 
@@ -54,17 +55,15 @@ export class SoulguardDaemon {
 
     const channelName = daemonConfig.channel;
 
-    let channelModule: { createChannel: CreateChannelFn };
-    try {
-      channelModule = await import(`@soulguard/${channelName}`);
-    } catch {
+    const createChannelFn = getChannel(channelName);
+    if (!createChannelFn) {
       throw new Error(
-        `Failed to load channel plugin. Install @soulguard/${channelName} to use the ${channelName} channel.`,
+        `No channel registered for "${channelName}". Register it with registerChannel() before starting the daemon.`,
       );
     }
 
     const channelConfig = daemonConfig[channelName];
-    this._channel = channelModule.createChannel(channelConfig);
+    this._channel = createChannelFn(channelConfig);
 
     this._proposalManager = new ProposalManager({
       ops: this._ops,
