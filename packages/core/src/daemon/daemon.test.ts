@@ -4,6 +4,7 @@
 
 import { describe, test, expect, mock, beforeEach } from "bun:test";
 import { SoulguardDaemon } from "./daemon.js";
+import { registerChannel } from "./channel-registry.js";
 import type { SoulguardConfig } from "../util/types.js";
 import type { ApprovalChannel } from "./types.js";
 import { DEFAULT_DEBOUNCE_MS, DEFAULT_BATCH_READY_TIMEOUT_MS } from "../sdk/schema.js";
@@ -57,9 +58,7 @@ let mockChannel: ApprovalChannel;
 describe("SoulguardDaemon", () => {
   beforeEach(() => {
     mockChannel = createMockChannel();
-    mock.module("@soulguard/mock", () => ({
-      createChannel: () => mockChannel,
-    }));
+    registerChannel("mock", () => mockChannel);
   });
 
   test("start loads channel plugin and starts proposal manager", async () => {
@@ -87,15 +86,13 @@ describe("SoulguardDaemon", () => {
     expect(daemon.start()).rejects.toThrow("Daemon configuration missing");
   });
 
-  test("start fails with helpful message when channel package not found", async () => {
+  test("start fails with helpful message when channel not registered", async () => {
     const daemon = new SoulguardDaemon({
       ops: createMockOps(),
       config: baseConfig({ daemon: { channel: "nonexistent" } }),
       workspaceRoot: "/workspace",
     });
-    expect(daemon.start()).rejects.toThrow(
-      "Install @soulguard/nonexistent to use the nonexistent channel",
-    );
+    expect(daemon.start()).rejects.toThrow('No channel registered for "nonexistent"');
   });
 
   test("stop disposes channel and proposal manager", async () => {
