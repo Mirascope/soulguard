@@ -118,14 +118,48 @@ export class TierCommand {
     let config;
     let changedPaths: string[];
 
-    // Verify all paths exist before making changes
+    // Auto-create missing paths (files and directories)
+    const createdPaths = new Set<string>();
     if (action.kind === "set") {
       for (const file of files) {
         const exists = await ops.exists(file);
-        if (!exists.ok || !exists.value) {
-          this.out.error(`${file} does not exist`);
-          return 1;
+        if (exists.ok && exists.value) continue;
+
+        if (file.endsWith("/")) {
+          const mk = await ops.exec("mkdir", ["-p", file]);
+          if (!mk.ok) {
+            this.out.error(`Failed to create directory ${file}: ${mk.error.message}`);
+            return 1;
+          }
+        } else {
+          // Ensure parent directory exists for nested paths
+          const parent = file.includes("/") ? file.slice(0, file.lastIndexOf("/")) : null;
+          if (parent) {
+            await ops.exec("mkdir", ["-p", parent]);
+          }
+          const wr = await ops.writeFile(file, "");
+          if (!wr.ok) {
+            this.out.error(`Failed to create file ${file}: ${wr.error.kind}`);
+            return 1;
+          }
         }
+        // For watch tier, restore default ownership so the agent can write.
+        // (For protect tier, the enforcement step below handles ownership.)
+        if (action.tier === "watch") {
+          const defaultOwnership = configResult.value.defaultOwnership;
+          if (defaultOwnership) {
+            const owner = { user: defaultOwnership.user, group: defaultOwnership.group };
+            if (file.endsWith("/")) {
+              await ops.chownRecursive(file, owner);
+              // Directories need execute bit for traversal (755), not file mode (644)
+              await ops.chmodRecursive(file, "755");
+            } else {
+              await ops.chown(file, owner);
+              await ops.chmod(file, defaultOwnership.mode);
+            }
+          }
+        }
+        createdPaths.add(file);
       }
     }
 
@@ -137,7 +171,8 @@ export class TierCommand {
       // Report
       for (const f of result.added) {
         const fmt = formatChange(action);
-        this.out.success(`  ${fmt.prefix} ${f} ${fmt.suffix}`);
+        const created = createdPaths.has(f) ? " (created)" : "";
+        this.out.success(`  ${fmt.prefix} ${f} ${fmt.suffix}${created}`);
       }
       for (const f of result.moved) {
         const oldTier = configResult.value.files[f];
