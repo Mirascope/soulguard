@@ -178,7 +178,7 @@ e2e("protect: already protected file is no-op", (t) => {
     .outputs(/already protect/);
 });
 
-e2e("protect: nonexistent file errors", (t) => {
+e2e("protect: nonexistent file is created and protected", (t) => {
   t.$(`sudo soulguard init --no-daemon .`)
     .expect(`
     exit 0
@@ -186,11 +186,91 @@ e2e("protect: nonexistent file errors", (t) => {
   `)
     .exits(0);
 
-  t.$(`sudo soulguard protect nonexistent.md 2>&1`)
+  t.$(`sudo soulguard protect nonexistent.md`)
     .expect(`
-      exit 1
-      nonexistent.md does not exist
+      exit 0
+        + nonexistent.md → protect (created)
+
+      Updated. 1 file now protected.
     `)
-    .exits(1)
-    .outputs(/does not exist/);
+    .exits(0)
+    .outputs(/protect/);
+
+  t.$(`stat -c '%U:%G %a' nonexistent.md`)
+    .expect(`
+      exit 0
+      soulguardian_agent:soulguard 444
+    `)
+    .exits(0)
+    .outputs(/soulguardian_agent:soulguard 444/);
+
+  // File should be empty
+  t.$(`wc -c < nonexistent.md`)
+    .expect(`
+      exit 0
+      0
+    `)
+    .exits(0);
+});
+
+e2e("protect: nonexistent directory is created and protected", (t) => {
+  t.$(`sudo soulguard init --no-daemon .`)
+    .expect(`
+      exit 0
+      ✓ Soulguard initialized.
+    `)
+    .exits(0);
+
+  t.$(`sudo soulguard protect skills/`)
+    .expect(`
+      exit 0
+        + skills/ → protect (created)
+
+      Updated. 1 directory now protected.
+    `)
+    .exits(0)
+    .outputs(/protect/);
+
+  t.$(`stat -c '%U:%G %a' skills`)
+    .expect(`
+      exit 0
+      soulguardian_agent:soulguard 555
+    `)
+    .exits(0)
+    .outputs(/soulguardian_agent:soulguard 555/);
+});
+
+e2e("protect: nested nonexistent path creates parent dirs", (t) => {
+  t.$(`sudo soulguard init --no-daemon .`)
+    .expect(`
+      exit 0
+      ✓ Soulguard initialized.
+    `)
+    .exits(0);
+
+  t.$(`sudo soulguard protect workspace/SOUL.md`)
+    .expect(`
+      exit 0
+        + workspace/SOUL.md → protect (created)
+
+      Updated. 1 file now protected.
+    `)
+    .exits(0)
+    .outputs(/protect/);
+
+  t.$(`test -d workspace && echo exists`)
+    .expect(`
+      exit 0
+      exists
+    `)
+    .exits(0)
+    .outputs(/exists/);
+
+  t.$(`stat -c '%U:%G %a' workspace/SOUL.md`)
+    .expect(`
+      exit 0
+      soulguardian_agent:soulguard 444
+    `)
+    .exits(0)
+    .outputs(/soulguardian_agent:soulguard 444/);
 });
