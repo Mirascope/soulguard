@@ -1,14 +1,13 @@
 /**
- * Soulguard OpenClaw plugin — protects files from direct writes
- * and injects context about pending staged changes.
+ * Soulguard OpenClaw plugin — protects files from direct writes.
  */
 
 import { readFileSync } from "node:fs";
+import os from "node:os";
 import { join } from "node:path";
-import { parseConfig, NodeSystemOps, protectPatterns, type SoulguardConfig } from "@soulguard/core";
+import { parseConfig, protectPatterns } from "@soulguard/core";
 
 import { guardToolCall } from "./guard.js";
-import { buildPendingChangesContext } from "./context.js";
 import type {
   BeforeToolCallEvent,
   BeforeToolCallResult,
@@ -39,17 +38,17 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
     version: PKG_VERSION,
 
     activate(api) {
-      const workspaceDir = api.resolvePath?.(".") ?? api.runtime.workspaceDir ?? ".";
+      // Resolve OpenClaw state dir (~/.openclaw) where soulguard.json lives.
+      // Cannot use api.resolvePath — it resolves relative to process.cwd(), not the workspace.
+      const stateDir = process.env.OPENCLAW_STATE_DIR?.trim() ?? join(os.homedir(), ".openclaw");
       const configFile = options?.configPath ?? "soulguard.json";
-      const configPath = api.resolvePath?.(configFile) ?? join(workspaceDir, configFile);
+      const configPath = join(stateDir, configFile);
 
       // Load config
-      let config: SoulguardConfig;
       let protectFiles: string[];
       try {
         const raw = JSON.parse(readFileSync(configPath, "utf-8"));
-        config = parseConfig(raw);
-        protectFiles = protectPatterns(config);
+        protectFiles = protectPatterns(parseConfig(raw));
       } catch {
         api.logger?.warn(`soulguard: no config found at ${configPath} — plugin inactive`);
         return;
@@ -57,14 +56,10 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
 
       if (protectFiles.length === 0) return;
 
-      const createOps = () => new NodeSystemOps(workspaceDir);
-      const hookFn = api.registerHook ?? api.on;
-
-      // ── Hooks ──────────────────────────────────────────────────────
-
-      // Guard: block writes to protected files with a helpful message
+      // ── Guard hook ─────────────────────────────────────────────────
+      // Block writes to protected files with a helpful message
       // guiding the agent to use soulguard CLI commands for staging.
-      hookFn("before_tool_call", (...args: unknown[]) => {
+      api.on("before_tool_call", (...args: unknown[]) => {
         const event = args[0];
         if (!event || typeof event !== "object" || !("toolName" in event)) {
           return undefined;
@@ -72,21 +67,12 @@ export function createSoulguardPlugin(options?: SoulguardPluginOptions): OpenCla
         const e = event as BeforeToolCallEvent;
         const result = guardToolCall(e.toolName, e.params, {
           protectFiles,
+          stateDir,
         });
         if (result.blocked) {
           return { block: true, blockReason: result.reason } satisfies BeforeToolCallResult;
         }
         return undefined;
-      });
-
-      // Context injection: notify agent of pending staged changes.
-      // Only fires when there are actual pending changes — zero context
-      // pollution on normal turns.
-      hookFn("before_prompt_build", async (..._args: unknown[]) => {
-        const ops = createOps();
-        const context = await buildPendingChangesContext({ ops, config });
-        if (!context) return undefined;
-        return { prependContext: context };
       });
     },
   };

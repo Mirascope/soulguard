@@ -3,6 +3,7 @@ import { guardToolCall, type GuardOptions } from "./guard.js";
 
 const defaultOpts: GuardOptions = {
   protectFiles: ["SOUL.md", "IDENTITY.md"],
+  stateDir: "/home/test/.openclaw",
 };
 
 describe("guardToolCall", () => {
@@ -59,14 +60,24 @@ describe("guardToolCall", () => {
   });
 
   it("blocks writes to files inside a protected directory", () => {
-    const opts: GuardOptions = { protectFiles: ["skills"] };
+    const opts: GuardOptions = { protectFiles: ["skills"], stateDir: "/home/test/.openclaw" };
     const result = guardToolCall("Write", { file_path: "skills/my-skill.md" }, opts);
     expect(result.blocked).toBe(true);
     expect(result.reason).toContain("skills/my-skill.md");
   });
 
+  it("blocks Write with absolute path resolved against stateDir", () => {
+    const result = guardToolCall(
+      "Write",
+      { file_path: "/home/test/.openclaw/SOUL.md" },
+      defaultOpts,
+    );
+    expect(result.blocked).toBe(true);
+    expect(result.reason).toContain("protected by soulguard");
+  });
+
   it("allows writes to files outside a protected directory", () => {
-    const opts: GuardOptions = { protectFiles: ["skills"] };
+    const opts: GuardOptions = { protectFiles: ["skills"], stateDir: "/home/test/.openclaw" };
     const result = guardToolCall("Write", { file_path: "memory/notes.md" }, opts);
     expect(result.blocked).toBe(false);
   });

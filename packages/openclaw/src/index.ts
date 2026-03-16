@@ -3,8 +3,8 @@
  *
  * Provides:
  * - Configuration templates (default, paranoid, relaxed)
- * - before_tool_call hooks to intercept writes to protected files
- * - before_prompt_build hooks to inject pending changes context
+ * - before_tool_call hook to intercept writes to protected files
+ * - Pending-changes context builder (for future before_prompt_build support)
  */
 
 export { templates } from "./templates.js";
