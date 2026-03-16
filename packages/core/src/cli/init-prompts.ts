@@ -2,12 +2,15 @@
  * Interactive prompts for `soulguard init`.
  *
  * Detects OpenClaw workspace and offers template selection.
+ * Optionally configures the Discord approval daemon.
  * All I/O happens here — the SDK layer stays non-interactive.
  */
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { createInterface } from "node:readline";
 import { join } from "node:path";
 import type { ConsoleOutput } from "../util/console.js";
+import type { DaemonConfig } from "../util/types.js";
 import { getPluginDir } from "./plugin-registry.js";
 
 export type TemplateName = "default" | "paranoid" | "relaxed";
@@ -22,6 +25,7 @@ export type Template = {
 
 export type InitPromptResult = {
   template?: Template;
+  daemonConfig?: DaemonConfig;
   cancelled?: boolean;
 };
 
@@ -117,6 +121,109 @@ async function loadTemplates(): Promise<Record<TemplateName, Template> | undefin
   }
 }
 
+// ── Text prompt helpers ──────────────────────────────────────────────
+
+/** Prompt for a yes/no answer. Returns true for yes. */
+function promptYesNo(question: string, defaultYes = false): Promise<boolean> {
+  const hint = defaultYes ? "[Y/n]" : "[y/N]";
+  return new Promise((resolve) => {
+    const iface = createInterface({ input: process.stdin, output: process.stdout });
+    iface.question(`${question} ${hint} `, (answer) => {
+      iface.close();
+      const a = answer.trim().toLowerCase();
+      resolve(a === "" ? defaultYes : a === "y" || a === "yes");
+    });
+  });
+}
+
+/** Truncate a string for display: first 10 + "..." + last 5. */
+function truncate(s: string, max = 20): string {
+  if (s.length <= max) return s;
+  return s.slice(0, 10) + "..." + s.slice(-5);
+}
+
+/** Prompt for text input with an optional default value. */
+function promptText(label: string, defaultValue?: string): Promise<string> {
+  const suffix = defaultValue ? ` [${truncate(defaultValue)} from openclaw.json]` : "";
+  return new Promise((resolve) => {
+    const iface = createInterface({ input: process.stdin, output: process.stdout });
+    iface.question(`  ${label}${suffix}: `, (answer) => {
+      iface.close();
+      resolve(answer.trim() || defaultValue || "");
+    });
+  });
+}
+
+// ── OpenClaw config auto-detect ─────────────────────────────────────
+
+type OpenClawDefaults = {
+  botToken?: string;
+  approverUserIds?: string[];
+};
+
+/** Read openclaw.json and extract Discord defaults if available. */
+function readOpenClawDefaults(workspace: string): OpenClawDefaults {
+  try {
+    const raw = readFileSync(join(workspace, "openclaw.json"), "utf-8");
+    const parsed = JSON.parse(raw);
+    const discord = parsed?.channels?.discord;
+    if (!discord) return {};
+    return {
+      botToken: typeof discord.token === "string" ? discord.token : undefined,
+      approverUserIds: Array.isArray(discord.dm?.allowFrom) ? discord.dm.allowFrom : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+// ── Daemon prompts ──────────────────────────────────────────────────
+
+/**
+ * Prompt user to configure the Discord approval daemon.
+ * Returns DaemonConfig if configured, undefined if declined.
+ */
+async function runDaemonPrompts(
+  workspace: string,
+  out: ConsoleOutput,
+): Promise<DaemonConfig | undefined> {
+  out.write("");
+  const wantsDaemon = await promptYesNo("Set up Discord approval daemon?");
+  if (!wantsDaemon) return undefined;
+
+  const defaults = readOpenClawDefaults(workspace);
+
+  const botToken = await promptText("Discord bot token", defaults.botToken);
+  if (!botToken) {
+    out.warn("  Bot token is required — skipping daemon setup.");
+    return undefined;
+  }
+
+  const channelId = await promptText("Approval channel ID");
+  if (!channelId) {
+    out.warn("  Channel ID is required — skipping daemon setup.");
+    return undefined;
+  }
+
+  const defaultApprovers = defaults.approverUserIds?.join(", ");
+  const approversRaw = await promptText("Approver user ID(s) (comma-separated)", defaultApprovers);
+  const approverUserIds = approversRaw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (approverUserIds.length === 0) {
+    out.warn("  At least one approver is required — skipping daemon setup.");
+    return undefined;
+  }
+
+  return {
+    channel: "discord",
+    discord: { botToken, channelId, approverUserIds },
+  };
+}
+
+// ── Main prompt orchestrator ────────────────────────────────────────
+
 /**
  * Run interactive init prompts. Returns the user's choices.
  */
@@ -153,13 +260,15 @@ export async function runInitPrompts(
     return { cancelled: true };
   }
 
-  if (choice === "none") {
-    return {};
+  let template: Template | undefined;
+  if (choice !== "none") {
+    template = allTemplates[choice];
+    out.write("");
+    out.info(`  Using "${template.name}" template: ${template.description}`);
   }
 
-  const template = allTemplates[choice];
-  out.write("");
-  out.info(`  Using "${template.name}" template: ${template.description}`);
+  // Daemon setup prompt
+  const daemonConfig = await runDaemonPrompts(workspace, out);
 
-  return { template };
+  return { template, daemonConfig };
 }
