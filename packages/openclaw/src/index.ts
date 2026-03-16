@@ -7,7 +7,7 @@
  * - before_prompt_build hooks to inject pending changes context
  */
 
-export { templates, defaultTemplate, paranoidTemplate, relaxedTemplate } from "./templates.js";
+export { templates } from "./templates.js";
 export type { TemplateName, Template } from "./templates.js";
 
 export { createSoulguardPlugin } from "./plugin.js";

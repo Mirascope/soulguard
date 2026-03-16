@@ -1,50 +1,14 @@
 /**
- * OpenClaw configuration templates for Soulguard.
+ * OpenClaw protection templates for Soulguard.
  *
- * Every known path is explicitly placed in protect, watch, or unprotected.
+ * Each template partitions the same set of known paths into protect, watch,
+ * and release tiers. This makes templates authoritative — switching from
+ * paranoid to relaxed will release previously protected paths.
+ *
  * Paths are relative to the OpenClaw home directory (~/.openclaw/).
- * Tests validate that all paths are accounted for in every template.
+ * Trailing "/" marks directories.
+ * soulguard.json is omitted — init auto-protects it.
  */
-
-import type { SoulguardConfig, Tier } from "@soulguard/core";
-
-// ── Known path groups ──────────────────────────────────────────────────
-
-export const SOULGUARD_CONFIG = ["soulguard.json"] as const;
-export const CORE_IDENTITY = [
-  "workspace/SOUL.md",
-  "workspace/AGENTS.md",
-  "workspace/IDENTITY.md",
-  "workspace/USER.md",
-] as const;
-export const CORE_SESSION = [
-  "workspace/TOOLS.md",
-  "workspace/HEARTBEAT.md",
-  "workspace/BOOTSTRAP.md",
-] as const;
-export const CORE_MEMORY = ["workspace/MEMORY.md"] as const;
-export const MEMORY_DIR = ["workspace/memory/**/*.md"] as const;
-export const SKILLS = ["workspace/skills/**"] as const;
-export const OPENCLAW_CONFIG = ["openclaw.json"] as const;
-export const CRON = ["cron/jobs.json"] as const;
-export const EXTENSIONS = ["extensions/**"] as const;
-export const SESSIONS = ["workspace/sessions/**"] as const;
-
-/** All known paths — every template must account for all of these */
-export const ALL_KNOWN_PATHS = [
-  ...SOULGUARD_CONFIG,
-  ...CORE_IDENTITY,
-  ...CORE_SESSION,
-  ...CORE_MEMORY,
-  ...MEMORY_DIR,
-  ...SKILLS,
-  ...OPENCLAW_CONFIG,
-  ...CRON,
-  ...EXTENSIONS,
-  ...SESSIONS,
-] as const;
-
-// ── Template type ──────────────────────────────────────────────────────
 
 export type TemplateName = "default" | "paranoid" | "relaxed";
 
@@ -53,72 +17,88 @@ export type Template = {
   description: string;
   protect: readonly string[];
   watch: readonly string[];
-  unprotected: readonly string[];
+  release: readonly string[];
 };
 
-/** Extract just the SoulguardConfig from a template (guardian filled in at init time) */
-export function templateToConfig(template: Template, guardian: string): SoulguardConfig {
-  const files: Record<string, Tier> = {};
-  for (const p of template.protect) files[p] = "protect";
-  for (const w of template.watch) files[w] = "watch";
-  return { version: 1, guardian, files };
-}
-
-// ── Templates ──────────────────────────────────────────────────────────
-
-export const defaultTemplate: Template = {
-  name: "default",
-  description: "Core identity and config in protect, memory and skills tracked in watch",
-  protect: [
-    ...SOULGUARD_CONFIG,
-    ...CORE_IDENTITY,
-    ...CORE_SESSION,
-    ...OPENCLAW_CONFIG,
-    ...CRON,
-    ...EXTENSIONS,
-  ],
-  watch: [...CORE_MEMORY, ...MEMORY_DIR, ...SKILLS],
-  unprotected: [...SESSIONS],
-};
-
-export const paranoidTemplate: Template = {
-  name: "paranoid",
-  description: "Everything possible in protect tier, sessions in watch",
-  protect: [
-    ...SOULGUARD_CONFIG,
-    ...CORE_IDENTITY,
-    ...CORE_SESSION,
-    ...CORE_MEMORY,
-    ...MEMORY_DIR,
-    ...SKILLS,
-    ...OPENCLAW_CONFIG,
-    ...CRON,
-    ...EXTENSIONS,
-  ],
-  watch: [...SESSIONS],
-  unprotected: [],
-};
-
-export const relaxedTemplate: Template = {
-  name: "relaxed",
-  description:
-    "Only soulguard config in protect, everything else in watch — good for initial setup",
-  protect: [...SOULGUARD_CONFIG],
-  watch: [
-    ...CORE_IDENTITY,
-    ...CORE_SESSION,
-    ...CORE_MEMORY,
-    ...MEMORY_DIR,
-    ...SKILLS,
-    ...OPENCLAW_CONFIG,
-    ...CRON,
-    ...EXTENSIONS,
-  ],
-  unprotected: [...SESSIONS],
-};
+/** All known paths — every template must partition exactly this set. */
+export const ALL_KNOWN_PATHS = [
+  "workspace/SOUL.md",
+  "workspace/AGENTS.md",
+  "workspace/IDENTITY.md",
+  "workspace/USER.md",
+  "workspace/TOOLS.md",
+  "workspace/HEARTBEAT.md",
+  "workspace/BOOTSTRAP.md",
+  "workspace/MEMORY.md",
+  "workspace/memory/",
+  "workspace/skills/",
+  "workspace/sessions/",
+  "openclaw.json",
+  "cron/",
+  "extensions/",
+] as const;
 
 export const templates: Record<TemplateName, Template> = {
-  default: defaultTemplate,
-  paranoid: paranoidTemplate,
-  relaxed: relaxedTemplate,
+  default: {
+    name: "default",
+    description: "Core identity and config protected, memory and skills watched",
+    protect: [
+      "workspace/SOUL.md",
+      "workspace/AGENTS.md",
+      "workspace/IDENTITY.md",
+      "workspace/USER.md",
+      "workspace/TOOLS.md",
+      "workspace/HEARTBEAT.md",
+      "workspace/BOOTSTRAP.md",
+      "openclaw.json",
+      "cron/",
+      "extensions/",
+    ],
+    watch: ["workspace/MEMORY.md", "workspace/memory/", "workspace/skills/"],
+    release: ["workspace/sessions/"],
+  },
+
+  paranoid: {
+    name: "paranoid",
+    description: "Everything protected, only sessions watched",
+    protect: [
+      "workspace/SOUL.md",
+      "workspace/AGENTS.md",
+      "workspace/IDENTITY.md",
+      "workspace/USER.md",
+      "workspace/TOOLS.md",
+      "workspace/HEARTBEAT.md",
+      "workspace/BOOTSTRAP.md",
+      "workspace/MEMORY.md",
+      "workspace/memory/",
+      "workspace/skills/",
+      "openclaw.json",
+      "cron/",
+      "extensions/",
+    ],
+    watch: ["workspace/sessions/"],
+    release: [],
+  },
+
+  relaxed: {
+    name: "relaxed",
+    description: "Everything watched — good for initial setup",
+    protect: [],
+    watch: [
+      "workspace/SOUL.md",
+      "workspace/AGENTS.md",
+      "workspace/IDENTITY.md",
+      "workspace/USER.md",
+      "workspace/TOOLS.md",
+      "workspace/HEARTBEAT.md",
+      "workspace/BOOTSTRAP.md",
+      "workspace/MEMORY.md",
+      "workspace/memory/",
+      "workspace/skills/",
+      "openclaw.json",
+      "cron/",
+      "extensions/",
+    ],
+    release: ["workspace/sessions/"],
+  },
 };

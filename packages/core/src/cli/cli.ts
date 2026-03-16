@@ -20,6 +20,7 @@ import { LogCommand } from "./log-command.js";
 import { InstallPluginCommand } from "./install-plugin-command.js";
 import { TierCommand } from "./tier-command.js";
 import { DaemonCommand } from "./daemon-command.js";
+import { runInitPrompts } from "./init-prompts.js";
 import { NodeSystemOps } from "../util/system-ops-node.js";
 import { parseConfig } from "../sdk/schema.js";
 import { StateTree } from "../sdk/state.js";
@@ -95,10 +96,29 @@ program
   .description("Initialize soulguard for a workspace")
   .argument("[workspace]", "workspace path", process.cwd())
   .option("--no-daemon", "Skip daemon service installation")
-  .action(async (workspace: string, options: { daemon: boolean }) => {
+  .option("--non-interactive", "Skip all interactive prompts")
+  .action(async (workspace: string, options: { daemon: boolean; nonInteractive?: boolean }) => {
     const out = new LiveConsoleOutput();
+
+    if (process.getuid?.() !== 0) {
+      out.error("soulguard init requires sudo. Run with: sudo soulguard init");
+      process.exitCode = 1;
+      return;
+    }
+
     const absWorkspace = resolve(workspace);
     const nodeOps = new NodeSystemOps(absWorkspace);
+
+    // Interactive prompts (template selection etc.)
+    let template: Awaited<ReturnType<typeof runInitPrompts>>["template"];
+    if (!options.nonInteractive) {
+      const prompts = await runInitPrompts(absWorkspace, out);
+      if (prompts.cancelled) {
+        process.exitCode = 1;
+        return;
+      }
+      template = prompts.template;
+    }
 
     const cmd = new InitCommand(
       {
@@ -108,6 +128,47 @@ program
       out,
     );
     process.exitCode = await cmd.execute();
+    if (process.exitCode !== 0) return;
+
+    // Apply template via existing tier commands
+    if (template) {
+      const tierOps = new NodeSystemOps(absWorkspace);
+      if (template.protect.length > 0) {
+        const protectCmd = new TierCommand(
+          { ops: tierOps, files: [...template.protect], action: { kind: "set", tier: "protect" } },
+          out,
+        );
+        const code = await protectCmd.execute();
+        if (code !== 0) {
+          process.exitCode = code;
+          return;
+        }
+      }
+      if (template.watch.length > 0) {
+        const watchCmd = new TierCommand(
+          { ops: tierOps, files: [...template.watch], action: { kind: "set", tier: "watch" } },
+          out,
+        );
+        const code = await watchCmd.execute();
+        if (code !== 0) {
+          process.exitCode = code;
+          return;
+        }
+      }
+      if (template.release.length > 0) {
+        const releaseCmd = new TierCommand(
+          { ops: tierOps, files: [...template.release], action: { kind: "release" } },
+          out,
+        );
+        const code = await releaseCmd.execute();
+        if (code !== 0) {
+          process.exitCode = code;
+          return;
+        }
+      }
+      out.write("");
+      out.success("✓ Protection template applied.");
+    }
   });
 
 program

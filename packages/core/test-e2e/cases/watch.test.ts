@@ -6,7 +6,7 @@ e2e("watch: adds file and updates config", (t) => {
       exit 0
     `)
     .exits(0);
-  t.$(`sudo soulguard init --no-daemon .`)
+  t.$(`sudo soulguard init --no-daemon --non-interactive .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -53,7 +53,7 @@ e2e("watch: adds file and updates config", (t) => {
 });
 
 e2e("watch: nonexistent directory is created", (t) => {
-  t.$(`sudo soulguard init --no-daemon .`)
+  t.$(`sudo soulguard init --no-daemon --non-interactive .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
