@@ -13,7 +13,6 @@ import { SoulguardDaemon } from "../daemon/daemon.js";
 export type DaemonCommandOptions = {
   ops: SystemOperations;
   config: SoulguardConfig;
-  workspaceRoot: string;
 };
 
 export class DaemonCommand {
@@ -23,14 +22,14 @@ export class DaemonCommand {
   ) {}
 
   async execute(): Promise<number> {
-    const { ops, config, workspaceRoot } = this.options;
+    const { ops, config } = this.options;
 
     if (!config.daemon) {
       this.out.info("No daemon configuration in soulguard.json — nothing to do.");
       return 0;
     }
 
-    const daemon = new SoulguardDaemon({ ops, config, workspaceRoot });
+    const daemon = new SoulguardDaemon({ ops, config });
 
     // Wire up proposal lifecycle events for observability
     const onShutdown = async () => {

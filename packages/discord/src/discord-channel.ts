@@ -105,10 +105,6 @@ export class DiscordChannel implements ApprovalChannel {
 
     const embed = new EmbedBuilder().setTitle(`📋 ${PROPOSAL_TITLE}`).setColor(SOULGUARD_COLOR);
 
-    if (proposal.description) {
-      embed.setDescription(proposal.description);
-    }
-
     for (const file of proposal.files) {
       const label = `${file.status} ${file.path}`;
       const diffText = file.diff || "(no diff)";
@@ -298,7 +294,7 @@ export class DiscordChannel implements ApprovalChannel {
       }
 
       const embed = EmbedBuilder.from(existingEmbed)
-        .setTitle(`${emoji} Proposal ${result.charAt(0).toUpperCase() + result.slice(1)}`)
+        .setTitle(`${emoji} Soulguard Proposal ${result.charAt(0).toUpperCase() + result.slice(1)}`)
         .setColor(color);
 
       await message.edit({ embeds: [embed] });

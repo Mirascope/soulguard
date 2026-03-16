@@ -252,6 +252,7 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
   }
 
   // ── Phase 4: Sync staging copies + cleanup ──────────────────────────
+  const defaultOwnership = tree.config.defaultOwnership;
   for (const file of nonDeletedFiles) {
     const stagePath = stagingPath(file.path);
     const stageParent = dirname(stagePath);
@@ -259,6 +260,11 @@ export async function apply(options: ApplyOptions): Promise<Result<ApplyResult, 
       await ops.mkdir(stageParent);
     }
     await ops.copyFile(file.path, stagePath);
+    // Restore agent-writable ownership so the agent can still modify staging
+    if (defaultOwnership) {
+      await ops.chown(stagePath, defaultOwnership);
+      await ops.chmod(stagePath, defaultOwnership.mode);
+    }
   }
 
   await cleanupBackup(ops);
