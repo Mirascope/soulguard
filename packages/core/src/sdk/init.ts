@@ -10,7 +10,7 @@
 
 import { dirname } from "node:path";
 import type { SystemOperations } from "../util/system-ops.js";
-import type { SoulguardConfig, Result } from "../util/types.js";
+import type { SoulguardConfig, DaemonConfig, Result } from "../util/types.js";
 import { ok, err } from "../util/result.js";
 import { SOULGUARD_GROUP, guardianName } from "../util/constants.js";
 import { ensureConfig, writeConfig } from "./config.js";
@@ -39,6 +39,8 @@ export type InitOptions = {
   ops: SystemOperations;
   /** Override agent username (defaults to process.env.SUDO_USER) */
   agentUser?: string;
+  /** Daemon configuration to write into soulguard.json before lockdown. */
+  daemonConfig?: DaemonConfig;
   /** @internal Skip root check (for testing only) */
   _skipRootCheck?: boolean;
   /** @internal Skip daemon service installation (for testing only) */
@@ -364,6 +366,18 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
           message: "failed to write config with defaultOwnership",
         });
       }
+    }
+  }
+
+  // ── 1c. Merge daemon config if provided ────────────────────────────
+  if (options.daemonConfig) {
+    config = { ...config, daemon: options.daemonConfig };
+    const writeResult = await writeConfig(ops, config);
+    if (!writeResult.ok) {
+      return err({
+        kind: "system_error",
+        message: "failed to write config with daemon settings",
+      });
     }
   }
 

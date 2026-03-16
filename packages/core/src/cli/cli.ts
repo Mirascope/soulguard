@@ -109,8 +109,9 @@ program
     const absWorkspace = resolve(workspace);
     const nodeOps = new NodeSystemOps(absWorkspace);
 
-    // Interactive prompts (template selection etc.)
+    // Interactive prompts (template selection, daemon config)
     let template: Awaited<ReturnType<typeof runInitPrompts>>["template"];
+    let daemonConfig: Awaited<ReturnType<typeof runInitPrompts>>["daemonConfig"];
     if (!options.nonInteractive) {
       const prompts = await runInitPrompts(absWorkspace, out);
       if (prompts.cancelled) {
@@ -118,11 +119,13 @@ program
         return;
       }
       template = prompts.template;
+      daemonConfig = prompts.daemonConfig;
     }
 
     const cmd = new InitCommand(
       {
         ops: nodeOps,
+        daemonConfig,
         _skipServiceInstall: !options.daemon,
       },
       out,
@@ -168,6 +171,10 @@ program
       }
       out.write("");
       out.success("✓ Protection template applied.");
+    }
+
+    if (daemonConfig) {
+      out.success("✓ Discord daemon configured.");
     }
   });
 
