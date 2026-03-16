@@ -112,6 +112,7 @@ program
     // Interactive prompts (template selection, daemon config)
     let template: Awaited<ReturnType<typeof runInitPrompts>>["template"];
     let daemonConfig: Awaited<ReturnType<typeof runInitPrompts>>["daemonConfig"];
+    let installPlugin = false;
     if (!options.nonInteractive) {
       const prompts = await runInitPrompts(absWorkspace, out);
       if (prompts.cancelled) {
@@ -120,6 +121,7 @@ program
       }
       template = prompts.template;
       daemonConfig = prompts.daemonConfig;
+      installPlugin = prompts.installPlugin ?? false;
     }
 
     const cmd = new InitCommand(
@@ -175,6 +177,19 @@ program
 
     if (daemonConfig) {
       out.success("✓ Discord daemon configured.");
+    }
+
+    // Install OpenClaw plugin if requested
+    if (installPlugin) {
+      const installCmd = new InstallPluginCommand(
+        { plugin: "openclaw", workspace: absWorkspace },
+        out,
+      );
+      const code = await installCmd.execute();
+      if (code !== 0) {
+        process.exitCode = code;
+        return;
+      }
     }
   });
 

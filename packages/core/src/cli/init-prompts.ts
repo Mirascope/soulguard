@@ -26,6 +26,7 @@ export type Template = {
 export type InitPromptResult = {
   template?: Template;
   daemonConfig?: DaemonConfig;
+  installPlugin?: boolean;
   cancelled?: boolean;
 };
 
@@ -270,5 +271,9 @@ export async function runInitPrompts(
   // Daemon setup prompt
   const daemonConfig = await runDaemonPrompts(workspace, out);
 
-  return { template, daemonConfig };
+  // Plugin install prompt
+  out.write("");
+  const installPlugin = await promptYesNo("Install OpenClaw plugin to workspace?", true);
+
+  return { template, daemonConfig, installPlugin };
 }

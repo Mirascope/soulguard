@@ -15,7 +15,6 @@ import {
   mkdirSync,
   symlinkSync,
   unlinkSync,
-  lstatSync,
 } from "node:fs";
 import { resolve, join } from "node:path";
 import type { ConsoleOutput } from "../util/console.js";
@@ -46,9 +45,9 @@ const KNOWN_PLUGINS: Record<string, { packageName: string; pluginId: string; man
 /** Create or replace a symlink (idempotent). */
 function forceSymlink(target: string, linkPath: string): void {
   try {
-    if (lstatSync(linkPath)) unlinkSync(linkPath);
-  } catch {
-    // doesn't exist — fine
+    unlinkSync(linkPath);
+  } catch (e: any) {
+    if (e?.code !== "ENOENT") throw e;
   }
   symlinkSync(target, linkPath);
 }
@@ -105,15 +104,25 @@ export class InstallPluginCommand {
 
     // Create extensions/<pluginId>/ with symlinks
     const extensionsDir = resolve(workspace, "extensions", known.pluginId);
-    mkdirSync(extensionsDir, { recursive: true });
+    try {
+      mkdirSync(extensionsDir, { recursive: true });
 
-    forceSymlink(distIndex, join(extensionsDir, "index.js"));
-    forceSymlink(distManifest, join(extensionsDir, known.manifest));
+      forceSymlink(distIndex, join(extensionsDir, "index.js"));
+      forceSymlink(distManifest, join(extensionsDir, known.manifest));
 
-    // Ensure the extensions dir is treated as ESM (the bundle uses import.meta)
-    const extPkgPath = join(extensionsDir, "package.json");
-    if (!existsSync(extPkgPath)) {
-      writeFileSync(extPkgPath, '{ "type": "module" }\n');
+      // Ensure the extensions dir is treated as ESM (the bundle uses import.meta)
+      const extPkgPath = join(extensionsDir, "package.json");
+      if (!existsSync(extPkgPath)) {
+        writeFileSync(extPkgPath, '{ "type": "module" }\n');
+      }
+    } catch (e: any) {
+      if (e?.code === "EACCES") {
+        this.out.error(`Permission denied writing to ${extensionsDir}`);
+        this.out.info("The extensions directory may be protected by soulguard. Run with sudo:");
+        this.out.info(`  sudo soulguard install-plugin ${plugin}`);
+        return 1;
+      }
+      throw e;
     }
 
     // Clean up any stale load.paths entries that pointed at the plugin
