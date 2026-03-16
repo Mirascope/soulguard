@@ -3,6 +3,7 @@
  * returns a helpful message guiding the agent to the staging workflow.
  */
 
+import path from "node:path";
 import { isProtectedFile, isStagingPath, stagingPath } from "@soulguard/core";
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -10,6 +11,8 @@ import { isProtectedFile, isStagingPath, stagingPath } from "@soulguard/core";
 export type GuardOptions = {
   /** Protected file paths/patterns from soulguard.json */
   protectFiles: string[];
+  /** Absolute path to the OpenClaw state dir (e.g. ~/.openclaw/) for resolving absolute tool paths. */
+  stateDir: string;
 };
 
 export type GuardResult = {
@@ -19,8 +22,8 @@ export type GuardResult = {
 
 // ── Constants ──────────────────────────────────────────────────────────
 
-/** OpenClaw tool names that write files. */
-const WRITE_TOOLS = new Set(["Write", "Edit"]);
+/** OpenClaw tool names that write files (lowercase — OpenClaw normalizes names). */
+const WRITE_TOOLS = new Set(["write", "edit"]);
 
 /** Param keys that carry the target file path. */
 const PATH_KEYS = ["file_path", "path", "file"] as const;
@@ -37,8 +40,10 @@ export function guardToolCall(
   params: Record<string, unknown>,
   options: GuardOptions,
 ): GuardResult {
-  // Only intercept file-writing tools
-  if (!WRITE_TOOLS.has(toolName)) return { blocked: false };
+  // Only intercept file-writing tools (compare lowercase for robustness)
+  if (!WRITE_TOOLS.has(toolName.toLowerCase())) {
+    return { blocked: false };
+  }
 
   // Extract target path from params
   let targetPath: string | undefined;
@@ -48,6 +53,12 @@ export function guardToolCall(
       targetPath = v;
       break;
     }
+  }
+
+  // OpenClaw passes absolute paths (e.g. /Users/x/.openclaw/workspace/SOUL.md)
+  // but protectFiles uses relative paths (e.g. workspace/SOUL.md). Make relative.
+  if (targetPath && path.isAbsolute(targetPath)) {
+    targetPath = path.relative(options.stateDir, targetPath);
   }
 
   if (!targetPath) return { blocked: false };

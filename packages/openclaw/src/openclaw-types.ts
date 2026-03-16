@@ -19,10 +19,12 @@ export type OpenClawPluginApi = {
   registerHook: (
     events: string | string[],
     handler: (...args: unknown[]) => unknown,
-    opts?: { priority?: number },
+    opts?: { name?: string; description?: string; priority?: number },
   ) => void;
   registerTool: (tool: AgentTool, opts?: { optional?: boolean }) => void;
   config: Record<string, unknown>;
+  /** Plugin install directory, e.g. ~/.openclaw/extensions/soulguard/ */
+  rootDir?: string;
   runtime: { workspaceDir?: string };
   resolvePath?: (input: string) => string;
   logger?: { warn: (msg: string) => void; error: (msg: string) => void };
