@@ -10,14 +10,12 @@ import type { SoulguardConfig } from "../util/types.js";
 import type { ApprovalChannel } from "./types.js";
 import { getChannel } from "./channel-registry.js";
 import { ProposalManager } from "./proposal-manager.js";
-import { DEFAULT_DEBOUNCE_MS, DEFAULT_BATCH_READY_TIMEOUT_MS } from "../sdk/schema.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
 export type DaemonOptions = {
   ops: SystemOperations;
   config: SoulguardConfig;
-  workspaceRoot: string;
 };
 
 // ── SoulguardDaemon ────────────────────────────────────────────────────
@@ -25,7 +23,6 @@ export type DaemonOptions = {
 export class SoulguardDaemon {
   private readonly _ops: SystemOperations;
   private readonly _config: SoulguardConfig;
-  private readonly _workspaceRoot: string;
 
   private _channel: ApprovalChannel | null = null;
   private _proposalManager: ProposalManager | null = null;
@@ -34,7 +31,6 @@ export class SoulguardDaemon {
   constructor(options: DaemonOptions) {
     this._ops = options.ops;
     this._config = options.config;
-    this._workspaceRoot = options.workspaceRoot;
   }
 
   get running(): boolean {
@@ -54,6 +50,9 @@ export class SoulguardDaemon {
     }
 
     const channelName = daemonConfig.channel;
+    console.log(
+      `[daemon] channel: "${channelName}", config keys: ${JSON.stringify(Object.keys(daemonConfig))}`,
+    );
 
     const createChannelFn = getChannel(channelName);
     if (!createChannelFn) {
@@ -63,17 +62,19 @@ export class SoulguardDaemon {
     }
 
     const channelConfig = daemonConfig[channelName];
+    console.log(
+      `[daemon] channelConfig present: ${!!channelConfig}, keys: ${channelConfig ? JSON.stringify(Object.keys(channelConfig as Record<string, unknown>)) : "n/a"}`,
+    );
     this._channel = createChannelFn(channelConfig);
+    console.log(`[daemon] channel created: ${this._channel.name}`);
 
     this._proposalManager = new ProposalManager({
       ops: this._ops,
       config: this._config,
       channel: this._channel,
-      workspaceRoot: this._workspaceRoot,
-      debounceMs: daemonConfig.debounceMs ?? DEFAULT_DEBOUNCE_MS,
-      batchReadyTimeoutMs: daemonConfig.batchReadyTimeoutMs ?? DEFAULT_BATCH_READY_TIMEOUT_MS,
     });
 
+    console.log(`[daemon] starting proposal manager`);
     this._proposalManager.start();
     this._running = true;
   }

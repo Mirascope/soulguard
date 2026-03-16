@@ -426,7 +426,7 @@ daemon
 
       const config = parseConfig(JSON.parse(raw));
 
-      const cmd = new DaemonCommand({ ops: nodeOps, config, workspaceRoot: absWorkspace }, out);
+      const cmd = new DaemonCommand({ ops: nodeOps, config }, out);
       process.exitCode = await cmd.execute();
     } catch (e) {
       out.error(e instanceof Error ? e.message : String(e));

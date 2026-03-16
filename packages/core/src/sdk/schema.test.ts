@@ -48,8 +48,6 @@ test("parses config with daemon block", () => {
     files: { "SOUL.md": "protect" },
     daemon: {
       channel: "discord",
-      debounceMs: 5000,
-      batchReadyTimeoutMs: 600000,
       discord: {
         botToken: "xoxb-fake",
         channelId: "123456789",
@@ -59,8 +57,6 @@ test("parses config with daemon block", () => {
   });
   expect(config.daemon).toBeDefined();
   expect(config.daemon!.channel).toBe("discord");
-  expect(config.daemon!.debounceMs).toBe(5000);
-  expect(config.daemon!.batchReadyTimeoutMs).toBe(600000);
   // Channel-specific config passed through
   expect((config.daemon as Record<string, unknown>).discord).toBeDefined();
 });
@@ -80,18 +76,7 @@ test("rejects daemon config without channel", () => {
       version: 1,
       guardian: "soulguardian_agent",
       files: { "SOUL.md": "protect" },
-      daemon: { debounceMs: 3000 },
-    }),
-  ).toThrow();
-});
-
-test("rejects daemon config with negative debounceMs", () => {
-  expect(() =>
-    parseConfig({
-      version: 1,
-      guardian: "soulguardian_agent",
-      files: { "SOUL.md": "protect" },
-      daemon: { channel: "discord", debounceMs: -1 },
+      daemon: {},
     }),
   ).toThrow();
 });

@@ -7,7 +7,6 @@ import { SoulguardDaemon } from "./daemon.js";
 import { registerChannel } from "./channel-registry.js";
 import type { SoulguardConfig } from "../util/types.js";
 import type { ApprovalChannel } from "./types.js";
-import { DEFAULT_DEBOUNCE_MS, DEFAULT_BATCH_READY_TIMEOUT_MS } from "../sdk/schema.js";
 
 function createMockChannel(): ApprovalChannel {
   return {
@@ -65,7 +64,6 @@ describe("SoulguardDaemon", () => {
     const daemon = new SoulguardDaemon({
       ops: createMockOps(),
       config: baseConfig(),
-      workspaceRoot: "/workspace",
     });
     await daemon.start();
     expect(daemon.running).toBe(true);
@@ -81,7 +79,6 @@ describe("SoulguardDaemon", () => {
     const daemon = new SoulguardDaemon({
       ops: createMockOps(),
       config,
-      workspaceRoot: "/workspace",
     });
     expect(daemon.start()).rejects.toThrow("Daemon configuration missing");
   });
@@ -90,7 +87,6 @@ describe("SoulguardDaemon", () => {
     const daemon = new SoulguardDaemon({
       ops: createMockOps(),
       config: baseConfig({ daemon: { channel: "nonexistent" } }),
-      workspaceRoot: "/workspace",
     });
     expect(daemon.start()).rejects.toThrow('No channel registered for "nonexistent"');
   });
@@ -99,7 +95,6 @@ describe("SoulguardDaemon", () => {
     const daemon = new SoulguardDaemon({
       ops: createMockOps(),
       config: baseConfig(),
-      workspaceRoot: "/workspace",
     });
     await daemon.start();
     expect(daemon.running).toBe(true);
@@ -112,33 +107,8 @@ describe("SoulguardDaemon", () => {
     const daemon = new SoulguardDaemon({
       ops: createMockOps(),
       config: baseConfig(),
-      workspaceRoot: "/workspace",
     });
     await daemon.stop();
     expect(daemon.running).toBe(false);
-  });
-
-  test("uses DEFAULT_DEBOUNCE_MS when debounceMs not in config", async () => {
-    const daemon = new SoulguardDaemon({
-      ops: createMockOps(),
-      config: baseConfig(),
-      workspaceRoot: "/workspace",
-    });
-    await daemon.start();
-    const pm = (daemon as any)._proposalManager;
-    expect(pm._debounceMs).toBe(DEFAULT_DEBOUNCE_MS);
-    await daemon.stop();
-  });
-
-  test("uses DEFAULT_BATCH_READY_TIMEOUT_MS when batchReadyTimeoutMs not in config", async () => {
-    const daemon = new SoulguardDaemon({
-      ops: createMockOps(),
-      config: baseConfig(),
-      workspaceRoot: "/workspace",
-    });
-    await daemon.start();
-    const pm = (daemon as any)._proposalManager;
-    expect(pm._batchReadyTimeoutMs).toBe(DEFAULT_BATCH_READY_TIMEOUT_MS);
-    await daemon.stop();
   });
 });

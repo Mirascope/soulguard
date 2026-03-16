@@ -14,7 +14,8 @@
   ],
   "scripts": {
     "build": "bun run --filter '*' build",
-    "test": "bun run --filter '*' test",
+    "test": "bun scripts/test-summary.ts",
+    "test:verbose": "bun run --filter '*' test",
     "test:integration": "bun run --filter '@soulguard/core' test:integration",
     "test:e2e": "cd packages/core && docker build -f test-e2e/Dockerfile -t soulguard-e2e ../.. && bun test-e2e/run.ts",
     "test:e2e:update": "cd packages/core && docker build -f test-e2e/Dockerfile -t soulguard-e2e ../.. && bun test-e2e/run.ts --update",

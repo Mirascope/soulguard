@@ -28,7 +28,7 @@ export type WatcherOptions = {
   debounceMs: number;
   /** Max wait (ms) for .wait-for-ready sentinel removal. */
   batchReadyTimeoutMs: number;
-  /** Polling interval (ms). Default: 1000. */
+  /** Polling interval (ms). Default: 2000. */
   pollIntervalMs?: number;
 };
 
@@ -58,7 +58,7 @@ export class StagingWatcher extends EventEmitter<WatcherEvents> {
     this._stagingDir = options.stagingDir;
     this._debounceMs = options.debounceMs;
     this._batchReadyTimeoutMs = options.batchReadyTimeoutMs;
-    this._pollIntervalMs = options.pollIntervalMs ?? 1000;
+    this._pollIntervalMs = options.pollIntervalMs ?? 2000;
   }
 
   get running(): boolean {
