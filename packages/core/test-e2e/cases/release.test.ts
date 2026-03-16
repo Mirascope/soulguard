@@ -6,7 +6,7 @@ e2e("release: restores default ownership and cleans staging", (t) => {
     exit 0
   `)
     .exits(0);
-  t.$(`sudo soulguard init --no-daemon .`)
+  t.$(`sudo soulguard init --no-daemon --non-interactive .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.

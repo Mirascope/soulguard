@@ -6,7 +6,7 @@ e2e("protect: sets correct ownership and permissions", (t) => {
       exit 0
     `)
     .exits(0);
-  t.$(`sudo soulguard init --no-daemon .`)
+  t.$(`sudo soulguard init --no-daemon --non-interactive .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -58,7 +58,7 @@ e2e("protect: blocks agent writes", (t) => {
     exit 0
   `)
     .exits(0);
-  t.$(`sudo soulguard init --no-daemon .`)
+  t.$(`sudo soulguard init --no-daemon --non-interactive .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.
@@ -102,7 +102,7 @@ e2e("protect: directory protection blocks new file creation", (t) => {
       exit 0
     `)
     .exits(0);
-  t.$(`sudo soulguard init --no-daemon .`)
+  t.$(`sudo soulguard init --no-daemon --non-interactive .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -153,7 +153,7 @@ e2e("protect: already protected file is no-op", (t) => {
     exit 0
   `)
     .exits(0);
-  t.$(`sudo soulguard init --no-daemon .`)
+  t.$(`sudo soulguard init --no-daemon --non-interactive .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.
@@ -179,7 +179,7 @@ e2e("protect: already protected file is no-op", (t) => {
 });
 
 e2e("protect: nonexistent file is created and protected", (t) => {
-  t.$(`sudo soulguard init --no-daemon .`)
+  t.$(`sudo soulguard init --no-daemon --non-interactive .`)
     .expect(`
     exit 0
     ✓ Soulguard initialized.
@@ -214,7 +214,7 @@ e2e("protect: nonexistent file is created and protected", (t) => {
 });
 
 e2e("protect: nonexistent directory is created and protected", (t) => {
-  t.$(`sudo soulguard init --no-daemon .`)
+  t.$(`sudo soulguard init --no-daemon --non-interactive .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
@@ -241,7 +241,7 @@ e2e("protect: nonexistent directory is created and protected", (t) => {
 });
 
 e2e("protect: nested nonexistent path creates parent dirs", (t) => {
-  t.$(`sudo soulguard init --no-daemon .`)
+  t.$(`sudo soulguard init --no-daemon --non-interactive .`)
     .expect(`
       exit 0
       ✓ Soulguard initialized.
