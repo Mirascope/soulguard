@@ -119,7 +119,6 @@ function createManager(
     ops,
     config: config ?? DEFAULT_CONFIG,
     channel,
-    workspaceRoot: WORKSPACE,
   });
 }
 
@@ -237,17 +236,14 @@ describe("ProposalManager", () => {
       ops,
       config: DEFAULT_CONFIG,
       channel: customChannel,
-      workspaceRoot: WORKSPACE,
     });
 
-    mgr.start();
-
+    // Use start() to let the poll trigger the proposal (no manual onStagingReady)
     const proposed = new Promise<void>((r) => mgr.once("proposed", () => r()));
-    const flow = mgr.onStagingReady();
+    mgr.start();
     await proposed;
 
     await mgr.stop();
-    await flow.catch(() => {});
 
     expect(abortFired).toBe(true);
   });
@@ -300,18 +296,6 @@ describe("ProposalManager", () => {
     expect(errors.length).toBeGreaterThan(0);
   });
 
-  // ── Description ────────────────────────────────────────────────────
-
-  test("includes .description in ProposalPayload", async () => {
-    ops.addFile(".soulguard-staging/.description", "Updated SOUL.md");
-    channel.waitBehavior = { kind: "approve" };
-    const mgr = createManager(ops, channel);
-
-    await mgr.onStagingReady();
-
-    expect(channel.proposals[0]!.description).toBe("Updated SOUL.md");
-  });
-
   // ── Empty diff ─────────────────────────────────────────────────────
 
   test("does not post proposal when staging has no actual changes", async () => {
@@ -330,17 +314,14 @@ describe("ProposalManager", () => {
     channel.waitBehavior = { kind: "hang" };
     const mgr = createManager(ops, channel);
 
-    // start() so that stop() doesn't early-return due to !_running
-    mgr.start();
-
+    // Use start() to let the poll trigger the proposal (no manual onStagingReady)
     const proposed = new Promise<void>((r) => mgr.once("proposed", () => r()));
-    const flow = mgr.onStagingReady();
+    mgr.start();
     await proposed;
 
     expect(mgr.activeProposal).not.toBeNull();
 
     await mgr.stop();
-    await flow.catch(() => {});
 
     expect(mgr.activeProposal).toBeNull();
   });

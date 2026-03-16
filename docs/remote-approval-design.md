@@ -8,7 +8,7 @@ Different teams also use different communication tools — Discord, Slack, Whats
 
 ## Solution
 
-A channel-agnostic remote approval daemon that lives in `@soulguard/core`. The daemon watches `.soulguard-staging/` for changes, manages proposal lifecycle, and delegates the actual notification + approval transport to an `ApprovalChannel` plugin. Discord is the first channel implementation, packaged as `@soulguard/discord`.
+A channel-agnostic remote approval daemon that lives in `@soulguard/core`. The daemon polls for staging changes via `StateTree` hash comparison, manages proposal lifecycle, and delegates the actual notification + approval transport to an `ApprovalChannel` plugin. Discord is the first channel implementation, packaged as `@soulguard/discord`.
 
 ## Architecture
 
@@ -21,11 +21,10 @@ Agent process (uid=agent_a)
 
 Daemon process (uid=soulguardian_agent_a)        [@soulguard/core daemon]
 │
-│  Watcher ─── polls .soulguard-staging/ for changes
-│  Proposal Manager ─── state machine, consumes diff() + apply()
+│  ProposalManager ─── polls StateTree hash, debounces, manages lifecycle
 │     │
-│     ├── ApprovalChannel.postProposal(diff, hash)
-│     ├── ApprovalChannel.waitForApproval(id)
+│     ├── ApprovalChannel.postProposal({ files, hash })
+│     ├── ApprovalChannel.waitForApproval(id, signal)
 │     │      ← human approves via channel
 │     ├── apply(tree, hash)
 │     └── ApprovalChannel.postResult(id, "applied")
@@ -39,18 +38,16 @@ Daemon process (uid=soulguardian_agent_a)        [@soulguard/core daemon]
 
 - **Runs as soulguardian\_\<agent\>** — the daemon doesn't need sudo, it already has write access to protected files as the guardian user
 - **Systemd/launchd service** — `soulguard init` installs a systemd unit (Linux) or launchd plist (macOS) per agent
-- **Filesystem polling** — watches `.soulguard-staging/` for changes, no IPC needed between agent and daemon
+- **StateTree hash polling** — polls `StateTree.build()` to compute an approval hash, compares against the last proposed hash to detect changes. No filesystem watcher or IPC needed.
 - **Channel-agnostic core** — all polling and lifecycle logic lives in `@soulguard/core`. Channel plugins only handle transport.
 
-### Core daemon
+### Proposal Manager
 
-The daemon has two components:
+The `ProposalManager` is the single component that handles both change detection and proposal lifecycle:
 
-**Watcher** — Polls `.soulguard-staging/` at a fixed interval. When a change is detected (new, modified, or removed staging entries), it waits for a configurable debounce period (default 3s) after the last write before creating a proposal. This handles the common case where agents stage multiple files in rapid succession.
+**Change detection** — Polls `StateTree.build()` at a fixed interval (default 2s) and compares the resulting `approvalHash` against the last proposed hash. When a new hash is detected, a proposal is created immediately. While a proposal is in flight (being posted to the channel or awaiting approval), new polls are suppressed to prevent duplicate proposals.
 
-The agent can opt into **batch mode** by writing a `.soulguard-staging/.wait-for-ready` sentinel. While this file exists, the daemon suppresses proposal creation regardless of debounce. The agent removes the sentinel to signal the batch is complete and trigger a proposal. A safety timeout (default 5 minutes) prevents a crashed agent from blocking proposals indefinitely — if the sentinel isn't removed within the timeout, the daemon logs a warning and proposes the current staging state anyway.
-
-**Proposal Manager** — State machine for proposal lifecycle:
+**Proposal lifecycle** — State machine for each proposal:
 
 ```
               ┌─── approved   ──→ apply(tree, hash) ──→ postResult("applied")
@@ -61,34 +58,33 @@ pending ──────┤─── rejected   ──→ postResult("rejected
 ```
 
 - Builds a `StateTree` snapshot + computes diff and approval hash at proposal creation time
-- On approval: calls `apply()` with the snapshotted tree and hash
-- Only one proposal is active at a time. New staging changes while a proposal is pending supersede it (cancel old, create new) — this is the natural staleness mechanism, no wall-clock timeout needed.
+- On approval: re-builds a fresh `StateTree`, verifies the hash hasn't drifted, then calls `apply()`. If the hash changed between proposal and approval, the proposal is rejected.
+- Only one proposal is active at a time. New staging changes while a proposal is pending supersede it (abort the old `waitForApproval` via `AbortSignal`, create new) — this is the natural staleness mechanism, no wall-clock timeout needed.
 
 ### ApprovalChannel interface
 
 ```typescript
 interface ApprovalChannel {
-  postProposal(proposal: { diff: string; hash: string; description?: string }): Promise<string>; // returns channel-specific proposal ID
+  readonly name: string;
 
-  waitForApproval(proposalId: string): Promise<{
-    approved: boolean;
-    approver: string;
-  }>;
+  postProposal(proposal: ProposalPayload): Promise<PostProposalResult>;
 
-  postResult(proposalId: string, result: "applied" | "rejected" | "superseded"): Promise<boolean>;
+  waitForApproval(proposalId: string, signal: AbortSignal): Promise<ApprovalResult>;
+
+  postResult(proposalId: string, result: ProposalOutcome): Promise<PostResultOutcome>;
 
   dispose(): Promise<void>;
 }
 ```
 
-- **`postProposal`** — The channel posts the diff to its platform and returns a channel-specific ID (e.g., Discord message ID, Slack message timestamp). The daemon tracks this.
-- **`waitForApproval`** — Long-lived. Can block (polling) or use events (websocket/webhook). The interface is agnostic to the mechanism.
-- **`postResult`** — Best-effort confirmation (returns `boolean` for logging). If posting fails, the apply/reject has already happened.
+- **`postProposal`** — The channel posts the proposal (per-file diffs + hash) to its platform and returns a channel-specific ID (e.g., Discord message ID). The daemon tracks this.
+- **`waitForApproval`** — Long-lived. Can block (polling) or use events (websocket/webhook). Accepts an `AbortSignal` for cancellation on supersession. The interface is agnostic to the mechanism.
+- **`postResult`** — Best-effort confirmation. If posting fails, the apply/reject has already happened.
 - **`dispose`** — Cleanup: close connections, stop listeners.
 
-### Agent-provided description
+### Channel registration
 
-The agent can write a description to `.soulguard-staging/.description`. The daemon reads this and passes it as `description` in the `postProposal` call. How it's displayed is up to the channel implementation. This is purely informational — the hash is what matters for security.
+Channel plugins are registered at process startup via `registerChannel(name, factory)`. The registry uses `globalThis` because `@soulguard/core` ships as two bundles (`index.js` and `cli/cli.js`) that don't share module-level state. The `soulguard` meta-package's entry point ([bin/soulguard.js](../packages/soulguard/bin/soulguard.js)) registers channels before dynamically importing the CLI.
 
 ## Config
 
@@ -106,8 +102,6 @@ All daemon and channel config lives in `soulguard.json` under a `"daemon"` key, 
   "git": true,
   "daemon": {
     "channel": "discord",
-    "debounceMs": 3000,
-    "batchReadyTimeoutMs": 300000,
     "discord": {
       "botToken": "...",
       "channelId": "123456789",
@@ -118,8 +112,6 @@ All daemon and channel config lives in `soulguard.json` under a `"daemon"` key, 
 ```
 
 - **`daemon.channel`** — Which `ApprovalChannel` implementation to use
-- **`daemon.debounceMs`** — Wait this long after the last staging write before creating a proposal
-- **`daemon.batchReadyTimeoutMs`** — Maximum time to wait for a `.wait-for-ready` sentinel to be removed before proposing anyway (default 300000 / 5 minutes)
 - **`daemon.<channel>`** — Channel-specific config block. Core validates daemon-level fields and passes through the channel block without interpretation.
 
 `soulguard.json` is always protected — the agent can't tamper with daemon or channel config.
@@ -130,10 +122,10 @@ All daemon and channel config lives in `soulguard.json` under a `"daemon"` key, 
 
 ### How it implements the interface
 
-- **`postProposal`** — Sends an embed to the configured channel with the diff summary, hash, and optional description. Returns the Discord message ID.
-- **`waitForApproval`** — Listens for emoji reactions (✅ / ❌) on the proposal message from approved user IDs.
-- **`postResult`** — Edits the original message or posts a follow-up with the outcome.
-- **`dispose`** — Disconnects the Discord client.
+- **`postProposal`** — Sends an embed to the configured channel with per-file diffs (as code-fenced diff blocks), file status labels, and the hash in the footer. Seeds the message with ✅ and ❌ reactions. Returns the Discord message ID. If the proposal exceeds Discord's embed limits (>25 files, diff too long, or total >6000 chars), posts a red "Proposal Too Large" embed instead and auto-rejects it.
+- **`waitForApproval`** — Listens for `messageReactionAdd` events. Filters by: correct message ID, not the bot itself, user ID in `approverUserIds`, and emoji is ✅ or ❌. Before resolving, performs defense-in-depth checks (edit detection + content verification). Respects the `AbortSignal` for supersession.
+- **`postResult`** — Edits the original embed to update title and color (green "Applied", red "Rejected", yellow "Superseded").
+- **`dispose`** — Clears tracked proposals, destroys the Discord client.
 
 ### Security model
 
@@ -143,13 +135,13 @@ The human's Discord user ID. Discord's auth model guarantees a bot token can onl
 
 #### Primary defense: content verification at approval time
 
-When the human reacts to approve, the channel implementation re-derives the canonical diff from the current staging state tree and verifies it matches the message content exactly (both diff text and hash). If they don't match — whether due to editing, message replacement, or state drift — the approval is rejected.
+When the human reacts to approve, the channel implementation verifies the message embed content matches the tracked proposal payload (footer hash matches, field count matches file count). If they don't match — whether due to editing, message replacement, or state drift — the approval is rejected.
 
-This single invariant covers multiple attack vectors: message editing, fake message posting, and staging changes between proposal and approval. The hash ensures the staging tree hasn't been modified; the content check ensures the human saw an accurate representation of what will be applied.
+The `ProposalManager` additionally re-builds a fresh `StateTree` on approval and verifies the `approvalHash` still matches the proposal's hash before calling `apply()`. This catches staging changes between proposal and approval.
 
 #### Defense in depth: edit detection
 
-As an early warning, the channel checks `edited_timestamp != null` on the proposal message. If edited, the proposal is immediately invalidated with a visible warning ("⚠️ This proposal was modified externally and has been invalidated") — catching tampering _before_ the human reacts, which is better UX than a silent rejection after approval.
+As an early warning, the channel checks `edited_timestamp != null` on the proposal message. If edited, the proposal is immediately invalidated with a visible warning ("⚠️ Proposal message was edited — approval invalidated") — catching tampering _before_ the human reacts, which is better UX than a silent rejection after approval.
 
 #### Reconnect behavior
 
@@ -192,9 +184,10 @@ To add a new approval channel (e.g., Slack):
 
 1. Create a new package (e.g., `@soulguard/slack`)
 2. Implement the `ApprovalChannel` interface
-3. Define the channel-specific config shape (validated by the channel, not core)
-4. Document channel-specific security considerations — each transport has its own threat model
-5. Users set `"channel": "slack"` in their `soulguard.json` daemon config and add the `"slack": { ... }` block
+3. Register it via `registerChannel("slack", createChannel)` in the meta-package entry point
+4. Define the channel-specific config shape (validated by the channel, not core)
+5. Document channel-specific security considerations — each transport has its own threat model
+6. Users set `"channel": "slack"` in their `soulguard.json` daemon config and add the `"slack": { ... }` block
 
 For example, a Slack implementation might use thread-based approval (proposal posted as a message, approve/reject via thread reply or emoji), with trust anchored to Slack workspace membership + user IDs.
 
@@ -203,11 +196,11 @@ For example, a Slack implementation might use thread-based approval (proposal po
 - **Multiple simultaneous channels** — Not in initial scope. Fine to add later, but not a pressing concern.
 - **Fallback when remote channel is unreachable** — The fallback is the existing `sudo soulguard apply` CLI workflow. The daemon is additive, not a replacement.
 - **Multi-party approval (N of M)** — Not in initial scope.
-- **Channel plugin discovery** — Convention-based dynamic import. The daemon resolves `"channel": "discord"` to `@soulguard/discord` via dynamic `import()`. The imported module must export a `createChannel(config)` function that returns an `ApprovalChannel`. If the package isn't installed, the daemon fails with a helpful message ("install @soulguard/discord to use the discord channel"). The `soulguard` meta-package bundles Discord as a default dependency so it works out of the box.
+- **Channel plugin discovery** — Registration-based. The `soulguard` meta-package registers channels at startup via `registerChannel()`. The registry uses `globalThis` for cross-bundle sharing. The `soulguard` meta-package bundles Discord as a default dependency so it works out of the box.
 
 ## Future work
 
-- **`sudo soulguard review <hash>`** — CLI command to review proposals that exceed channel display limits (e.g. Discord's embed size). This would be more conveient than running `soulguard diff` and `sudo soulguard apply`.
+- **`sudo soulguard review <hash>`** — CLI command to review proposals that exceed channel display limits (e.g. Discord's embed size). This would be more convenient than running `soulguard diff` and `sudo soulguard apply`.
 
 ## Open questions
 

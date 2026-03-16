@@ -201,18 +201,6 @@ describe("DiscordChannel", () => {
     expect(footerText).toContain("abc123hash");
   });
 
-  test("includes description in embed when provided", async () => {
-    const { channel, textChannel } = await createChannel();
-    const proposal = makeProposal({ description: "Fix the bug" });
-
-    await channel.postProposal(proposal);
-
-    const sentOpts = textChannel.send.mock.calls[0]![0];
-    const embed = sentOpts.embeds[0];
-    const desc = embed.data?.description ?? embed.description;
-    expect(desc).toBe("Fix the bug");
-  });
-
   test("accepts proposal with diff at exactly the field limit", async () => {
     const { channel, textChannel } = await createChannel();
     // MAX_DIFF_LENGTH = 1024 - 16 = 1008

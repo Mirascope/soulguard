@@ -24,8 +24,6 @@ export type ProposalPayload = {
   files: ProposalFile[];
   /** SHA-256 approval hash over the staged file contents. */
   hash: string;
-  /** Optional agent-provided description of the changes. */
-  description?: string;
 };
 
 /** Result from posting a proposal to a channel. */
