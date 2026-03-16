@@ -27,34 +27,15 @@ Soulguard has two protection tiers:
 npm install -g soulguard
 
 # Navigate to your agent workspace (e.g. ~/.openclaw)
-cd ~/my-agent-workspace
+cd ~/.openclaw
 
 # Initialize soulguard (creates system user, group, .soulguard/ directory)
 # soulguard.json is automatically protected — the agent can't tamper with the config
+# For OpenClaw workspaces, init offers protection templates and Discord daemon setup
 sudo soulguard init
-
-# Protect your core identity files
-sudo soulguard protect SOUL.md AGENTS.md
-
-# Watch operational files
-sudo soulguard watch memory/
 
 # Check status
 soulguard status
-```
-
-### Quick Start (OpenClaw)
-
-```bash
-npm install -g soulguard
-
-cd ~/.openclaw
-
-# Initialize with the default protection template
-sudo soulguard init
-
-# Apply a protection template (protects identity + config, watches memory + skills)
-# See "Protection Templates" below for available templates
 ```
 
 ## Basic Usage
@@ -198,7 +179,20 @@ Soulguard is configured via `soulguard.json` in the workspace root:
     "MEMORY.md": "watch",
     "memory/": "watch"
   },
-  "git": true
+  "git": true,
+  "defaultOwnership": {
+    "user": "myagent",
+    "group": "myagent",
+    "mode": "644"
+  },
+  "daemon": {
+    "channel": "discord",
+    "discord": {
+      "botToken": "YOUR_BOT_TOKEN",
+      "channelId": "123456789",
+      "approverUserIds": ["user1", "user2"]
+    }
+  }
 }
 ```
 
@@ -206,6 +200,13 @@ Soulguard is configured via `soulguard.json` in the workspace root:
 - **`guardian`** — Per-agent guardian system user (e.g. `"soulguardian_myagent"`). Set automatically by `soulguard init` based on the agent's OS username.
 - **`files`** — Map from file path or directory path to its protection tier (`"protect"` or `"watch"`). Paths are literal — no glob patterns.
 - **`git`** — Enable/disable auto-commits to soulguard's internal git repo (default: `true`)
+- **`defaultOwnership`** — Original file ownership captured at init time, used to restore files when released. Set automatically by `soulguard init`.
+- **`daemon`** — Remote approval daemon configuration. Omit to disable the daemon entirely.
+  - **`channel`** — Which approval channel to use (e.g. `"discord"`)
+  - **`[channelName]`** — Channel-specific config block, validated by the channel plugin. For Discord:
+    - **`botToken`** — Discord bot token
+    - **`channelId`** — Discord channel ID where proposals are posted
+    - **`approverUserIds`** — Array of Discord user IDs authorized to approve or reject proposals
 
 `soulguard.json` is always implicitly protected — it cannot be released or corrupted.
 
@@ -238,18 +239,60 @@ Soulguard maintains an internal git repository inside `.soulguard/` for audit tr
 
 All commits use author `SoulGuardian <soulguardian@soulguard.ai>`. Git operations are best-effort — failures never block core security operations. If the staging area has pre-existing staged changes, soulguard skips the commit to avoid absorbing unrelated work.
 
+## Approval Daemon
+
+The approval daemon enables remote human approval of changes to protected files — for example, via Discord. When running, the daemon watches the staging directory for new proposals and posts them to a configured approval channel, where authorized approvers can approve or reject with emoji reactions.
+
+### Approval flow
+
+```text
+1. Agent stages a change         →  soulguard stage SOUL.md && edits staging copy
+2. Daemon detects staging change →  polls .soulguard-staging/ for new diffs
+3. Daemon posts proposal         →  sends embed to Discord channel with diff + hash
+4. Human approves/rejects        →  ✅ or ❌ reaction from an authorized approver
+5. Daemon applies or discards    →  runs apply on approval, notifies channel of outcome
+```
+
+Only one proposal is active at a time. If the agent stages new changes while a proposal is pending, the old proposal is automatically superseded and a fresh one is posted.
+
+### Setup
+
+The daemon is configured during `soulguard init` when an OpenClaw workspace is detected. Init prompts for Discord bot token, channel ID, and approver user IDs, then writes the `daemon` config block to `soulguard.json` and installs a system service (systemd on Linux, launchd on macOS).
+
+You can also start the daemon manually in the foreground:
+
+```bash
+sudo soulguard daemon start
+```
+
+### Discord channel
+
+The Discord approval channel (`@soulguard/discord`) posts proposals as rich embeds with per-file diffs. Authorized approvers react with ✅ to approve or ❌ to reject. Defense-in-depth features include:
+
+- **Tamper detection** — verifies the proposal message wasn't edited after posting
+- **Content hash verification** — ensures the message content matches the expected proposal
+- **Size limit enforcement** — auto-rejects proposals that exceed Discord's embed limits (25 fields, 1024 chars/field, 6000 chars total)
+
+Outcome updates (applied, rejected, superseded) are posted by editing the original message.
+
 ## CLI Reference
 
 ### Requires sudo
 
-| Command                                          | Description                                                                     |
-| ------------------------------------------------ | ------------------------------------------------------------------------------- |
-| `sudo soulguard init [dir]`                      | One-time setup — creates per-agent guardian user/group, `.soulguard/` directory |
-| `sudo soulguard protect <paths...>`              | Add files or directories to the protect tier                                    |
-| `sudo soulguard watch <paths...>`                | Add files or directories to the watch tier                                      |
-| `sudo soulguard release <paths...>`              | Remove files or directories from all protection tiers                           |
-| `sudo soulguard apply [dir] [-y\|--hash <hash>]` | Apply staged changes to protected files                                         |
-| `sudo soulguard sync [dir]`                      | Fix ownership/permission drift and commit all tracked files                     |
+| Command                                          | Description                                                   |
+| ------------------------------------------------ | ------------------------------------------------------------- |
+| `sudo soulguard init [dir]`                      | One-time setup: guardian user/group, templates, daemon config |
+| `sudo soulguard protect <paths...>`              | Add files or directories to the protect tier                  |
+| `sudo soulguard watch <paths...>`                | Add files or directories to the watch tier                    |
+| `sudo soulguard release <paths...>`              | Remove files or directories from all protection tiers         |
+| `sudo soulguard apply [dir] [-y\|--hash <hash>]` | Apply staged changes to protected files                       |
+| `sudo soulguard sync [dir]`                      | Fix ownership/permission drift and commit all tracked files   |
+| `sudo soulguard daemon start [dir]`              | Start the approval daemon in the foreground (systemd/launchd) |
+
+**Init flags:**
+
+- `--non-interactive`: Skip all interactive prompts (template picker, daemon setup)
+- `--no-daemon`: Skip daemon service installation
 
 **Apply modes:**
 
@@ -259,12 +302,14 @@ All commits use author `SoulGuardian <soulguardian@soulguard.ai>`. Git operation
 
 ### No sudo required
 
-| Command                           | Description                                                                  |
-| --------------------------------- | ---------------------------------------------------------------------------- |
-| `soulguard status [dir]`          | Report protect and watch file health (ownership, permissions, missing files) |
-| `soulguard stage <paths...>`      | Stage protected files for editing or deletion (use -d flag for deletion)     |
-| `soulguard diff [dir] [files...]` | Show pending changes as unified diff + approval hash                         |
-| `soulguard reset [paths...] [-a]` | List, selectively reset, or clear all staged changes                         |
+| Command                             | Description                                                                   |
+| ----------------------------------- | ----------------------------------------------------------------------------- |
+| `soulguard status [dir]`            | Report protect and watch file health (ownership, permissions, missing files)  |
+| `soulguard stage <paths...>`        | Stage protected files for editing or deletion (use `-d` flag for deletion)    |
+| `soulguard diff [dir] [files...]`   | Show pending changes as unified diff + approval hash                          |
+| `soulguard reset [paths...] [-a]`   | List, selectively reset, or clear all staged changes                          |
+| `soulguard log [dir] [file]`        | Show git history from soulguard's internal repo (optionally filtered by file) |
+| `soulguard install-plugin <plugin>` | Install a soulguard plugin into the workspace (e.g. `openclaw`)               |
 
 **Exit codes:** `diff` and `status` exit with code 1 when changes or drifts are found (like `git diff`), not just on errors.
 
@@ -316,11 +361,12 @@ workspace/
 
 ## Packages
 
-| Package                                     | Description                                                         |
-| ------------------------------------------- | ------------------------------------------------------------------- |
-| [`@soulguard/core`](packages/core/)         | Core library — protect, watch, apply workflow, CLI, git integration |
-| [`@soulguard/openclaw`](packages/openclaw/) | OpenClaw framework plugin — templates, tool interception            |
-| [`soulguard`](packages/soulguard/)          | Meta-package — installs core + CLI globally                         |
+| Package                                     | Description                                                                 |
+| ------------------------------------------- | --------------------------------------------------------------------------- |
+| [`@soulguard/core`](packages/core/)         | Core library — protect, watch, apply workflow, CLI, daemon, git integration |
+| [`@soulguard/openclaw`](packages/openclaw/) | OpenClaw framework plugin — templates, tool interception                    |
+| [`@soulguard/discord`](packages/discord/)   | Discord approval channel — posts proposals, collects emoji approvals        |
+| [`soulguard`](packages/soulguard/)          | Meta-package — installs core + CLI globally                                 |
 
 ## E2E Testing
 
