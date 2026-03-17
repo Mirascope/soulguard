@@ -51,10 +51,9 @@ export const templates: Record<TemplateName, Template> = {
       "workspace/HEARTBEAT.md",
       "workspace/BOOTSTRAP.md",
       "openclaw.json",
-      "cron/",
       "extensions/",
     ],
-    watch: ["workspace/MEMORY.md", "workspace/memory/", "workspace/skills/"],
+    watch: ["workspace/MEMORY.md", "workspace/memory/", "workspace/skills/", "cron/"],
     release: ["workspace/sessions/"],
   },
 
