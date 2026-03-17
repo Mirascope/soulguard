@@ -217,7 +217,8 @@ The OpenClaw plugin (`@soulguard/openclaw`) ships three templates that categoriz
 | Path                                                                                     | Relaxed | Default | Paranoid |
 | ---------------------------------------------------------------------------------------- | :-----: | :-----: | :------: |
 | `soulguard.json`                                                                         | protect | protect | protect  |
-| `openclaw.json`, `cron/jobs.json`                                                        |  watch  | protect | protect  |
+| `openclaw.json`                                                                          |  watch  | protect | protect  |
+| `cron/`                                                                                  |  watch  |  watch  | protect  |
 | `workspace/SOUL.md`, `workspace/AGENTS.md`, `workspace/IDENTITY.md`, `workspace/USER.md` |  watch  | protect | protect  |
 | `workspace/TOOLS.md`, `workspace/HEARTBEAT.md`, `workspace/BOOTSTRAP.md`                 |  watch  | protect | protect  |
 | `workspace/MEMORY.md`, `workspace/memory/`                                               |  watch  |  watch  | protect  |
