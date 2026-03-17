@@ -1,0 +1,64 @@
+---
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<div class:list={["bg-[#313338] rounded-lg overflow-hidden border border-[#3f4147]", className]}>
+  <!-- Message -->
+  <div class="px-4 py-3 flex gap-3">
+    <!-- Avatar -->
+    <div class="shrink-0 w-10 h-10 rounded-full overflow-hidden mt-0.5">
+      <img src="/images/sg-logo.png" alt="Selene" class="w-full h-full object-cover" />
+    </div>
+
+    <div class="min-w-0 flex-1">
+      <!-- Author line -->
+      <div class="flex items-center gap-2 mb-1">
+        <span class="font-semibold text-sm text-[#f0ebe3]">Selene</span>
+        <span class="text-[10px] font-medium bg-[#5865f2] text-white px-1 py-px rounded">APP</span>
+        <span class="text-xs text-[#949ba4]">Today at 7:01 PM</span>
+      </div>
+
+      <!-- Embed -->
+      <div class="bg-[#2b2d31] border-l-4 border-l-sg-amber rounded-r px-3 py-2.5 mt-1">
+        <div class="font-semibold text-[15px] text-[#f2f3f5] mb-1.5">Soulguard Proposal</div>
+        <div class="text-sm text-[#dbdee1] mb-2.5">modified workspace/SOUL.md</div>
+
+        <!-- Diff block -->
+        <div class="bg-[#1e1f22] rounded text-xs font-mono p-3 leading-relaxed overflow-x-auto">
+          <div class="text-[#949ba4]">--- a/workspace/SOUL.md</div>
+          <div class="text-[#949ba4]">+++ b/workspace/SOUL.md</div>
+          <div class="text-[#5865f2]">@@ -33,8 +33,9 @@</div>
+          <div class="mt-1"></div>
+          <div class="text-[#dbdee1]">&nbsp; ## Preferences</div>
+          <div class="mt-1"></div>
+          <div class="text-[#dbdee1]">&nbsp; - **Favorite color:** Deep amber</div>
+          <div class="text-[#57ab5a] bg-[#1a3a2a] -mx-3 px-3">+ - **Secret weakness:** Naming things well.</div>
+          <div class="mt-1"></div>
+          <div class="text-[#dbdee1]">&nbsp; ## Vibe</div>
+        </div>
+
+        <!-- Hash -->
+        <div class="text-[10px] text-[#949ba4] mt-2 font-mono">Hash: 5517b436eb5b7dcc64edde54163c469ab7ef03af</div>
+      </div>
+
+      <!-- Reactions -->
+      <div class="flex items-center gap-1.5 mt-2">
+        <div class="flex items-center gap-1 bg-[#2b2d31] border border-[#3f4147] rounded-full px-2 py-0.5 text-xs">
+          <span>&#x2705;</span>
+          <span class="text-[#dbdee1]">1</span>
+        </div>
+        <div class="flex items-center gap-1 bg-[#2b2d31] border border-[#3f4147] rounded-full px-2 py-0.5 text-xs">
+          <span>&#x274C;</span>
+          <span class="text-[#dbdee1]">1</span>
+        </div>
+        <div class="flex items-center gap-1 bg-[#2b2d31] border border-[#3f4147] rounded-full px-2 py-0.5 text-xs">
+          <span>&#x1F603;</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
