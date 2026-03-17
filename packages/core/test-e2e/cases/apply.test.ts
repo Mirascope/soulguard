@@ -32,7 +32,7 @@ e2e("apply: applies staged changes with -y", (t) => {
   t.$(`soulguard stage SOUL.md`)
     .expect(`
       exit 0
-        📝 SOUL.md (staged for editing)
+        📝 SOUL.md → .soulguard-staging/SOUL.md
 
       Staged 1 file(s).
     `)
@@ -151,7 +151,7 @@ e2e("apply: applies modified file inside protected directory", (t) => {
   t.$(`soulguard stage memories/today.md`)
     .expect(`
       exit 0
-        📝 memories/today.md (staged for editing)
+        📝 memories/today.md → .soulguard-staging/memories/today.md
 
       Staged 1 file(s).
     `)
@@ -216,7 +216,7 @@ e2e("apply: verifies hash with --hash flag", (t) => {
   t.$(`soulguard stage SOUL.md`)
     .expect(`
       exit 0
-        📝 SOUL.md (staged for editing)
+        📝 SOUL.md → .soulguard-staging/SOUL.md
 
       Staged 1 file(s).
     `)
@@ -269,7 +269,7 @@ e2e("apply: rejects with wrong hash", (t) => {
   t.$(`soulguard stage SOUL.md`)
     .expect(`
       exit 0
-        📝 SOUL.md (staged for editing)
+        📝 SOUL.md → .soulguard-staging/SOUL.md
 
       Staged 1 file(s).
     `)

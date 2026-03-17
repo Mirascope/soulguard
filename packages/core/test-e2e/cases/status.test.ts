@@ -134,7 +134,7 @@ e2e("status: shows staged change indicators", (t) => {
   t.$(`soulguard stage SOUL.md`)
     .expect(`
       exit 0
-        📝 SOUL.md (staged for editing)
+        📝 SOUL.md → .soulguard-staging/SOUL.md
 
       Staged 1 file(s).
     `)
@@ -231,7 +231,7 @@ e2e("status: shows new file in protected directory as created", (t) => {
   t.$(`soulguard stage skills/rust.md`)
     .expect(`
       exit 0
-        📝 skills/rust.md (staged for editing)
+        📝 skills/rust.md → .soulguard-staging/skills/rust.md
 
       Staged 1 file(s).
     `)

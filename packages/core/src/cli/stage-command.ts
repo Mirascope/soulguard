@@ -6,6 +6,7 @@ import type { ConsoleOutput } from "../util/console.js";
 import type { SystemOperations } from "../util/system-ops.js";
 import type { SoulguardConfig } from "../util/types.js";
 import { stage } from "../sdk/stage.js";
+import { stagingPath } from "../sdk/staging.js";
 
 export type StageCommandOptions = {
   ops: SystemOperations;
@@ -64,10 +65,11 @@ export class StageCommand {
     }
 
     for (const { path, action } of allStagedFiles) {
+      const staged = stagingPath(path);
       if (action === "delete") {
         this.out.success(`  🗑️  ${path} (staged for deletion)`);
       } else {
-        this.out.success(`  📝 ${path} (staged for editing)`);
+        this.out.success(`  📝 ${path} → ${staged}`);
       }
     }
 
