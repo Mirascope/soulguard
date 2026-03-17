@@ -34,8 +34,8 @@ cd ~/.openclaw
 # For OpenClaw workspaces, init offers protection templates and Discord daemon setup
 sudo soulguard init
 
-# Check status
-soulguard status
+# Run the soulguard daemon (if configured)
+sudo soulguard daemon start
 ```
 
 ## Basic Usage
