@@ -3,25 +3,28 @@ import Layout from '../layouts/Layout.astro';
 import Section from '../components/Section.astro';
 import Terminal from '../components/Terminal.astro';
 import Card from '../components/Card.astro';
+import DiscordMessage from '../components/DiscordMessage.astro';
 
 const c = (cls: string) => `<span class="${cls}">`;
 const s = `</span>`;
 const comment = (t: string) => `${c("text-sg-muted")}${t}${s}`;
 const $ = `${c("text-sg-green")}$${s}`;
 
-const reviewCode = [
-  `${comment("# Agent proposes a change")}`,
+const stageCode = [
+  `${comment("# Agent stages a file for edits")}`,
   `${$} soulguard stage SOUL.md`,
   ``,
   `${comment("# Agent writes to the staging copy")}`,
-  `${$} echo "Updated soul" > .soulguard-staging/SOUL.md`,
-  ``,
-  `${comment("# You review the diff")}`,
+  `${$} echo "I love spaghetti" > .soulguard-staging/SOUL.md`,
+].join("\n");
+
+const approveCliCode = [
+  `${comment("# Review the diff")}`,
   `${$} soulguard diff`,
   `${c("text-sg-accent")}--- protected/SOUL.md${s}`,
   `${c("text-sg-green")}+++ staged/SOUL.md${s}`,
   ``,
-  `${comment("# You approve")}`,
+  `${comment("# You can use the `apply` command to manually approve changes")}`,
   `${$} sudo soulguard apply`,
 ].join("\n");
 
@@ -32,17 +35,12 @@ const quickstartCode = [
   `${comment("# Navigate to your agent workspace")}`,
   `${$} cd ~/.openclaw`,
   ``,
-  `${comment("# Initialize the guardian")}`,
+  `${comment("# Interactively initialize SoulGuard")}`,
   `${$} sudo soulguard init`,
   ``,
-  `${comment("# Protect core identity files")}`,
-  `${$} sudo soulguard protect SOUL.md AGENTS.md`,
+  `${comment("Start the Discord daemon")}`,
+  `${$} sudo soulguard daemon start`,
   ``,
-  `${comment("# Track operational files")}`,
-  `${$} sudo soulguard watch memory/`,
-  ``,
-  `${comment("# Check everything is good")}`,
-  `${$} soulguard status`,
 ].join("\n");
 ---
 
@@ -185,7 +183,21 @@ const quickstartCode = [
         When your agent wants to update a protected file, it proposes changes through staging —
         just like a pull request. You review the diff, and approve when you're ready.
       </p>
-      <Terminal code={reviewCode} />
+
+      <div class="space-y-8">
+        <div>
+          <h3 class="text-sm font-medium text-sg-warm-muted mb-3 font-mono">1. Agent proposes a change</h3>
+          <Terminal code={stageCode} />
+        </div>
+        <div>
+          <h3 class="text-sm font-medium text-sg-warm-muted mb-3 font-mono">2. You approve via Discord...</h3>
+          <DiscordMessage />
+        </div>
+        <div>
+          <h3 class="text-sm font-medium text-sg-warm-muted mb-3 font-mono">2. ...or via CLI</h3>
+          <Terminal code={approveCliCode} />
+        </div>
+      </div>
     </Section>
 
     <!-- Quick start -->
@@ -200,6 +212,7 @@ const quickstartCode = [
       <p class="text-sg-ivory/80 mb-8 leading-relaxed">
         The OpenClaw plugin ships three templates so you can choose the right balance
         of autonomy and oversight for your agent.
+        You can choose a template when running `sudo soulguard init` inside an OpenClaw directory.
       </p>
       <div class="bg-sg-card border border-sg-border rounded-lg overflow-hidden">
         <div class="overflow-x-auto">
