@@ -5,7 +5,7 @@
  * constructs its own client (no injection).
  */
 
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { describe, test, expect, mock } from "bun:test";
 import { EventEmitter } from "events";
 import { parseDiscordConfig } from "./config.js";
 
@@ -161,6 +161,16 @@ function makeReaction(
   };
 }
 
+/** Embeds for attachment-mode proposals (summary with "Files Changed" field). */
+function makeAttachmentEmbeds(hash: string, _fileCount: number) {
+  return [
+    {
+      footer: { text: `Hash: ${hash}` },
+      fields: [{ name: "Files Changed", value: "• ..." }],
+    },
+  ];
+}
+
 async function createChannel(configOverrides?: Partial<typeof DEFAULT_CONFIG>) {
   const config = { ...DEFAULT_CONFIG, ...configOverrides };
   const textChannel = new MockTextChannel(config.channelId, "msg-1");
@@ -216,7 +226,7 @@ describe("DiscordChannel", () => {
     expect(title).toContain("Soulguard Proposal");
   });
 
-  test("auto-rejects proposal when a file diff exceeds field limit", async () => {
+  test("uses file attachment when a file diff exceeds field limit", async () => {
     const { channel, textChannel } = await createChannel();
     // 1009 chars = 1 over MAX_DIFF_LENGTH
     const proposal = makeProposal({
@@ -228,15 +238,119 @@ describe("DiscordChannel", () => {
     const sentOpts = textChannel.send.mock.calls[0]![0];
     const embed = sentOpts.embeds[0];
     const title = embed.data?.title ?? embed.title;
-    expect(title).toContain("Too Large");
+    // Should be a normal proposal title, not "Too Large"
+    expect(title).toContain("Soulguard Proposal");
+    expect(title).not.toContain("Too Large");
 
-    const desc = embed.data?.description ?? embed.description;
-    expect(desc).toContain("big.ts");
+    // Should include a files array with the diff attachment
+    expect(sentOpts.files).toBeDefined();
+    expect(sentOpts.files.length).toBe(1);
+    expect(sentOpts.files[0].name).toContain("proposal-");
+    expect(sentOpts.files[0].name).toEndWith(".diff");
+
+    // Should have reactions (not auto-rejected)
+    const msg = await textChannel.messages.fetch(proposalId);
+    expect(msg.react).toHaveBeenCalledTimes(2);
+  });
+
+  test("uses file attachment for proposal with >25 files", async () => {
+    const { channel, textChannel } = await createChannel();
+    const files = Array.from({ length: 26 }, (_, i) => ({
+      path: `src/file${i}.ts`,
+      status: "modified" as const,
+      diff: `- old${i}\n+ new${i}`,
+    }));
+    const proposal = makeProposal({ files });
+
+    const { proposalId } = await channel.postProposal(proposal);
+
+    const sentOpts = textChannel.send.mock.calls[0]![0];
+    const embed = sentOpts.embeds[0];
+    const title = embed.data?.title ?? embed.title;
+    expect(title).toContain("Soulguard Proposal");
+    expect(title).not.toContain("Too Large");
+
+    // Should include file attachment
+    expect(sentOpts.files).toBeDefined();
+    expect(sentOpts.files.length).toBe(1);
+
+    // Should have reactions
+    const msg = await textChannel.messages.fetch(proposalId);
+    expect(msg.react).toHaveBeenCalledTimes(2);
+  });
+
+  test("uses file attachment for proposal exceeding total embed length", async () => {
+    const { channel, textChannel } = await createChannel();
+    // 10 files with 900-char diffs — total well over 6000
+    const files = Array.from({ length: 10 }, (_, i) => ({
+      path: `src/big${i}.ts`,
+      status: "modified" as const,
+      diff: "x".repeat(900),
+    }));
+    const proposal = makeProposal({ files });
+
+    const { proposalId } = await channel.postProposal(proposal);
+
+    const sentOpts = textChannel.send.mock.calls[0]![0];
+    const embed = sentOpts.embeds[0];
+    const title = embed.data?.title ?? embed.title;
+    expect(title).toContain("Soulguard Proposal");
+
+    // Should include file attachment
+    expect(sentOpts.files).toBeDefined();
+    expect(sentOpts.files.length).toBe(1);
+
+    // Should have reactions
+    const msg = await textChannel.messages.fetch(proposalId);
+    expect(msg.react).toHaveBeenCalledTimes(2);
+  });
+
+  test("attachment embed shows file summary with line counts", async () => {
+    const { channel, textChannel } = await createChannel();
+    const proposal = makeProposal({
+      files: [
+        { path: "a.ts", status: "modified", diff: "- old1\n- old2\n+ new1" },
+        { path: "b.ts", status: "created" as const, diff: "+ line1\n+ line2\n+ line3" },
+        ...Array.from({ length: 24 }, (_, i) => ({
+          path: `c${i}.ts`,
+          status: "modified" as const,
+          diff: `- x\n+ y`,
+        })),
+      ],
+    });
+
+    await channel.postProposal(proposal);
+
+    const sentOpts = textChannel.send.mock.calls[0]![0];
+    const embed = sentOpts.embeds[0];
+    // Find the "Files Changed" field
+    const fields = embed.data?.fields ?? embed.fields ?? [];
+    const filesField = fields.find((f: any) => (f.name ?? f.data?.name) === "Files Changed");
+    expect(filesField).toBeDefined();
+    const value = filesField.value ?? filesField.data?.value;
+    expect(value).toContain("a.ts");
+    expect(value).toContain("b.ts");
+  });
+
+  test("attachment-mode proposal can be approved normally", async () => {
+    const { channel, client } = await createChannel();
+    // Oversized diff triggers attachment mode
+    const proposal = makeProposal({
+      files: [{ path: "big.ts", status: "modified", diff: "x".repeat(1009) }],
+    });
+    const { proposalId } = await channel.postProposal(proposal);
 
     const ac = new AbortController();
-    const result = await channel.waitForApproval(proposalId, ac.signal);
-    expect(result.approved).toBe(false);
-    expect(result.approver).toBe("system");
+    // Embeds for attachment-mode: has hash in footer, single "Files Changed" field
+    const attachEmbeds = makeAttachmentEmbeds("abc123hash", 1);
+    const { reaction } = makeReaction(proposalId, "✅", null, attachEmbeds);
+
+    const promise = channel.waitForApproval(proposalId, ac.signal);
+    emitReactionSoon(client, reaction, { id: "user-1" });
+
+    const result = await promise;
+    expect(result.approved).toBe(true);
+    expect(result.approver).toBe("user-1");
   });
 
   test("resolves with approved=true on ✅ from approved user", async () => {
@@ -392,54 +506,6 @@ describe("DiscordChannel", () => {
     const result = await channel.postResult("nonexistent-msg", "applied");
     expect(result.ok).toBe(false);
     expect(result.error).toContain("Not found");
-  });
-
-  test("auto-rejects proposal with >25 files", async () => {
-    const { channel, textChannel } = await createChannel();
-    const files = Array.from({ length: 26 }, (_, i) => ({
-      path: `src/file${i}.ts`,
-      status: "modified" as const,
-      diff: `- old${i}\n+ new${i}`,
-    }));
-    const proposal = makeProposal({ files });
-
-    const { proposalId } = await channel.postProposal(proposal);
-
-    // Should have posted an error embed (no reaction emojis)
-    expect(textChannel.send).toHaveBeenCalledTimes(1);
-    const sentOpts = textChannel.send.mock.calls[0]![0];
-    const embed = sentOpts.embeds[0];
-    const title = embed.data?.title ?? embed.title;
-    expect(title).toContain("Too Large");
-
-    // waitForApproval should return immediately with approved=false
-    const ac = new AbortController();
-    const result = await channel.waitForApproval(proposalId, ac.signal);
-    expect(result.approved).toBe(false);
-    expect(result.approver).toBe("system");
-  });
-
-  test("auto-rejects proposal exceeding total embed length", async () => {
-    const { channel, textChannel } = await createChannel();
-    // 10 files with 900-char diffs — each field ~920 chars, total well over 6000
-    const files = Array.from({ length: 10 }, (_, i) => ({
-      path: `src/big${i}.ts`,
-      status: "modified" as const,
-      diff: "x".repeat(900),
-    }));
-    const proposal = makeProposal({ files });
-
-    const { proposalId } = await channel.postProposal(proposal);
-
-    const sentOpts = textChannel.send.mock.calls[0]![0];
-    const embed = sentOpts.embeds[0];
-    const title = embed.data?.title ?? embed.title;
-    expect(title).toContain("Too Large");
-
-    const ac = new AbortController();
-    const result = await channel.waitForApproval(proposalId, ac.signal);
-    expect(result.approved).toBe(false);
-    expect(result.approver).toBe("system");
   });
 
   test("disconnects Discord client", async () => {
