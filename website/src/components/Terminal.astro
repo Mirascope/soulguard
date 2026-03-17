@@ -1,0 +1,17 @@
+---
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<div class:list={["bg-sg-card border border-sg-border rounded-lg overflow-hidden", className]}>
+  <div class="flex items-center gap-2 px-4 py-2.5 border-b border-sg-border bg-sg-dark">
+    <div class="w-2.5 h-2.5 rounded-full bg-sg-accent/60"></div>
+    <div class="w-2.5 h-2.5 rounded-full bg-sg-amber/60"></div>
+    <div class="w-2.5 h-2.5 rounded-full bg-sg-green/60"></div>
+    <span class="ml-2 text-xs text-sg-muted font-mono">terminal</span>
+  </div>
+  <pre class="p-5 font-mono text-sm leading-relaxed overflow-x-auto"><code><slot /></code></pre>
+</div>
