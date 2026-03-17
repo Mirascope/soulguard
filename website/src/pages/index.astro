@@ -3,6 +3,47 @@ import Layout from '../layouts/Layout.astro';
 import Section from '../components/Section.astro';
 import Terminal from '../components/Terminal.astro';
 import Card from '../components/Card.astro';
+
+const c = (cls: string) => `<span class="${cls}">`;
+const s = `</span>`;
+const comment = (t: string) => `${c("text-sg-muted")}${t}${s}`;
+const $ = `${c("text-sg-green")}$${s}`;
+
+const reviewCode = [
+  `${comment("# Agent proposes a change")}`,
+  `${$} soulguard stage SOUL.md`,
+  ``,
+  `${comment("# Agent writes to the staging copy")}`,
+  `${$} echo "Updated soul" > .soulguard-staging/SOUL.md`,
+  ``,
+  `${comment("# You review the diff")}`,
+  `${$} soulguard diff`,
+  `${c("text-sg-accent")}--- protected/SOUL.md${s}`,
+  `${c("text-sg-green")}+++ staged/SOUL.md${s}`,
+  ``,
+  `${comment("# You approve")}`,
+  `${$} sudo soulguard apply`,
+].join("\n");
+
+const quickstartCode = [
+  `${comment("# Install globally")}`,
+  `${$} npm install -g soulguard`,
+  ``,
+  `${comment("# Navigate to your agent workspace")}`,
+  `${$} cd ~/.openclaw`,
+  ``,
+  `${comment("# Initialize the guardian")}`,
+  `${$} sudo soulguard init`,
+  ``,
+  `${comment("# Protect core identity files")}`,
+  `${$} sudo soulguard protect SOUL.md AGENTS.md`,
+  ``,
+  `${comment("# Track operational files")}`,
+  `${$} sudo soulguard watch memory/`,
+  ``,
+  `${comment("# Check everything is good")}`,
+  `${$} soulguard status`,
+].join("\n");
 ---
 
 <Layout title="SoulGuard — Identity protection for AI Agents">
@@ -144,41 +185,13 @@ import Card from '../components/Card.astro';
         When your agent wants to update a protected file, it proposes changes through staging —
         just like a pull request. You review the diff, and approve when you're ready.
       </p>
-      <Terminal><span class="text-sg-muted"># Agent proposes a change</span>
-<span class="text-sg-green">$</span> soulguard stage SOUL.md
-
-<span class="text-sg-muted"># Agent writes to the staging copy</span>
-<span class="text-sg-green">$</span> echo "Updated soul" > .soulguard-staging/SOUL.md
-
-<span class="text-sg-muted"># You review the diff</span>
-<span class="text-sg-green">$</span> soulguard diff
-<span class="text-sg-accent">--- protected/SOUL.md</span>
-<span class="text-sg-green">+++ staged/SOUL.md</span>
-
-<span class="text-sg-muted"># You approve</span>
-<span class="text-sg-green">$</span> sudo soulguard apply</Terminal>
+      <Terminal code={reviewCode} />
     </Section>
 
     <!-- Quick start -->
     <Section id="quick-start">
       <h2 class="font-display text-2xl font-bold text-sg-ivory mb-8">Get started in 60 seconds</h2>
-      <Terminal><span class="text-sg-muted"># Install globally</span>
-<span class="text-sg-green">$</span> npm install -g soulguard
-
-<span class="text-sg-muted"># Navigate to your agent workspace</span>
-<span class="text-sg-green">$</span> cd ~/.openclaw
-
-<span class="text-sg-muted"># Initialize the guardian</span>
-<span class="text-sg-green">$</span> sudo soulguard init
-
-<span class="text-sg-muted"># Protect core identity files</span>
-<span class="text-sg-green">$</span> sudo soulguard protect SOUL.md AGENTS.md
-
-<span class="text-sg-muted"># Track operational files</span>
-<span class="text-sg-green">$</span> sudo soulguard watch memory/
-
-<span class="text-sg-muted"># Check everything is good</span>
-<span class="text-sg-green">$</span> soulguard status</Terminal>
+      <Terminal code={quickstartCode} />
     </Section>
 
     <!-- Templates -->

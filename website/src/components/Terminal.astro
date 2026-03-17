@@ -1,9 +1,10 @@
 ---
 interface Props {
   class?: string;
+  code: string;
 }
 
-const { class: className } = Astro.props;
+const { class: className, code } = Astro.props;
 ---
 
 <div class:list={["bg-sg-card border border-sg-border rounded-lg overflow-hidden", className]}>
@@ -13,5 +14,5 @@ const { class: className } = Astro.props;
     <div class="w-2.5 h-2.5 rounded-full bg-sg-green/60"></div>
     <span class="ml-2 text-xs text-sg-muted font-mono">terminal</span>
   </div>
-  <pre class="p-5 font-mono text-sm leading-relaxed overflow-x-auto"><code><slot /></code></pre>
+  <pre class="p-5 font-mono text-sm leading-relaxed overflow-x-auto"><code set:html={code} /></pre>
 </div>
