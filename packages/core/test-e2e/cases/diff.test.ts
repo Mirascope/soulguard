@@ -30,7 +30,7 @@ e2e("diff: shows no changes for unmodified staging", (t) => {
   t.$(`soulguard stage SOUL.md`)
     .expect(`
       exit 0
-        📝 SOUL.md (staged for editing)
+        📝 SOUL.md → .soulguard-staging/SOUL.md
 
       Staged 1 file(s).
     `)
@@ -91,7 +91,7 @@ e2e("diff: shows unified diff for modified staging", (t) => {
   t.$(`soulguard stage SOUL.md`)
     .expect(`
       exit 0
-        📝 SOUL.md (staged for editing)
+        📝 SOUL.md → .soulguard-staging/SOUL.md
 
       Staged 1 file(s).
     `)
@@ -167,7 +167,7 @@ e2e("diff: shows new file when protected copy is missing", (t) => {
   t.$(`soulguard stage SOUL.md`)
     .expect(`
       exit 0
-        📝 SOUL.md (staged for editing)
+        📝 SOUL.md → .soulguard-staging/SOUL.md
 
       Staged 1 file(s).
     `)
@@ -250,8 +250,8 @@ e2e("diff: directory staged recursively with no changes shows clean", (t) => {
   t.$(`soulguard stage memory`)
     .expect(`
       exit 0
-        📝 memory/day1.md (staged for editing)
-        📝 memory/day2.md (staged for editing)
+        📝 memory/day1.md → .soulguard-staging/memory/day1.md
+        📝 memory/day2.md → .soulguard-staging/memory/day2.md
 
       Staged 2 file(s).
     `)
@@ -321,7 +321,7 @@ e2e("diff: directory staged recursively with modified file shows diff", (t) => {
   t.$(`soulguard stage memory`)
     .expect(`
       exit 0
-        📝 memory/day1.md (staged for editing)
+        📝 memory/day1.md → .soulguard-staging/memory/day1.md
 
       Staged 1 file(s).
     `)
@@ -406,12 +406,12 @@ e2e("diff: soulguard.json staged with no changes shows clean", (t) => {
   t.$(`soulguard stage soulguard.json`)
     .expect(`
       exit 0
-        📝 soulguard.json (staged for editing)
+        📝 soulguard.json → .soulguard-staging/soulguard.json
 
       Staged 1 file(s).
     `)
     .exits(0)
-    .outputs(/staged for editing/);
+    .outputs(/\.soulguard-staging\//);
 
   // Diff — staging copy is identical → no changes
   t.$(`soulguard diff .`)
@@ -476,12 +476,12 @@ e2e("diff: new file staged in protected directory shows new file diff", (t) => {
   t.$(`soulguard stage skills/new-skill.md`)
     .expect(`
       exit 0
-        📝 skills/new-skill.md (staged for editing)
+        📝 skills/new-skill.md → .soulguard-staging/skills/new-skill.md
 
       Staged 1 file(s).
     `)
     .exits(0)
-    .outputs(/staged for editing/);
+    .outputs(/\.soulguard-staging\//);
 
   // Write content into the new staged file
   t.$(`echo '# New Skill' > .soulguard-staging/skills/new-skill.md`)

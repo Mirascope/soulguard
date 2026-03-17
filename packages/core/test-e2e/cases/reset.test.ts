@@ -23,7 +23,7 @@ e2e("reset: dry run lists staged files", (t) => {
   t.$(`soulguard stage SOUL.md`)
     .expect(`
       exit 0
-        📝 SOUL.md (staged for editing)
+        📝 SOUL.md → .soulguard-staging/SOUL.md
 
       Staged 1 file(s).
     `)
@@ -72,7 +72,7 @@ e2e("reset: specific file removes staging copy", (t) => {
   t.$(`soulguard stage SOUL.md`)
     .expect(`
       exit 0
-        📝 SOUL.md (staged for editing)
+        📝 SOUL.md → .soulguard-staging/SOUL.md
 
       Staged 1 file(s).
     `)
@@ -119,7 +119,7 @@ e2e("reset: --all empties staging tree", (t) => {
   t.$(`soulguard stage SOUL.md`)
     .expect(`
       exit 0
-        📝 SOUL.md (staged for editing)
+        📝 SOUL.md → .soulguard-staging/SOUL.md
 
       Staged 1 file(s).
     `)
@@ -191,10 +191,10 @@ e2e("reset: selective reset keeps other staged files", (t) => {
   t.$(`soulguard stage SOUL.md && soulguard stage notes.md`)
     .expect(`
       exit 0
-        📝 SOUL.md (staged for editing)
+        📝 SOUL.md → .soulguard-staging/SOUL.md
 
       Staged 1 file(s).
-        📝 notes.md (staged for editing)
+        📝 notes.md → .soulguard-staging/notes.md
 
       Staged 1 file(s).
     `)

@@ -32,12 +32,12 @@ e2e("stage: stages a protected file for editing", (t) => {
   t.$(`soulguard stage SOUL.md`)
     .expect(`
       exit 0
-        📝 SOUL.md (staged for editing)
+        📝 SOUL.md → .soulguard-staging/SOUL.md
 
       Staged 1 file(s).
     `)
     .exits(0)
-    .outputs(/staged for editing/);
+    .outputs(/\.soulguard-staging\//);
 
   // Verify staging copy contains original content
   t.$(`cat .soulguard-staging/SOUL.md`)
@@ -75,7 +75,7 @@ e2e("stage: no-op when staging copy already exists", (t) => {
   t.$(`soulguard stage SOUL.md`)
     .expect(`
     exit 0
-      📝 SOUL.md (staged for editing)
+      📝 SOUL.md → .soulguard-staging/SOUL.md
 
     Staged 1 file(s).
   `)
@@ -271,12 +271,12 @@ e2e("stage: soulguard.json succeeds (always protected)", (t) => {
   t.$(`soulguard stage soulguard.json`)
     .expect(`
       exit 0
-        📝 soulguard.json (staged for editing)
+        📝 soulguard.json → .soulguard-staging/soulguard.json
 
       Staged 1 file(s).
     `)
     .exits(0)
-    .outputs(/staged for editing/);
+    .outputs(/\.soulguard-staging\//);
 
   // Verify staging copy exists with config content
   t.$(`cat .soulguard-staging/soulguard.json`)
@@ -327,12 +327,12 @@ e2e("stage: non-existent file in protected directory succeeds", (t) => {
   t.$(`soulguard stage skills/new-skill.md`)
     .expect(`
       exit 0
-        📝 skills/new-skill.md (staged for editing)
+        📝 skills/new-skill.md → .soulguard-staging/skills/new-skill.md
 
       Staged 1 file(s).
     `)
     .exits(0)
-    .outputs(/staged for editing/);
+    .outputs(/\.soulguard-staging\//);
 
   // Verify empty staging file was created
   t.$(`cat .soulguard-staging/skills/new-skill.md`)
@@ -368,12 +368,12 @@ e2e("stage: non-existent file at nested path in protected directory succeeds", (
   t.$(`soulguard stage skills/advanced/new-skill.md`)
     .expect(`
       exit 0
-        📝 skills/advanced/new-skill.md (staged for editing)
+        📝 skills/advanced/new-skill.md → .soulguard-staging/skills/advanced/new-skill.md
 
       Staged 1 file(s).
     `)
     .exits(0)
-    .outputs(/staged for editing/);
+    .outputs(/\.soulguard-staging\//);
 
   // Verify empty staging file with nested directories created
   t.$(`cat .soulguard-staging/skills/advanced/new-skill.md`)
@@ -412,8 +412,8 @@ e2e("stage: multiple files at once", (t) => {
   t.$(`soulguard stage SOUL.md GOALS.md`)
     .expect(`
       exit 0
-        📝 SOUL.md (staged for editing)
-        📝 GOALS.md (staged for editing)
+        📝 SOUL.md → .soulguard-staging/SOUL.md
+        📝 GOALS.md → .soulguard-staging/GOALS.md
 
       Staged 2 file(s).
     `)
@@ -462,8 +462,8 @@ e2e("stage: directory staging recursively stages all files", (t) => {
   t.$(`soulguard stage memory`)
     .expect(`
       exit 0
-        📝 memory/ideas.md (staged for editing)
-        📝 memory/notes.md (staged for editing)
+        📝 memory/ideas.md → .soulguard-staging/memory/ideas.md
+        📝 memory/notes.md → .soulguard-staging/memory/notes.md
 
       Staged 2 file(s).
     `)
@@ -569,12 +569,12 @@ e2e("stage: staging for edit after staging for delete overwrites sentinel", (t) 
   t.$(`soulguard stage SOUL.md`)
     .expect(`
       exit 0
-        📝 SOUL.md (staged for editing)
+        📝 SOUL.md → .soulguard-staging/SOUL.md
 
       Staged 1 file(s).
     `)
     .exits(0)
-    .outputs(/staged for editing/);
+    .outputs(/\.soulguard-staging\//);
 
   // Verify staging now contains actual file content (not sentinel)
   t.$(`cat .soulguard-staging/SOUL.md`)
@@ -612,7 +612,7 @@ e2e("stage: staging for delete after staging for edit overwrites with sentinel",
   t.$(`soulguard stage SOUL.md`)
     .expect(`
       exit 0
-        📝 SOUL.md (staged for editing)
+        📝 SOUL.md → .soulguard-staging/SOUL.md
 
       Staged 1 file(s).
     `)
