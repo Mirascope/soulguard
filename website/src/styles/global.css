@@ -13,6 +13,12 @@
   --color-sg-green: #4ade80;
   --color-sg-amber: #fbbf24;
 
+  /* Warm palette derived from the hero art */
+  --color-sg-gold: #c9a96e;
+  --color-sg-ivory: #f0ebe3;
+  --color-sg-warm-muted: #b8a890;
+
   --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
 }
