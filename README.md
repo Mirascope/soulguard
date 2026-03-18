@@ -306,6 +306,7 @@ Outcome updates (applied, rejected, superseded) are posted by editing the origin
 | Command                             | Description                                                                   |
 | ----------------------------------- | ----------------------------------------------------------------------------- |
 | `soulguard status [dir]`            | Report protect and watch file health (ownership, permissions, missing files)  |
+| `soulguard config [dir]`            | Print the resolved soulguard config as JSON                                   |
 | `soulguard stage <paths...>`        | Stage protected files for editing or deletion (use `-d` flag for deletion)    |
 | `soulguard diff [dir] [files...]`   | Show pending changes as unified diff + approval hash                          |
 | `soulguard reset [paths...] [-a]`   | List, selectively reset, or clear all staged changes                          |
@@ -315,6 +316,10 @@ Outcome updates (applied, rejected, superseded) are posted by editing the origin
 **Exit codes:** `diff` and `status` exit with code 1 when changes or drifts are found (like `git diff`), not just on errors.
 
 For OpenClaw agents, `[dir]` is the OpenClaw home directory (e.g. `~/.openclaw/`), which contains both framework config and the agent workspace. When omitted, defaults to the current working directory.
+
+### Environment Variables
+
+- **`SOULGUARD_CONFIG`** — When set, soulguard reads its config from this environment variable instead of from `soulguard.json` on disk. The value must be a valid JSON string matching the `soulguard.json` schema. This is useful for integrations where the config is stored externally (e.g. in a database) and the CLI is invoked programmatically. Use `soulguard config` to verify what config soulguard is resolving.
 
 ## How It Works
 
