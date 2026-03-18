@@ -18,7 +18,8 @@ const ownershipSchema = z.object({
 
 const daemonConfigSchema = z
   .object({
-    channel: z.string(),
+    channel: z.string().optional(),
+    syncIntervalSecs: z.number().int().nonnegative().optional(),
   })
   .passthrough(); // Allow channel-specific keys (e.g. "discord": { ... })
 
