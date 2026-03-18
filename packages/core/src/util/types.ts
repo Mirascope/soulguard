@@ -103,10 +103,12 @@ export { ok, err } from "./result.js";
 
 // ── Daemon config ──────────────────────────────────────────────────────
 
-/** Configuration for the remote approval daemon. */
+/** Configuration for the daemon (sync + optional approval channel). */
 export type DaemonConfig = {
-  /** Which ApprovalChannel implementation to use (e.g. "discord"). */
-  channel: string;
+  /** Which ApprovalChannel implementation to use (e.g. "discord"). Omit for sync-only mode. */
+  channel?: string;
+  /** How often the daemon runs sync, in seconds. Default: 60. Set to 0 to disable. */
+  syncIntervalSecs?: number;
   /** Channel-specific config block. Validated by the channel plugin, not core. */
   [channelName: string]: unknown;
 };

@@ -70,13 +70,44 @@ test("parses config without daemon block (opt-in)", () => {
   expect(config.daemon).toBeUndefined();
 });
 
-test("rejects daemon config without channel", () => {
+test("accepts daemon config without channel (sync-only)", () => {
+  const config = parseConfig({
+    version: 1,
+    guardian: "soulguardian_agent",
+    files: { "SOUL.md": "protect" },
+    daemon: {},
+  });
+  expect(config.daemon).toBeDefined();
+  expect(config.daemon!.channel).toBeUndefined();
+});
+
+test("parses daemon config with syncIntervalSecs", () => {
+  const config = parseConfig({
+    version: 1,
+    guardian: "soulguardian_agent",
+    files: { "SOUL.md": "protect" },
+    daemon: { channel: "discord", syncIntervalSecs: 120 },
+  });
+  expect(config.daemon!.syncIntervalSecs).toBe(120);
+});
+
+test("accepts syncIntervalSecs: 0 (disables sync)", () => {
+  const config = parseConfig({
+    version: 1,
+    guardian: "soulguardian_agent",
+    files: { "SOUL.md": "protect" },
+    daemon: { syncIntervalSecs: 0 },
+  });
+  expect(config.daemon!.syncIntervalSecs).toBe(0);
+});
+
+test("rejects negative syncIntervalSecs", () => {
   expect(() =>
     parseConfig({
       version: 1,
       guardian: "soulguardian_agent",
       files: { "SOUL.md": "protect" },
-      daemon: {},
+      daemon: { syncIntervalSecs: -5 },
     }),
   ).toThrow();
 });

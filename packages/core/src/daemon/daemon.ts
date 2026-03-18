@@ -1,15 +1,23 @@
 /**
  * SoulguardDaemon — top-level orchestrator.
  *
- * Loads channel plugin, creates proposal manager, starts polling.
- * The proposal manager handles everything: polling, debounce, proposals.
+ * Runs two independent loops:
+ *   1. Sync loop (always) — periodic drift-fix + git commit
+ *   2. Proposal loop (when a channel is configured) — staging → approval → apply
+ *
+ * All events (sync + proposal) are emitted on the daemon itself,
+ * so consumers only need to listen on one object.
  */
 
+import { EventEmitter } from "node:events";
 import type { SystemOperations } from "../util/system-ops.js";
 import type { SoulguardConfig } from "../util/types.js";
-import type { ApprovalChannel } from "./types.js";
+import type { ApprovalChannel, Proposal } from "./types.js";
 import { getChannel } from "./channel-registry.js";
 import { ProposalManager } from "./proposal-manager.js";
+import { StateTree } from "../sdk/state.js";
+import { sync } from "../sdk/sync.js";
+import type { SyncResult } from "../sdk/sync.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -18,17 +26,33 @@ export type DaemonOptions = {
   config: SoulguardConfig;
 };
 
+/** All events the daemon can emit. */
+export type DaemonEvents = {
+  // ── Sync events (emitted directly) ──
+  synced: [result: SyncResult];
+  "sync:error": [error: Error];
+  // ── Proposal events (forwarded from ProposalManager) ──
+  proposed: [proposal: Proposal];
+  applied: [proposal: Proposal];
+  rejected: [proposal: Proposal];
+  superseded: [proposal: Proposal];
+  "proposal:error": [error: Error, context: string];
+};
+
 // ── SoulguardDaemon ────────────────────────────────────────────────────
 
-export class SoulguardDaemon {
+export class SoulguardDaemon extends EventEmitter<DaemonEvents> {
   private readonly _ops: SystemOperations;
   private readonly _config: SoulguardConfig;
 
   private _channel: ApprovalChannel | null = null;
   private _proposalManager: ProposalManager | null = null;
+  private _syncTimer: ReturnType<typeof setInterval> | null = null;
+  private _syncRunning = false;
   private _running = false;
 
   constructor(options: DaemonOptions) {
+    super();
     this._ops = options.ops;
     this._config = options.config;
   }
@@ -49,39 +73,53 @@ export class SoulguardDaemon {
       throw new Error("Daemon configuration missing. Add a 'daemon' section to soulguard.json.");
     }
 
+    // ── Channel + ProposalManager (optional) ────────────────────────────
     const channelName = daemonConfig.channel;
-    console.log(
-      `[daemon] channel: "${channelName}", config keys: ${JSON.stringify(Object.keys(daemonConfig))}`,
-    );
+    if (channelName) {
+      const createChannelFn = getChannel(channelName);
+      if (!createChannelFn) {
+        throw new Error(
+          `No channel registered for "${channelName}". Register it with registerChannel() before starting the daemon.`,
+        );
+      }
 
-    const createChannelFn = getChannel(channelName);
-    if (!createChannelFn) {
-      throw new Error(
-        `No channel registered for "${channelName}". Register it with registerChannel() before starting the daemon.`,
-      );
+      const channelConfig = daemonConfig[channelName];
+      this._channel = createChannelFn(channelConfig);
+
+      this._proposalManager = new ProposalManager({
+        ops: this._ops,
+        config: this._config,
+        channel: this._channel,
+      });
+
+      // Forward all PM events through the daemon
+      this._proposalManager.on("proposed", (...args) => this.emit("proposed", ...args));
+      this._proposalManager.on("applied", (...args) => this.emit("applied", ...args));
+      this._proposalManager.on("rejected", (...args) => this.emit("rejected", ...args));
+      this._proposalManager.on("superseded", (...args) => this.emit("superseded", ...args));
+      this._proposalManager.on("error", (...args) => this.emit("proposal:error", ...args));
+
+      this._proposalManager.start();
     }
 
-    const channelConfig = daemonConfig[channelName];
-    console.log(
-      `[daemon] channelConfig present: ${!!channelConfig}, keys: ${channelConfig ? JSON.stringify(Object.keys(channelConfig as Record<string, unknown>)) : "n/a"}`,
-    );
-    this._channel = createChannelFn(channelConfig);
-    console.log(`[daemon] channel created: ${this._channel.name}`);
+    // ── Sync loop (unless explicitly disabled with syncIntervalSecs: 0) ─
+    const syncIntervalSecs = daemonConfig.syncIntervalSecs ?? 60;
+    if (syncIntervalSecs > 0) {
+      this._runSync(); // immediate first run
+      this._syncTimer = setInterval(() => this._runSync(), syncIntervalSecs * 1000);
+    }
 
-    this._proposalManager = new ProposalManager({
-      ops: this._ops,
-      config: this._config,
-      channel: this._channel,
-    });
-
-    console.log(`[daemon] starting proposal manager`);
-    this._proposalManager.start();
     this._running = true;
   }
 
   async stop(): Promise<void> {
     if (!this._running) return;
     this._running = false;
+
+    if (this._syncTimer) {
+      clearInterval(this._syncTimer);
+      this._syncTimer = null;
+    }
 
     if (this._proposalManager) {
       await this._proposalManager.stop();
@@ -91,6 +129,37 @@ export class SoulguardDaemon {
     if (this._channel) {
       await this._channel.dispose();
       this._channel = null;
+    }
+  }
+
+  // ── Private ─────────────────────────────────────────────────────────
+
+  private async _runSync(): Promise<void> {
+    if (this._syncRunning) return; // skip if previous run still in progress
+    this._syncRunning = true;
+    try {
+      const treeResult = await StateTree.build({
+        ops: this._ops,
+        config: this._config,
+      });
+      if (!treeResult.ok) {
+        this.emit("sync:error", new Error(`StateTree.build failed: ${treeResult.error.message}`));
+        return;
+      }
+      const syncResult = await sync({
+        tree: treeResult.value,
+        ops: this._ops,
+        config: this._config,
+      });
+      if (!syncResult.ok) {
+        this.emit("sync:error", new Error(`sync failed: ${syncResult.error.message}`));
+        return;
+      }
+      this.emit("synced", syncResult.value);
+    } catch (e) {
+      this.emit("sync:error", e instanceof Error ? e : new Error(String(e)));
+    } finally {
+      this._syncRunning = false;
     }
   }
 }
