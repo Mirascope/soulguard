@@ -23,23 +23,28 @@ import { DaemonCommand } from "./daemon-command.js";
 import { runInitPrompts } from "./init-prompts.js";
 import { NodeSystemOps } from "../util/system-ops-node.js";
 import { parseConfig } from "../sdk/schema.js";
+import type { SoulguardConfig } from "../util/types.js";
 import { StateTree } from "../sdk/state.js";
 
-async function makeBaseOptions(workspace: string) {
-  const ops = new NodeSystemOps(resolve(workspace));
+async function resolveConfig(workspace: string): Promise<SoulguardConfig> {
+  const envConfig = process.env.SOULGUARD_CONFIG;
+  if (envConfig) {
+    return parseConfig(JSON.parse(envConfig));
+  }
   const configPath = resolve(workspace, "soulguard.json");
-
   let raw: string;
   try {
     raw = await readFile(configPath, "utf-8");
   } catch {
     throw new Error(`No soulguard.json found in ${workspace}`);
   }
+  return parseConfig(JSON.parse(raw));
+}
 
-  const config = parseConfig(JSON.parse(raw));
-
+async function makeBaseOptions(workspace: string) {
+  const ops = new NodeSystemOps(resolve(workspace));
+  const config = await resolveConfig(workspace);
   const tree = await StateTree.buildOrThrow({ ops, config });
-
   return { config, ops, tree };
 }
 
@@ -58,6 +63,21 @@ const program = new Command()
   .name("soulguard")
   .description("Identity protection for AI agents")
   .version(getVersion());
+
+program
+  .command("config")
+  .description("Print the resolved soulguard config as JSON")
+  .argument("[workspace]", "workspace path", process.cwd())
+  .action(async (workspace: string) => {
+    const out = new LiveConsoleOutput();
+    try {
+      const config = await resolveConfig(workspace);
+      out.write(JSON.stringify(config, null, 2));
+    } catch (e) {
+      out.error(e instanceof Error ? e.message : String(e));
+      process.exitCode = 1;
+    }
+  });
 
 program
   .command("status")
@@ -428,20 +448,8 @@ daemon
   .action(async (workspace: string) => {
     const out = new LiveConsoleOutput();
     try {
-      const absWorkspace = resolve(workspace);
-      const nodeOps = new NodeSystemOps(absWorkspace);
-      const configPath = resolve(workspace, "soulguard.json");
-
-      let raw: string;
-      try {
-        raw = await readFile(configPath, "utf-8");
-      } catch {
-        throw new Error(`No soulguard.json found in ${workspace}`);
-      }
-
-      const config = parseConfig(JSON.parse(raw));
-
-      const cmd = new DaemonCommand({ ops: nodeOps, config }, out);
+      const { ops, config } = await makeBaseOptions(workspace);
+      const cmd = new DaemonCommand({ ops, config }, out);
       process.exitCode = await cmd.execute();
     } catch (e) {
       out.error(e instanceof Error ? e.message : String(e));
