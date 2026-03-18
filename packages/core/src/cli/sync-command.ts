@@ -18,12 +18,12 @@ export class SyncCommand {
     const result = await sync(this.opts);
     if (!result.ok) return 1;
 
-    const { drifts, errors, git } = result.value;
+    const { drifts, errors, git, stagingCopiesCreated } = result.value;
 
     this.out.heading(`Soulguard Sync — ${this.opts.ops.workspace}`);
     this.out.write("");
 
-    if (drifts.length === 0 && errors.length === 0) {
+    if (drifts.length === 0 && errors.length === 0 && stagingCopiesCreated === 0) {
       this.out.success("Nothing to fix — all files ok.");
       this.reportGit(git);
       return 0;
@@ -49,6 +49,13 @@ export class SyncCommand {
       }
       this.out.write("");
       return 1;
+    }
+
+    if (stagingCopiesCreated > 0) {
+      this.out.success(
+        `  Refreshed ${stagingCopiesCreated} staging ${stagingCopiesCreated === 1 ? "copy" : "copies"}.`,
+      );
+      this.out.write("");
     }
 
     this.out.success("All files now ok.");

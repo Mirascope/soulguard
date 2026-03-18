@@ -68,13 +68,10 @@ This prevents the agent from creating, modifying, or deleting any files within t
 
 ### Proposing changes to protected files
 
-When an agent (or anyone) wants to modify a protected file, they use the staging workflow:
+When a file is protected, a staging copy is automatically created in `.soulguard-staging/`. The agent (or anyone) can edit this copy, then a human reviews and applies:
 
 ```bash
-# Stage the file for editing (no sudo required)
-soulguard stage SOUL.md
-
-# Edit the staging copy
+# Edit the staging copy (auto-created by protect)
 echo "Don't be evil, even if it would get great quarterly numbers." > .soulguard-staging/SOUL.md
 
 # Review the diff
@@ -96,13 +93,29 @@ sudo soulguard apply --hash <hash>
 
 **Security Note**: The `-y` / `--yes` flag is convenient for trusted environments and provides the same security model as interactive mode. Use `--hash` for cryptographic verification when security is paramount or for automation.
 
-### Proposing file deletions
+### Creating new files in protected paths
 
-To delete a protected file or directory, stage it with the `-d` flag:
+To propose a new file that doesn't exist yet in a protected directory:
 
 ```bash
-# Stage a file for deletion
-soulguard stage -d old-config.md
+# Create an empty staging entry (no sudo required)
+soulguard create skills/new-skill.md
+
+# Write content to the staging copy
+echo "# New Skill" > .soulguard-staging/skills/new-skill.md
+
+# Review and apply
+soulguard diff
+sudo soulguard apply -y
+```
+
+### Proposing file deletions
+
+To delete a protected file or directory:
+
+```bash
+# Stage a file for deletion (no sudo required)
+soulguard delete old-config.md
 
 # Review the deletion
 soulguard diff
@@ -269,7 +282,7 @@ sudo soulguard daemon start  # Runs sync every 120s, no approval channel
 ### Approval flow
 
 ```text
-1. Agent stages a change         →  soulguard stage SOUL.md && edits staging copy
+1. Agent edits staging copy      →  edits .soulguard-staging/SOUL.md (auto-created by protect)
 2. Daemon detects staging change →  polls .soulguard-staging/ for new diffs
 3. Daemon posts proposal         →  sends embed to Discord channel with diff + hash
 4. Human approves/rejects        →  ✅ or ❌ reaction from an authorized approver
@@ -329,7 +342,8 @@ Outcome updates (applied, rejected, superseded) are posted by editing the origin
 | ----------------------------------- | ----------------------------------------------------------------------------- |
 | `soulguard status [dir]`            | Report protect and watch file health (ownership, permissions, missing files)  |
 | `soulguard config [dir]`            | Print the resolved soulguard config as JSON                                   |
-| `soulguard stage <paths...>`        | Stage protected files for editing or deletion (use `-d` flag for deletion)    |
+| `soulguard create <paths...>`       | Create empty staging copies for new files in protected paths                  |
+| `soulguard delete <paths...>`       | Stage protected files or directories for deletion                             |
 | `soulguard diff [dir] [files...]`   | Show pending changes as unified diff + approval hash                          |
 | `soulguard reset [paths...] [-a]`   | List, selectively reset, or clear all staged changes                          |
 | `soulguard log [dir] [file]`        | Show git history from soulguard's internal repo (optionally filtered by file) |
@@ -358,13 +372,15 @@ SoulGuard uses two independent security layers:
 The staging model uses an implicit proposal pattern:
 
 ```text
-1. Agent stages file          →  soulguard stage SOUL.md
+1. File is protected          →  sudo soulguard protect SOUL.md  (auto-creates staging copy)
 2. Agent edits staging copy   →  .soulguard-staging/SOUL.md  (agent-writable)
 3. Human reviews              →  soulguard diff       (shows unified diff + hash)
 4. Human approves             →  sudo soulguard apply -y  (convenient)
                               or sudo soulguard apply --hash <hash>  (maximum security)
 5. Changes applied            →  staging → protect, re-locked to 444
 ```
+
+For new files, agents use `soulguard create` to create an empty staging entry. For deletions, `soulguard delete` writes a sentinel marker.
 
 **Apply Security Options:**
 

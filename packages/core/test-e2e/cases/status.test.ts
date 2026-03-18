@@ -25,7 +25,9 @@ e2e("status: reports all files ok when clean", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-      Nothing to fix — all files ok.
+        Refreshed 1 staging copy.
+
+      All files now ok.
     `)
     .exits(0);
 
@@ -66,7 +68,9 @@ e2e("status: reports drifted ownership and permissions", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-      Nothing to fix — all files ok.
+        Refreshed 1 staging copy.
+
+      All files now ok.
     `)
     .exits(0);
 
@@ -127,18 +131,13 @@ e2e("status: shows staged change indicators", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-      Nothing to fix — all files ok.
+        Refreshed 1 staging copy.
+
+      All files now ok.
     `)
     .exits(0);
 
-  t.$(`soulguard stage SOUL.md`)
-    .expect(`
-      exit 0
-        📝 SOUL.md → .soulguard-staging/SOUL.md
-
-      Staged 1 file(s).
-    `)
-    .exits(0);
+  // Modify staging copy (auto-created by protect)
   t.$(`echo '# Modified Soul' > .soulguard-staging/SOUL.md`)
     .expect(`
       exit 0
@@ -182,7 +181,9 @@ e2e("status: shows directory protection", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-      Nothing to fix — all files ok.
+        Refreshed 1 staging copy.
+
+      All files now ok.
     `)
     .exits(0);
 
@@ -223,17 +224,19 @@ e2e("status: shows new file in protected directory as created", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-      Nothing to fix — all files ok.
+        Refreshed 1 staging copy.
+
+      All files now ok.
     `)
     .exits(0);
 
-  // Stage a new file that doesn't exist on disk yet
-  t.$(`soulguard stage skills/rust.md`)
+  // Create a new file that doesn't exist on disk yet
+  t.$(`soulguard create skills/rust.md`)
     .expect(`
       exit 0
-        📝 skills/rust.md → .soulguard-staging/skills/rust.md
+        + skills/rust.md → .soulguard-staging/skills/rust.md
 
-      Staged 1 file(s).
+      Created 1 staging entry.
     `)
     .exits(0);
   t.$(`echo '# Rust' > .soulguard-staging/skills/rust.md`)
@@ -279,16 +282,18 @@ e2e("status: shows deleted protected file", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-      Nothing to fix — all files ok.
+        Refreshed 1 staging copy.
+
+      All files now ok.
     `)
     .exits(0);
 
-  t.$(`soulguard stage -d SOUL.md`)
+  t.$(`soulguard delete SOUL.md`)
     .expect(`
       exit 0
         🗑️  SOUL.md (staged for deletion)
 
-      Staged 1 file(s).
+      Staged 1 path for deletion.
     `)
     .exits(0);
 
@@ -329,16 +334,18 @@ e2e("status: shows deleted file in protected directory", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-      Nothing to fix — all files ok.
+        Refreshed 1 staging copy.
+
+      All files now ok.
     `)
     .exits(0);
 
-  t.$(`soulguard stage -d skills/python.md`)
+  t.$(`soulguard delete skills/python.md`)
     .expect(`
       exit 0
         🗑️  skills/python.md (staged for deletion)
 
-      Staged 1 file(s).
+      Staged 1 path for deletion.
     `)
     .exits(0);
 
@@ -381,18 +388,21 @@ e2e("status: shows deleted protected directory with all children", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-      Nothing to fix — all files ok.
+        Refreshed 1 staging copy.
+
+      All files now ok.
     `)
     .exits(0);
 
-  t.$(`soulguard stage -d memory`)
+  t.$(`soulguard delete memory`)
     .expect(`
       exit 0
         🗑️  memory (staged for deletion)
 
-      Staged 1 file(s).
+      Staged 1 path for deletion.
     `)
-    .exits(0);
+    .exits(0)
+    .outputs(/staged for deletion/);
 
   t.$(`soulguard status`)
     .expect(`

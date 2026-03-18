@@ -20,14 +20,7 @@ e2e("reset: dry run lists staged files", (t) => {
       Updated. 1 file now protected.
     `)
     .exits(0);
-  t.$(`soulguard stage SOUL.md`)
-    .expect(`
-      exit 0
-        📝 SOUL.md → .soulguard-staging/SOUL.md
-
-      Staged 1 file(s).
-    `)
-    .exits(0);
+  // Staging copy auto-created by protect
 
   t.$(`sudo soulguard reset -w .`)
     .expect(`
@@ -69,14 +62,7 @@ e2e("reset: specific file removes staging copy", (t) => {
       Updated. 1 file now protected.
     `)
     .exits(0);
-  t.$(`soulguard stage SOUL.md`)
-    .expect(`
-      exit 0
-        📝 SOUL.md → .soulguard-staging/SOUL.md
-
-      Staged 1 file(s).
-    `)
-    .exits(0);
+  // Staging copy auto-created by protect
 
   t.$(`sudo soulguard reset -w . SOUL.md`)
     .expect(`
@@ -116,14 +102,7 @@ e2e("reset: --all empties staging tree", (t) => {
       Updated. 1 file now protected.
     `)
     .exits(0);
-  t.$(`soulguard stage SOUL.md`)
-    .expect(`
-      exit 0
-        📝 SOUL.md → .soulguard-staging/SOUL.md
-
-      Staged 1 file(s).
-    `)
-    .exits(0);
+  // Staging copy auto-created by protect
 
   t.$(`sudo soulguard reset -w . --all`)
     .expect(`
@@ -188,17 +167,7 @@ e2e("reset: selective reset keeps other staged files", (t) => {
       Updated. 1 file now protected.
     `)
     .exits(0);
-  t.$(`soulguard stage SOUL.md && soulguard stage notes.md`)
-    .expect(`
-      exit 0
-        📝 SOUL.md → .soulguard-staging/SOUL.md
-
-      Staged 1 file(s).
-        📝 notes.md → .soulguard-staging/notes.md
-
-      Staged 1 file(s).
-    `)
-    .exits(0);
+  // Staging copies auto-created by protect
 
   t.$(`sudo soulguard reset -w . SOUL.md`)
     .expect(`

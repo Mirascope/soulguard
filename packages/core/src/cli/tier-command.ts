@@ -12,6 +12,7 @@ import { readConfig, writeConfig } from "../sdk/config.js";
 import { getProtectOwnership } from "../util/constants.js";
 import { setTier, release } from "../sdk/tier.js";
 import { stagingPath } from "../sdk/staging.js";
+import { createStagingCopy } from "../sdk/staging-ops.js";
 import { isGitEnabled, gitCommit } from "../util/git.js";
 
 export type TierAction = { kind: "set"; tier: Tier } | { kind: "release" };
@@ -216,6 +217,42 @@ export class TierCommand {
         if (!result.ok) {
           this.out.error(`Failed to enforce: ${result.error}`);
           return 1;
+        }
+      }
+      // ── Auto-create staging copies for newly protected files ──────
+      const defaultOwnership = configResult.value.defaultOwnership;
+      // Ensure .soulguard-staging/ exists and is agent-writable
+      await ops.mkdir(".soulguard-staging");
+      if (defaultOwnership) {
+        await ops.chown(".soulguard-staging", {
+          user: defaultOwnership.user,
+          group: defaultOwnership.group,
+        });
+        await ops.chmod(".soulguard-staging", "755");
+      }
+      for (const file of changedPaths) {
+        const isDir = await isDirectory(ops, file);
+        if (isDir) {
+          const listResult = await ops.listDir(file);
+          if (listResult.ok) {
+            for (const childPath of listResult.value) {
+              const copyResult = await createStagingCopy(
+                ops,
+                childPath,
+                defaultOwnership ?? undefined,
+              );
+              if (!copyResult.ok) {
+                this.out.warn(
+                  `  Warning: staging copy failed for ${childPath}: ${copyResult.error}`,
+                );
+              }
+            }
+          }
+        } else {
+          const copyResult = await createStagingCopy(ops, file, defaultOwnership ?? undefined);
+          if (!copyResult.ok) {
+            this.out.warn(`  Warning: staging copy failed for ${file}: ${copyResult.error}`);
+          }
         }
       }
     } else if (action.kind === "set" && action.tier === "watch") {

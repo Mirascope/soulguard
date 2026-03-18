@@ -126,8 +126,21 @@ export type { ApplyCommandOptions } from "./cli/apply-command.js";
 export { ResetCommand } from "./cli/reset-command.js";
 export { TierCommand } from "./cli/tier-command.js";
 export type { TierAction, TierCommandOptions } from "./cli/tier-command.js";
-export { StageCommand } from "./cli/stage-command.js";
-export type { StageCommandOptions } from "./cli/stage-command.js";
+export { CreateCommand } from "./cli/create-command.js";
+export type { CreateCommandOptions } from "./cli/create-command.js";
+export { DeleteCommand } from "./cli/delete-command.js";
+export type { DeleteCommandOptions } from "./cli/delete-command.js";
+
+// Staging operations (shared helpers)
+export { isInProtectTier, createStagingCopy } from "./sdk/staging-ops.js";
+
+// Create
+export { create } from "./sdk/create.js";
+export type { CreateOptions, CreateResult, CreateError } from "./sdk/create.js";
+
+// Delete
+export { deleteStagingEntry } from "./sdk/delete.js";
+export type { DeleteOptions, DeleteResult, DeleteError } from "./sdk/delete.js";
 
 // Daemon types
 export type {
