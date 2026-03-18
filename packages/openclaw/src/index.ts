@@ -28,6 +28,9 @@ export type {
   OpenClawPluginApi,
   AgentTool,
   AgentToolResult,
+  AgentMessage,
   BeforeToolCallEvent,
   BeforeToolCallResult,
+  ToolResultPersistEvent,
+  ToolResultPersistResult,
 } from "./openclaw-types.js";

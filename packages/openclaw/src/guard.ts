@@ -1,6 +1,6 @@
 /**
- * before_tool_call guard — blocks writes to protected files and
- * returns a helpful message guiding the agent to the staging workflow.
+ * before_tool_call guard — redirects writes to protected files into the
+ * staging tree so agents can propose changes without direct access.
  */
 
 import path from "node:path";
@@ -15,10 +15,10 @@ export type GuardOptions = {
   stateDir: string;
 };
 
-export type GuardResult = {
-  blocked: boolean;
-  reason?: string;
-};
+export type GuardResult =
+  | { action: "allow" }
+  | { action: "block"; reason: string }
+  | { action: "redirect"; pathKey: string; originalPath: string; redirectedPath: string };
 
 // ── Constants ──────────────────────────────────────────────────────────
 
@@ -31,9 +31,11 @@ const PATH_KEYS = ["file_path", "path", "file"] as const;
 // ── Main guard ─────────────────────────────────────────────────────────
 
 /**
- * Evaluate whether a tool call should be blocked.
+ * Evaluate whether a tool call should be redirected, blocked, or allowed.
  *
- * Returns `{ blocked: false }` to allow, or `{ blocked: true, reason }` to block.
+ * For writes to protected files the guard returns a `redirect` result that
+ * tells the caller which param key to rewrite and the staging-tree path to
+ * redirect to.
  */
 export function guardToolCall(
   toolName: string,
@@ -42,41 +44,45 @@ export function guardToolCall(
 ): GuardResult {
   // Only intercept file-writing tools (compare lowercase for robustness)
   if (!WRITE_TOOLS.has(toolName.toLowerCase())) {
-    return { blocked: false };
+    return { action: "allow" };
   }
 
-  // Extract target path from params
-  let targetPath: string | undefined;
+  // Find which param key carries the path
+  let pathKey: string | undefined;
+  let rawPath: string | undefined;
   for (const key of PATH_KEYS) {
     const v = params[key];
     if (typeof v === "string" && v.length > 0) {
-      targetPath = v;
+      pathKey = key;
+      rawPath = v;
       break;
     }
   }
 
-  // OpenClaw passes absolute paths (e.g. /Users/x/.openclaw/workspace/SOUL.md)
-  // but protectFiles uses relative paths (e.g. workspace/SOUL.md). Make relative.
-  if (targetPath && path.isAbsolute(targetPath)) {
-    targetPath = path.relative(options.stateDir, targetPath);
-  }
+  if (!pathKey || !rawPath) return { action: "allow" };
 
-  if (!targetPath) return { blocked: false };
+  // Resolve to relative for protect-check. OpenClaw passes absolute paths
+  // (e.g. /Users/x/.openclaw/workspace/SOUL.md) but protectFiles uses
+  // relative paths (e.g. workspace/SOUL.md).
+  const isAbsolute = path.isAbsolute(rawPath);
+  const relativePath = isAbsolute ? path.relative(options.stateDir, rawPath) : rawPath;
 
-  // Never block writes to staging files
-  if (isStagingPath(targetPath)) return { blocked: false };
+  // Never intercept writes to staging files
+  if (isStagingPath(relativePath)) return { action: "allow" };
 
   // Check against protect tier using core SDK
-  if (!isProtectedFile(options.protectFiles, targetPath)) return { blocked: false };
+  if (!isProtectedFile(options.protectFiles, relativePath)) return { action: "allow" };
+
+  // Compute the staging redirect path, preserving absolute/relative format
+  const relativeStaging = stagingPath(relativePath);
+  const redirectedPath = isAbsolute
+    ? path.join(options.stateDir, relativeStaging)
+    : relativeStaging;
 
   return {
-    blocked: true,
-    reason: [
-      `${targetPath} is protected by soulguard.`,
-      `To propose changes, run \`soulguard stage ${targetPath}\` to create a working copy,`,
-      `then edit the staged file at ${stagingPath(targetPath)}.`,
-      `Run \`soulguard diff\` to review your changes.`,
-      `Your owner will review and apply the changes.`,
-    ].join(" "),
+    action: "redirect",
+    pathKey,
+    originalPath: relativePath,
+    redirectedPath,
   };
 }
