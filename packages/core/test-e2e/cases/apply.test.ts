@@ -28,17 +28,7 @@ e2e("apply: applies staged changes with -y", (t) => {
     `)
     .exits(0);
 
-  // Stage files for editing
-  t.$(`soulguard stage SOUL.md`)
-    .expect(`
-      exit 0
-        📝 SOUL.md → .soulguard-staging/SOUL.md
-
-      Staged 1 file(s).
-    `)
-    .exits(0);
-
-  // Modify staging copy
+  // Modify staging copy (auto-created by protect)
   t.$(`echo '# My Updated Soul' > .soulguard-staging/SOUL.md`)
     .expect(`
       exit 0
@@ -91,12 +81,12 @@ e2e("apply: handles file deletion through staging", (t) => {
     .exits(0);
 
   // Stage file for deletion (using DELETE_SENTINEL)
-  t.$(`soulguard stage -d SOUL.md`)
+  t.$(`soulguard delete SOUL.md`)
     .expect(`
       exit 0
         🗑️  SOUL.md (staged for deletion)
 
-      Staged 1 file(s).
+      Staged 1 path for deletion.
     `)
     .exits(0);
 
@@ -147,18 +137,7 @@ e2e("apply: applies modified file inside protected directory", (t) => {
     `)
     .exits(0);
 
-  // Stage file within protected dir for modification
-  t.$(`soulguard stage memories/today.md`)
-    .expect(`
-      exit 0
-        📝 memories/today.md → .soulguard-staging/memories/today.md
-
-      Staged 1 file(s).
-    `)
-    .exits(0)
-    .outputs(/Staged 1 file/);
-
-  // Modify staging copy
+  // Modify staging copy (auto-created by protect)
   t.$(`echo 'It was great' >> .soulguard-staging/memories/today.md`)
     .expect(`
       exit 0
@@ -212,15 +191,7 @@ e2e("apply: verifies hash with --hash flag", (t) => {
     `)
     .exits(0);
 
-  // Stage files and modify staging copy
-  t.$(`soulguard stage SOUL.md`)
-    .expect(`
-      exit 0
-        📝 SOUL.md → .soulguard-staging/SOUL.md
-
-      Staged 1 file(s).
-    `)
-    .exits(0);
+  // Modify staging copy (auto-created by protect) and apply with hash verification
   t.$(`echo '# Modified' > .soulguard-staging/SOUL.md`)
     .expect(`
       exit 0
@@ -265,15 +236,7 @@ e2e("apply: rejects with wrong hash", (t) => {
     `)
     .exits(0);
 
-  // Stage and modify files
-  t.$(`soulguard stage SOUL.md`)
-    .expect(`
-      exit 0
-        📝 SOUL.md → .soulguard-staging/SOUL.md
-
-      Staged 1 file(s).
-    `)
-    .exits(0);
+  // Modify staging copy (auto-created by protect)
   t.$(`echo '# Modified' > .soulguard-staging/SOUL.md`)
     .expect(`
       exit 0

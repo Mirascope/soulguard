@@ -18,6 +18,8 @@ import type { FileSystemError } from "../util/types.js";
 import { isGitEnabled, gitCommit } from "../util/git.js";
 import type { GitCommitResult } from "../util/git.js";
 import { protectPatterns, watchPatterns } from "./config.js";
+import { stagingPath, STAGING_DIR } from "./staging.js";
+import { dirname } from "node:path";
 
 export type SyncError = {
   path: string;
@@ -31,6 +33,8 @@ export type SyncResult = {
   errors: SyncError[];
   /** Git commit result (best-effort, only when git enabled) */
   git?: GitCommitResult;
+  /** Number of staging copies created during gap-fill */
+  stagingCopiesCreated: number;
 };
 
 export type SyncOptions = {
@@ -79,8 +83,43 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
     }
   }
 
+  // ── Gap-fill missing staging copies ──────────────────────────────────
+  let stagingCopiesCreated = 0;
+
+  const protectFiles = tree.flatFiles().filter((f) => f.configTier === "protect");
+  for (const file of protectFiles) {
+    // Skip files that don't exist on disk (nothing to copy)
+    if (file.canonicalHash === null) continue;
+    // Skip files that already have a staging copy (regardless of content)
+    if (file.stagedHash !== null || file.status === "deleted") continue;
+
+    // No staging copy exists — create one (best-effort)
+    const stagePath = stagingPath(file.path);
+    const parentDir = dirname(stagePath);
+    if (parentDir !== "." && parentDir !== "/" && parentDir !== STAGING_DIR) {
+      await ops.mkdir(parentDir);
+      const defaultOwnership = config.defaultOwnership;
+      if (defaultOwnership) {
+        await ops.chown(parentDir, { user: defaultOwnership.user, group: defaultOwnership.group });
+        await ops.chmod(parentDir, "755");
+      }
+    }
+    const readResult = await ops.readFile(file.path);
+    if (!readResult.ok) continue;
+    const writeResult = await ops.writeFile(stagePath, readResult.value);
+    if (writeResult.ok) {
+      // Restore agent-writable ownership
+      const defaultOwnership = config.defaultOwnership;
+      if (defaultOwnership) {
+        await ops.chown(stagePath, { user: defaultOwnership.user, group: defaultOwnership.group });
+        await ops.chmod(stagePath, defaultOwnership.mode);
+      }
+      stagingCopiesCreated++;
+    }
+  }
+
   if (errors.length > 0) {
-    return ok({ drifts, errors, git: undefined });
+    return ok({ drifts, errors, git: undefined, stagingCopiesCreated });
   }
 
   // Best-effort git commit
@@ -95,5 +134,5 @@ export async function sync(options: SyncOptions): Promise<Result<SyncResult, IOE
     }
   }
 
-  return ok({ drifts, errors, git });
+  return ok({ drifts, errors, git, stagingCopiesCreated });
 }

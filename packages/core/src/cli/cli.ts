@@ -14,7 +14,8 @@ import { SyncCommand } from "./sync-command.js";
 import { DiffCommand } from "./diff-command.js";
 import { ApplyCommand } from "./apply-command.js";
 import { ResetCommand } from "./reset-command.js";
-import { StageCommand } from "./stage-command.js";
+import { CreateCommand } from "./create-command.js";
+import { DeleteCommand } from "./delete-command.js";
 import { InitCommand } from "./init-command.js";
 import { LogCommand } from "./log-command.js";
 import { InstallPluginCommand } from "./install-plugin-command.js";
@@ -414,21 +415,43 @@ program
   });
 
 program
-  .command("stage")
-  .description("Stage protected files for editing or deletion")
-  .argument("<paths...>", "files to stage")
+  .command("create")
+  .description("Create empty staging copies for new files in protected paths")
+  .argument("<paths...>", "file paths to create in staging")
   .option("-w, --workspace <path>", "workspace path", process.cwd())
-  .option("-d, --delete", "stage for deletion instead of editing")
-  .action(async (files: string[], opts: { workspace: string; delete?: boolean }) => {
+  .action(async (files: string[], opts: { workspace: string }) => {
     const out = new LiveConsoleOutput();
     try {
       const base = await makeBaseOptions(opts.workspace);
-      const cmd = new StageCommand(
+      const cmd = new CreateCommand(
         {
           ops: base.ops,
           config: base.config,
           paths: files,
-          delete: opts.delete,
+        },
+        out,
+      );
+      process.exitCode = await cmd.execute();
+    } catch (e) {
+      out.error(e instanceof Error ? e.message : String(e));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("delete")
+  .description("Stage protected files or directories for deletion")
+  .argument("<paths...>", "file paths to stage for deletion")
+  .option("-w, --workspace <path>", "workspace path", process.cwd())
+  .action(async (files: string[], opts: { workspace: string }) => {
+    const out = new LiveConsoleOutput();
+    try {
+      const base = await makeBaseOptions(opts.workspace);
+      const cmd = new DeleteCommand(
+        {
+          ops: base.ops,
+          config: base.config,
+          paths: files,
         },
         out,
       );

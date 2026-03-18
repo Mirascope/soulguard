@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { sync } from "./sync.js";
 import { StateTree } from "./state.js";
 import { MockSystemOps } from "../util/system-ops-mock.js";
+import { STAGING_DIR } from "./staging.js";
 
 const WORKSPACE = "/test/workspace";
 const GUARDIAN = "soulguardian_agent";
@@ -203,5 +204,123 @@ describe("sync", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.git).toBeUndefined();
+  });
+
+  // ── Staging gap-fill tests ──────────────────────────────────────────
+
+  test("creates staging copy for protected file missing staging", async () => {
+    const ops = makeMock();
+    ops.addFile("SOUL.md", "# Soul", {
+      owner: VAULT_OWNERSHIP.user,
+      group: VAULT_OWNERSHIP.group,
+      mode: "444",
+    });
+    // No staging copy exists
+
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "SOUL.md": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await sync({ tree, ops, config });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.stagingCopiesCreated).toBe(1);
+
+    // Verify staging file was created with correct content
+    const staging = await ops.readFile(`${STAGING_DIR}/SOUL.md`);
+    expect(staging.ok).toBe(true);
+    if (staging.ok) {
+      expect(staging.value).toBe("# Soul");
+    }
+  });
+
+  test("does not overwrite existing staging copy that differs from canonical", async () => {
+    const ops = makeMock();
+    ops.addFile("SOUL.md", "# Soul", {
+      owner: VAULT_OWNERSHIP.user,
+      group: VAULT_OWNERSHIP.group,
+      mode: "444",
+    });
+    // Staging copy exists with different content (pending proposal)
+    ops.addFile(`${STAGING_DIR}/SOUL.md`, "# Modified Soul");
+
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "SOUL.md": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await sync({ tree, ops, config });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.stagingCopiesCreated).toBe(0);
+
+    // Verify staging content was NOT overwritten
+    const staging = await ops.readFile(`${STAGING_DIR}/SOUL.md`);
+    expect(staging.ok).toBe(true);
+    if (staging.ok) {
+      expect(staging.value).toBe("# Modified Soul");
+    }
+  });
+
+  test("does not create staging for non-existent files", async () => {
+    const ops = makeMock();
+    // SOUL.md is in config but doesn't exist on disk
+
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "SOUL.md": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await sync({ tree, ops, config });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.stagingCopiesCreated).toBe(0);
+  });
+
+  test("does not create staging for watched files", async () => {
+    const ops = makeMock();
+    ops.addFile("notes.md", "# Notes", { owner: "agent", group: "staff", mode: "644" });
+
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "notes.md": "watch" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await sync({ tree, ops, config });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.stagingCopiesCreated).toBe(0);
+  });
+
+  test("does not overwrite unchanged staging copy", async () => {
+    const ops = makeMock();
+    ops.addFile("SOUL.md", "# Soul", {
+      owner: VAULT_OWNERSHIP.user,
+      group: VAULT_OWNERSHIP.group,
+      mode: "444",
+    });
+    // Staging matches canonical (status: unchanged) — already has staging copy
+    ops.addFile(`${STAGING_DIR}/SOUL.md`, "# Soul");
+
+    const config = {
+      version: 1 as const,
+      guardian: GUARDIAN,
+      files: { "SOUL.md": "protect" as const },
+    };
+    const tree = await StateTree.buildOrThrow({ ops, config });
+    const result = await sync({ tree, ops, config });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.stagingCopiesCreated).toBe(0);
   });
 });

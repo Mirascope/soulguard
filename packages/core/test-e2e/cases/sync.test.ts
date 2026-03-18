@@ -59,6 +59,8 @@ e2e("sync: fixes drifted ownership and permissions", (t) => {
             group is root, expected soulguard
             mode is 644, expected 444
 
+        Refreshed 1 staging copy.
+
       All files now ok.
     `)
     .exits(0)
