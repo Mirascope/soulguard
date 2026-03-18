@@ -186,6 +186,7 @@ SoulGuard is configured via `soulguard.json` in the workspace root:
     "mode": "644"
   },
   "daemon": {
+    "syncIntervalSecs": 60,
     "channel": "discord",
     "discord": {
       "botToken": "YOUR_BOT_TOKEN",
@@ -201,8 +202,9 @@ SoulGuard is configured via `soulguard.json` in the workspace root:
 - **`files`** — Map from file path or directory path to its protection tier (`"protect"` or `"watch"`). Paths are literal — no glob patterns.
 - **`git`** — Enable/disable auto-commits to soulguard's internal git repo (default: `true`)
 - **`defaultOwnership`** — Original file ownership captured at init time, used to restore files when released. Set automatically by `soulguard init`.
-- **`daemon`** — Remote approval daemon configuration. Omit to disable the daemon entirely.
-  - **`channel`** — Which approval channel to use (e.g. `"discord"`)
+- **`daemon`** — Daemon configuration (sync + optional approval channel). Omit to disable the daemon entirely.
+  - **`syncIntervalSecs`** — How often the daemon runs sync, in seconds (default: `60`). Set to `0` to disable auto-sync. Each sync cycle fixes protect-tier ownership drift and commits all tracked files to git.
+  - **`channel`** — Which approval channel to use (e.g. `"discord"`). Optional — omit for sync-only mode.
   - **`[channelName]`** — Channel-specific config block, validated by the channel plugin. For Discord:
     - **`botToken`** — Discord bot token
     - **`channelId`** — Discord channel ID where proposals are posted
@@ -240,9 +242,29 @@ SoulGuard maintains an internal git repository inside `.soulguard/` for audit tr
 
 All commits use author `SoulGuardian <soulguardian@soulguard.ai>`. Git operations are best-effort — failures never block core security operations. If the staging area has pre-existing staged changes, soulguard skips the commit to avoid absorbing unrelated work.
 
-## Approval Daemon
+## Daemon
 
-The approval daemon enables remote human approval of changes to protected files — for example, via Discord. When running, the daemon watches the staging directory for new proposals and posts them to a configured approval channel, where authorized approvers can approve or reject with emoji reactions.
+The soulguard daemon is an always-on guardian that runs two independent loops:
+
+1. **Auto-sync** (always) — periodically fixes protect-tier ownership/permission drift and commits all tracked files (protect + watch) to soulguard's internal git repo. This ensures the watch tier's version history is maintained automatically without manual `soulguard sync` invocations.
+
+2. **Approval channel** (optional) — watches the staging directory for new proposals and posts them to a configured approval channel (e.g. Discord), where authorized approvers can approve or reject with emoji reactions.
+
+The daemon can run in **sync-only mode** (no approval channel) or with both sync and approval enabled.
+
+### Sync-only mode
+
+To run the daemon purely for periodic sync, add a minimal `daemon` block without a `channel`:
+
+```json
+"daemon": {
+  "syncIntervalSecs": 120
+}
+```
+
+```bash
+sudo soulguard daemon start  # Runs sync every 120s, no approval channel
+```
 
 ### Approval flow
 
@@ -288,7 +310,7 @@ Outcome updates (applied, rejected, superseded) are posted by editing the origin
 | `sudo soulguard release <paths...>`              | Remove files or directories from all protection tiers         |
 | `sudo soulguard apply [dir] [-y\|--hash <hash>]` | Apply staged changes to protected files                       |
 | `sudo soulguard sync [dir]`                      | Fix ownership/permission drift and commit all tracked files   |
-| `sudo soulguard daemon start [dir]`              | Start the approval daemon in the foreground (systemd/launchd) |
+| `sudo soulguard daemon start [dir]`              | Start the daemon: periodic sync + optional approval channel   |
 
 **Init flags:**
 
