@@ -48,6 +48,7 @@ describe("SyncCommand", () => {
   it("returns 0 with nothing-to-fix message when all ok", async () => {
     const { cmd, out } = await setup((ops) => {
       ops.addFile("SOUL.md", "soul content", VAULT_MOCK);
+      ops.addFile(".soulguard-staging/SOUL.md", "soul content");
       ops.addFile("memory/today.md", "memory content", LEDGER_MOCK);
     });
 

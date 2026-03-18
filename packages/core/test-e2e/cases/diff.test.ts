@@ -26,17 +26,7 @@ e2e("diff: shows no changes for unmodified staging", (t) => {
     `)
     .exits(0);
 
-  // Stage the file (creates user-writable copy)
-  t.$(`soulguard stage SOUL.md`)
-    .expect(`
-      exit 0
-        📝 SOUL.md → .soulguard-staging/SOUL.md
-
-      Staged 1 file(s).
-    `)
-    .exits(0);
-
-  // Diff — staging copy is identical → no changes
+  // Diff — staging copy auto-created by protect is identical → no changes
   t.$(`soulguard diff .`)
     .expect(`
       exit 0
@@ -87,15 +77,7 @@ e2e("diff: shows unified diff for modified staging", (t) => {
     `)
     .exits(0);
 
-  // Stage, then modify the staging copy
-  t.$(`soulguard stage SOUL.md`)
-    .expect(`
-      exit 0
-        📝 SOUL.md → .soulguard-staging/SOUL.md
-
-      Staged 1 file(s).
-    `)
-    .exits(0);
+  // Modify the staging copy (auto-created by protect)
   t.$(`echo '# My Modified Soul' > .soulguard-staging/SOUL.md`)
     .expect(`
       exit 0
@@ -163,15 +145,7 @@ e2e("diff: shows new file when protected copy is missing", (t) => {
     `)
     .exits(0);
 
-  // Stage, then delete the protected original
-  t.$(`soulguard stage SOUL.md`)
-    .expect(`
-      exit 0
-        📝 SOUL.md → .soulguard-staging/SOUL.md
-
-      Staged 1 file(s).
-    `)
-    .exits(0);
+  // Delete the protected original (staging copy auto-created by protect)
   t.$(`sudo rm SOUL.md`)
     .expect(`
       exit 0
@@ -242,23 +216,13 @@ e2e("diff: directory staged recursively with no changes shows clean", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-      Nothing to fix — all files ok.
+        Refreshed 1 staging copy.
+
+      All files now ok.
     `)
     .exits(0);
 
-  // Stage entire directory (recursive copy of all files)
-  t.$(`soulguard stage memory`)
-    .expect(`
-      exit 0
-        📝 memory/day1.md → .soulguard-staging/memory/day1.md
-        📝 memory/day2.md → .soulguard-staging/memory/day2.md
-
-      Staged 2 file(s).
-    `)
-    .exits(0)
-    .outputs(/Staged/);
-
-  // Diff — staging copies are identical → no changes
+  // Diff — staging copies auto-created by protect are identical → no changes
   t.$(`soulguard diff .`)
     .expect(`
       exit 0
@@ -313,20 +277,13 @@ e2e("diff: directory staged recursively with modified file shows diff", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-      Nothing to fix — all files ok.
+        Refreshed 1 staging copy.
+
+      All files now ok.
     `)
     .exits(0);
 
-  // Stage entire directory, then modify one file in staging
-  t.$(`soulguard stage memory`)
-    .expect(`
-      exit 0
-        📝 memory/day1.md → .soulguard-staging/memory/day1.md
-
-      Staged 1 file(s).
-    `)
-    .exits(0)
-    .outputs(/Staged/);
+  // Modify one file in staging (auto-created by protect)
   t.$(`echo 'modified notes' > .soulguard-staging/memory/day1.md`)
     .expect(`
       exit 0
@@ -398,22 +355,13 @@ e2e("diff: soulguard.json staged with no changes shows clean", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-      Nothing to fix — all files ok.
+        Refreshed 1 staging copy.
+
+      All files now ok.
     `)
     .exits(0);
 
-  // Stage the config file (always protected)
-  t.$(`soulguard stage soulguard.json`)
-    .expect(`
-      exit 0
-        📝 soulguard.json → .soulguard-staging/soulguard.json
-
-      Staged 1 file(s).
-    `)
-    .exits(0)
-    .outputs(/\.soulguard-staging\//);
-
-  // Diff — staging copy is identical → no changes
+  // Diff — soulguard.json staging copy auto-created, identical → no changes
   t.$(`soulguard diff .`)
     .expect(`
       exit 0
@@ -468,17 +416,19 @@ e2e("diff: new file staged in protected directory shows new file diff", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-      Nothing to fix — all files ok.
+        Refreshed 1 staging copy.
+
+      All files now ok.
     `)
     .exits(0);
 
-  // Stage a new file that doesn't exist yet in the protected directory
-  t.$(`soulguard stage skills/new-skill.md`)
+  // Create a new file that doesn't exist yet in the protected directory
+  t.$(`soulguard create skills/new-skill.md`)
     .expect(`
       exit 0
-        📝 skills/new-skill.md → .soulguard-staging/skills/new-skill.md
+        + skills/new-skill.md → .soulguard-staging/skills/new-skill.md
 
-      Staged 1 file(s).
+      Created 1 staging entry.
     `)
     .exits(0)
     .outputs(/\.soulguard-staging\//);
@@ -524,9 +474,9 @@ e2e("diff: new file staged in protected directory shows new file diff", (t) => {
     .outputs(/staged/);
 });
 
-// ── stage -d file → diff shows deletion ─────────────────────────────
+// ── delete file → diff shows deletion ────────────────────────────────
 
-e2e("diff: stage -d file shows deletion cleanly", (t) => {
+e2e("diff: delete file shows deletion cleanly", (t) => {
   // Create a file
   t.$(`echo '# My Soul' > SOUL.md`)
     .expect(`
@@ -550,13 +500,13 @@ e2e("diff: stage -d file shows deletion cleanly", (t) => {
     `)
     .exits(0);
 
-  // Stage file for deletion (writes DELETE_SENTINEL, not a copy)
-  t.$(`soulguard stage -d SOUL.md`)
+  // Stage file for deletion (writes DELETE_SENTINEL)
+  t.$(`soulguard delete SOUL.md`)
     .expect(`
       exit 0
         🗑️  SOUL.md (staged for deletion)
 
-      Staged 1 file(s).
+      Staged 1 path for deletion.
     `)
     .exits(0)
     .outputs(/staged for deletion/);
@@ -595,9 +545,9 @@ e2e("diff: stage -d file shows deletion cleanly", (t) => {
     .outputs(/staged/);
 });
 
-// ── stage -d directory → diff shows deletion ────────────────────────
+// ── delete directory → diff shows deletion ───────────────────────────
 
-e2e("diff: stage -d directory shows deletion cleanly", (t) => {
+e2e("diff: delete directory shows deletion cleanly", (t) => {
   // Create a directory with two files
   t.$(
     `mkdir -p memory && echo 'day one notes' > memory/day1.md && echo 'day two notes' > memory/day2.md`,
@@ -627,17 +577,19 @@ e2e("diff: stage -d directory shows deletion cleanly", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-      Nothing to fix — all files ok.
+        Refreshed 1 staging copy.
+
+      All files now ok.
     `)
     .exits(0);
 
   // Stage entire directory for deletion (single DELETE_SENTINEL file)
-  t.$(`soulguard stage -d memory`)
+  t.$(`soulguard delete memory`)
     .expect(`
       exit 0
         🗑️  memory (staged for deletion)
 
-      Staged 1 file(s).
+      Staged 1 path for deletion.
     `)
     .exits(0)
     .outputs(/staged for deletion/);
