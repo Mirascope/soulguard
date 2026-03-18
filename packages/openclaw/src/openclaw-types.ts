@@ -41,12 +41,45 @@ export type AgentToolResult = {
   content: Array<{ type: "text"; text: string }>;
 };
 
+// ── before_tool_call hook ─────────────────────────────────────────────
+
 export type BeforeToolCallEvent = {
   toolName: string;
   params: Record<string, unknown>;
+  runId?: string;
+  toolCallId?: string;
 };
 
 export type BeforeToolCallResult = {
+  params?: Record<string, unknown>;
   block?: boolean;
   blockReason?: string;
+};
+
+// ── tool_result_persist hook ──────────────────────────────────────────
+
+export type AgentMessage = {
+  role: string;
+  toolCallId?: string;
+  isError?: boolean;
+  content: Array<{ type: string; text?: string }>;
+  [key: string]: unknown;
+};
+
+export type ToolResultPersistEvent = {
+  toolName?: string;
+  toolCallId?: string;
+  message: AgentMessage;
+  isSynthetic?: boolean;
+};
+
+export type ToolResultPersistContext = {
+  agentId?: string;
+  sessionKey?: string;
+  toolName?: string;
+  toolCallId?: string;
+};
+
+export type ToolResultPersistResult = {
+  message?: AgentMessage;
 };
