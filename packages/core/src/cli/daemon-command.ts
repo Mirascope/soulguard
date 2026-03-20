@@ -8,11 +8,16 @@
 import type { ConsoleOutput } from "../util/console.js";
 import type { SystemOperations } from "../util/system-ops.js";
 import type { SoulguardConfig } from "../util/types.js";
+import type { ApprovalChannel } from "../daemon/types.js";
 import { SoulguardDaemon } from "../daemon/daemon.js";
 
 export type DaemonCommandOptions = {
   ops: SystemOperations;
   config: SoulguardConfig;
+  /** Override the channel (used by --test-auto-approve / --test-auto-reject). */
+  channelOverride?: ApprovalChannel;
+  /** Exit after handling N proposals (used by --max-proposals). */
+  maxProposals?: number;
 };
 
 export class DaemonCommand {
@@ -22,14 +27,19 @@ export class DaemonCommand {
   ) {}
 
   async execute(): Promise<number> {
-    const { ops, config } = this.options;
+    const { ops, config, channelOverride, maxProposals } = this.options;
+
+    // When using test channel override, inject minimal daemon config if missing
+    if (channelOverride && !config.daemon) {
+      config.daemon = { syncIntervalSecs: 0 };
+    }
 
     if (!config.daemon) {
       this.out.info("No daemon configuration in soulguard.json — nothing to do.");
       return 0;
     }
 
-    const daemon = new SoulguardDaemon({ ops, config });
+    const daemon = new SoulguardDaemon({ ops, config, channelOverride, maxProposals });
 
     const onShutdown = async () => {
       this.out.info("Shutting down...");
@@ -84,7 +94,7 @@ export class DaemonCommand {
 
     // ── Startup banner ────────────────────────────────────────────────
 
-    const channelName = config.daemon.channel;
+    const channelName = channelOverride?.name ?? config.daemon.channel;
     const syncInterval = config.daemon.syncIntervalSecs ?? 60;
     const syncLabel = syncInterval > 0 ? `sync: every ${syncInterval}s` : "sync: disabled";
     if (channelName) {
@@ -93,8 +103,13 @@ export class DaemonCommand {
       this.out.success(`Daemon running (${syncLabel})`);
     }
 
-    // Keep the process alive — polling intervals prevent exit
-    await new Promise<void>(() => {});
+    // When maxProposals is set, wait for the daemon to finish then exit.
+    // Otherwise, keep the process alive indefinitely.
+    if (maxProposals != null) {
+      await daemon.done();
+    } else {
+      await new Promise<void>(() => {});
+    }
     return 0;
   }
 }

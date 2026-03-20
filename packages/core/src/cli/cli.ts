@@ -3,7 +3,7 @@
  * soulguard CLI entry point.
  */
 
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { resolve } from "node:path";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -21,6 +21,7 @@ import { LogCommand } from "./log-command.js";
 import { InstallPluginCommand } from "./install-plugin-command.js";
 import { TierCommand } from "./tier-command.js";
 import { DaemonCommand } from "./daemon-command.js";
+import { DaemonConfigureCommand } from "./daemon-configure-command.js";
 import { runInitPrompts } from "./init-prompts.js";
 import { NodeSystemOps } from "../util/system-ops-node.js";
 import { parseConfig } from "../sdk/schema.js";
@@ -468,11 +469,69 @@ daemon
   .command("start")
   .description("Start the approval daemon (foreground)")
   .argument("[workspace]", "workspace path", process.cwd())
-  .action(async (workspace: string) => {
+  .addOption(
+    new Option("--test-auto-approve", "Auto-approve proposals (testing only)")
+      .hideHelp()
+      .conflicts("testAutoReject"),
+  )
+  .addOption(
+    new Option("--test-auto-reject", "Auto-reject proposals (testing only)")
+      .hideHelp()
+      .conflicts("testAutoApprove"),
+  )
+  .addOption(
+    new Option("--max-proposals <n>", "Exit after N proposals (testing only)")
+      .hideHelp()
+      .argParser(parseInt),
+  )
+  .action(
+    async (
+      workspace: string,
+      flags: { testAutoApprove?: boolean; testAutoReject?: boolean; maxProposals?: number },
+    ) => {
+      const out = new LiveConsoleOutput();
+      try {
+        const { ops, config } = await makeBaseOptions(workspace);
+
+        let channelOverride;
+        if (flags.testAutoApprove || flags.testAutoReject) {
+          const { AutoTestChannel } = await import("../daemon/auto-test-channel.js");
+          channelOverride = new AutoTestChannel(!!flags.testAutoApprove);
+        }
+
+        const cmd = new DaemonCommand(
+          { ops, config, channelOverride, maxProposals: flags.maxProposals },
+          out,
+        );
+        process.exitCode = await cmd.execute();
+      } catch (e) {
+        out.error(e instanceof Error ? e.message : String(e));
+        process.exitCode = 1;
+      }
+    },
+  );
+
+daemon
+  .command("configure")
+  .description("Update daemon configuration in soulguard.json")
+  .argument("[workspace]", "workspace path", process.cwd())
+  .option("--sync-interval <n>", "Sync interval in seconds", parseInt)
+  .option("--channel <name>", "Approval channel name")
+  .action(async (workspace: string, flags: { syncInterval?: number; channel?: string }) => {
     const out = new LiveConsoleOutput();
+    if (process.getuid?.() !== 0) {
+      out.error(
+        "soulguard daemon configure requires sudo. Run with: sudo soulguard daemon configure",
+      );
+      process.exitCode = 1;
+      return;
+    }
     try {
-      const { ops, config } = await makeBaseOptions(workspace);
-      const cmd = new DaemonCommand({ ops, config }, out);
+      const ops = new NodeSystemOps(resolve(workspace));
+      const cmd = new DaemonConfigureCommand(
+        { ops, syncInterval: flags.syncInterval, channel: flags.channel },
+        out,
+      );
       process.exitCode = await cmd.execute();
     } catch (e) {
       out.error(e instanceof Error ? e.message : String(e));

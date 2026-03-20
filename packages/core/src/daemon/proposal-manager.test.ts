@@ -24,7 +24,8 @@ type WaitBehavior =
   | { kind: "approve" }
   | { kind: "reject" }
   | { kind: "hang" }
-  | { kind: "approve-after"; ms: number };
+  | { kind: "approve-after"; ms: number }
+  | { kind: "throw"; error: Error };
 
 class MockApprovalChannel implements ApprovalChannel {
   readonly name = "mock";
@@ -65,6 +66,9 @@ class MockApprovalChannel implements ApprovalChannel {
           reject(new DOMException("Aborted", "AbortError"));
         });
       });
+    }
+    if (behavior.kind === "throw") {
+      throw behavior.error;
     }
     throw new Error("Unknown behavior");
   }
@@ -177,6 +181,113 @@ describe("ProposalManager", () => {
     expect(mgr.activeProposal).toBeNull();
   });
 
+  // ── Rejection staging reset ────────────────────────────────────────
+
+  test("rejection resets staging to canonical content", async () => {
+    channel.waitBehavior = { kind: "reject" };
+    const mgr = createManager(ops, channel);
+
+    await mgr.onStagingReady();
+
+    // After rejection, staging should be restored to canonical content
+    const stagingContent = await ops.readFile(".soulguard-staging/SOUL.md");
+    expect(stagingContent.ok).toBe(true);
+    if (stagingContent.ok) {
+      expect(stagingContent.value).toBe("original soul content");
+    }
+  });
+
+  test("rejection of created file removes staging copy", async () => {
+    // Add a new file that only exists in staging (not canonical)
+    ops.addFile(".soulguard-staging/NEW.md", "new file content", {
+      owner: "agent",
+      group: "staff",
+      mode: "644",
+    });
+
+    const config: SoulguardConfig = {
+      version: 1,
+      guardian: "soulguardian",
+      files: { "SOUL.md": "protect", "NEW.md": "protect" },
+    };
+
+    channel.waitBehavior = { kind: "reject" };
+    const mgr = createManager(ops, channel, config);
+
+    await mgr.onStagingReady();
+
+    // After rejection, the created file's staging copy should be deleted
+    const exists = await ops.exists(".soulguard-staging/NEW.md");
+    expect(exists.ok).toBe(true);
+    if (exists.ok) {
+      expect(exists.value).toBe(false);
+    }
+
+    // The modified file should be reset to canonical content
+    const stagingContent = await ops.readFile(".soulguard-staging/SOUL.md");
+    expect(stagingContent.ok).toBe(true);
+    if (stagingContent.ok) {
+      expect(stagingContent.value).toBe("original soul content");
+    }
+  });
+
+  test("rejection clears pending proposal hash", async () => {
+    channel.waitBehavior = { kind: "reject" };
+    const mgr = createManager(ops, channel);
+
+    await mgr.onStagingReady();
+
+    // After rejection + reset, _pendingProposalHash should be cleared
+    expect((mgr as any)._pendingProposalHash).toBeNull();
+  });
+
+  test("hash mismatch rejection resets staging to canonical", async () => {
+    channel.waitBehavior = { kind: "approve-after", ms: 50 };
+    const mgr = createManager(ops, channel);
+
+    const flowPromise = mgr.onStagingReady();
+
+    // Modify staging while waiting → hash mismatch on approval
+    await new Promise((r) => setTimeout(r, 10));
+    ops.addFile(".soulguard-staging/SOUL.md", "tampered content after proposal");
+
+    await flowPromise;
+
+    // After hash-mismatch rejection, staging should be reset to canonical
+    const stagingContent = await ops.readFile(".soulguard-staging/SOUL.md");
+    expect(stagingContent.ok).toBe(true);
+    if (stagingContent.ok) {
+      expect(stagingContent.value).toBe("original soul content");
+    }
+  });
+
+  test("channel error during approval resets staging and clears hash", async () => {
+    channel.waitBehavior = { kind: "throw", error: new Error("channel exploded") };
+    const mgr = createManager(ops, channel);
+
+    const errors: Array<{ message: string; context: string }> = [];
+    mgr.on("error", (err, ctx) => errors.push({ message: err.message, context: ctx }));
+
+    const events: string[] = [];
+    mgr.on("rejected", () => events.push("rejected"));
+
+    await mgr.onStagingReady();
+
+    // Should have emitted both an error and a rejection
+    expect(errors.some((e) => e.message === "channel exploded")).toBe(true);
+    expect(events).toContain("rejected");
+
+    // Hash should be cleared so future edits trigger new proposals
+    expect((mgr as any)._pendingProposalHash).toBeNull();
+
+    // Staging should be reset to canonical content
+    const stagingContent = await ops.readFile(".soulguard-staging/SOUL.md");
+    expect(stagingContent.ok).toBe(true);
+    if (stagingContent.ok) {
+      expect(stagingContent.value).toBe("original soul content");
+    }
+  });
+
   // ── Supersession ───────────────────────────────────────────────────
 
   test("supersedes pending proposal on new staging ready", async () => {
@@ -209,6 +320,32 @@ describe("ProposalManager", () => {
     expect(events).toContain("superseded");
     expect(channel.results.some((r) => r.id === firstId && r.outcome === "superseded")).toBe(true);
     expect(channel.proposals.length).toBe(2);
+  });
+
+  test("does not emit superseded when approval flow already completed", async () => {
+    // Regression: when approval resolves before abort takes effect,
+    // we should see "applied" but NOT "superseded" for the same proposal.
+    channel.waitBehavior = { kind: "approve" };
+    const mgr = createManager(ops, channel);
+
+    const events: string[] = [];
+    mgr.on("proposed", () => events.push("proposed"));
+    mgr.on("applied", () => events.push("applied"));
+    mgr.on("superseded", () => events.push("superseded"));
+
+    // First proposal — auto-approved immediately
+    await mgr.onStagingReady();
+
+    expect(events).toEqual(["proposed", "applied"]);
+
+    // Staging content changed again
+    ops.addFile(".soulguard-staging/SOUL.md", "second edit to soul content");
+
+    // Second proposal — should NOT fire superseded for the first
+    await mgr.onStagingReady();
+
+    expect(events).toEqual(["proposed", "applied", "proposed", "applied"]);
+    expect(events.includes("superseded")).toBe(false);
   });
 
   test("abort signal cancels waitForApproval", async () => {
