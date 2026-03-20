@@ -15,6 +15,7 @@ import { ok, err } from "../util/result.js";
 import { SOULGUARD_GROUP, guardianName } from "../util/constants.js";
 import { ensureConfig, writeConfig } from "./config.js";
 import type { ConfigError } from "./config.js";
+import { createStagingCopy } from "./staging-ops.js";
 import { status } from "./status.js";
 import { StateTree } from "./state.js";
 import { generateServiceFile, serviceFilePath, type ServicePlatform } from "../daemon/service.js";
@@ -412,6 +413,17 @@ export async function init(options: InitOptions): Promise<Result<InitResult, Ini
   // ── 4. Ensure .soulguard-staging/ directory ──────────────────────────
   const stagingResult = await ensureStagingDir(ops);
   if (!stagingResult.ok) return stagingResult;
+
+  // ── 4b. Create staging copy of soulguard.json ─────────────────────
+  // soulguard.json is auto-protected by init but bypasses TierCommand,
+  // so we need to explicitly create its staging copy here.
+  const sgStagingResult = await createStagingCopy(ops, "soulguard.json", config.defaultOwnership);
+  if (!sgStagingResult.ok) {
+    return err({
+      kind: "system_error",
+      message: `staging copy of soulguard.json failed: ${sgStagingResult.error}`,
+    });
+  }
 
   // ── 5. Ensure git ────────────────────────────────────────────────────
   const gitResult = await ensureGit(ops, config);

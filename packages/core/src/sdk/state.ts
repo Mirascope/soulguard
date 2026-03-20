@@ -229,14 +229,13 @@ export class StateTree {
   }
 
   /**
-   * All files that have a staging copy (regardless of whether content differs).
+   * All files that have a staging copy with content that differs from canonical.
    *
-   * A file is staged if it has a stagedHash (content in staging) or a delete
-   * sentinel (status === "deleted"). This is broader than changedFiles() —
-   * it includes files staged for editing whose content hasn't been modified yet.
+   * Identical staging copies (present but unchanged) are excluded — every
+   * protected file always has a staging copy, so only actual edits matter.
    */
   stagedFiles(): StateFile[] {
-    return this.flatFiles().filter((f) => f.stagedHash !== null || f.status === "deleted");
+    return this.flatFiles().filter((f) => f.status !== "unchanged");
   }
 
   /**

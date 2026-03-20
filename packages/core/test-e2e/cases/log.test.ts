@@ -44,9 +44,7 @@ e2e("log: shows git history after sync", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-        Refreshed 1 staging copy.
-
-      All files now ok.
+      Nothing to fix — all files ok.
         📝 Committed 3 file(s) to git
     `)
     .exits(0)

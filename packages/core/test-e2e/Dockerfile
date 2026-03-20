@@ -4,7 +4,7 @@ FROM oven/bun:latest
 RUN useradd -m -s /bin/bash agent
 
 # Install sudo + git (git needed for e2e tests with git integration)
-RUN apt-get update && apt-get install -y sudo git && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y sudo git jq && rm -rf /var/lib/apt/lists/*
 
 # Give agent passwordless sudo (simulates a real user who can sudo)
 RUN echo "agent ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/agent

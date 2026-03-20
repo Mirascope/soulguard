@@ -216,9 +216,7 @@ e2e("diff: directory staged recursively with no changes shows clean", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-        Refreshed 1 staging copy.
-
-      All files now ok.
+      Nothing to fix — all files ok.
     `)
     .exits(0);
 
@@ -277,9 +275,7 @@ e2e("diff: directory staged recursively with modified file shows diff", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-        Refreshed 1 staging copy.
-
-      All files now ok.
+      Nothing to fix — all files ok.
     `)
     .exits(0);
 
@@ -355,9 +351,7 @@ e2e("diff: soulguard.json staged with no changes shows clean", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-        Refreshed 1 staging copy.
-
-      All files now ok.
+      Nothing to fix — all files ok.
     `)
     .exits(0);
 
@@ -416,9 +410,7 @@ e2e("diff: new file staged in protected directory shows new file diff", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-        Refreshed 1 staging copy.
-
-      All files now ok.
+      Nothing to fix — all files ok.
     `)
     .exits(0);
 
@@ -577,9 +569,7 @@ e2e("diff: delete directory shows deletion cleanly", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-        Refreshed 1 staging copy.
-
-      All files now ok.
+      Nothing to fix — all files ok.
     `)
     .exits(0);
 
@@ -634,4 +624,97 @@ e2e("diff: delete directory shows deletion cleanly", (t) => {
     `)
     .exits(0)
     .outputs(/staged/);
+});
+
+// ── soulguard.json: stage + apply ───────────────────────────────────
+
+e2e("diff: stage and apply a change to soulguard.json", (t) => {
+  t.$(`sudo soulguard init --no-daemon --non-interactive .`)
+    .expect(`
+      exit 0
+      ✓ Soulguard initialized.
+    `)
+    .exits(0);
+
+  // Verify soulguard.json has a staging copy (created by init)
+  t.$(`test -f .soulguard-staging/soulguard.json && echo exists || echo gone`)
+    .expect(`
+      exit 0
+      exists
+    `)
+    .exits(0)
+    .outputs(/exists/);
+
+  // Modify the staging copy of soulguard.json to add a daemon section
+  t.$(
+    `jq '.daemon = {"syncIntervalSecs": 30}' .soulguard-staging/soulguard.json > /tmp/sg.json && cp /tmp/sg.json .soulguard-staging/soulguard.json`,
+  )
+    .expect(`
+      exit 0
+    `)
+    .exits(0);
+
+  // Diff should show the soulguard.json change
+  t.$(`soulguard diff .`)
+    .expect(`
+      exit 1
+      Soulguard Diff — /workspace
+
+        📝 soulguard.json
+            ===================================================================
+            --- a/soulguard.json
+            +++ b/soulguard.json
+            @@ -7,6 +7,9 @@
+               "defaultOwnership": {
+                 "user": "agent",
+                 "group": "agent",
+                 "mode": "644"
+            +  },
+            +  "daemon": {
+            +    "syncIntervalSecs": 30
+               }
+             }
+            
+
+      1 file(s) changed
+      Apply hash: 6d50c486652b442bb71d68455f71c2a68a5567898c870f190ec9ad6e8e25fe75
+    `)
+    .exits(1)
+    .outputs(/soulguard\.json/)
+    .outputs(/Apply hash:/);
+
+  // Apply with -y
+  t.$(`sudo soulguard apply . -y`)
+    .expect(`
+      exit 0
+
+      Applied 1 file(s):
+        ✅ soulguard.json
+
+      Protected files updated. Staging synced.
+    `)
+    .exits(0)
+    .outputs(/Applied 1 file/)
+    .outputs(/soulguard\.json/);
+
+  // Verify the canonical soulguard.json now has the daemon section
+  t.$(`jq '.daemon.syncIntervalSecs' soulguard.json`)
+    .expect(`
+      exit 0
+      30
+    `)
+    .exits(0)
+    .outputs(/30/);
+
+  // Diff should now show clean
+  t.$(`soulguard diff .`)
+    .expect(`
+      exit 0
+      Soulguard Diff — /workspace
+
+
+      No changes
+    `)
+    .exits(0)
+    .outputs(/No changes/);
 });
