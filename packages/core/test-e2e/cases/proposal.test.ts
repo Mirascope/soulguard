@@ -45,9 +45,9 @@ e2e("proposal: auto-approve applies staging changes to canonical", (t) => {
     .expect(`
       exit 0
       Daemon running (channel: auto-test, sync: disabled)
-      [poll] hash changed: null → 94af97843271
-      Proposal posted: 94af97843271e9e8695efa4308f61002afb370ac35d1a6ca531f76bdf09d7ef5 (1 file(s))
-      Proposal applied: 94af97843271e9e8695efa4308f61002afb370ac35d1a6ca531f76bdf09d7ef5
+      [poll] hash changed: null → 713896e37861
+      Proposal posted: 713896e37861461e5584e99ec57e6589bf1ecce083fd20fb320b231df56a9df8 (2 file(s))
+      Proposal applied: 713896e37861461e5584e99ec57e6589bf1ecce083fd20fb320b231df56a9df8
     `)
     .exits(0);
 
@@ -111,9 +111,9 @@ e2e("proposal: auto-reject resets staging to canonical", (t) => {
     .expect(`
       exit 0
       Daemon running (channel: auto-test, sync: disabled)
-      [poll] hash changed: null → 83ea2109865c
-      Proposal posted: 83ea2109865c03eaee019cd353cd101ceed10afc58a6019ae316f96c39a537bb (1 file(s))
-      Proposal rejected: 83ea2109865c03eaee019cd353cd101ceed10afc58a6019ae316f96c39a537bb
+      [poll] hash changed: null → 5d704ba1a935
+      Proposal posted: 5d704ba1a9355f12f4f7be5d1152fd252132c3b1c7709deab5b2bc3dd88bc2d7 (2 file(s))
+      Proposal rejected: 5d704ba1a9355f12f4f7be5d1152fd252132c3b1c7709deab5b2bc3dd88bc2d7
     `)
     .exits(0);
 
@@ -186,9 +186,9 @@ e2e("proposal: auto-reject of created file removes staging copy", (t) => {
     .expect(`
       exit 0
       Daemon running (channel: auto-test, sync: disabled)
-      [poll] hash changed: null → 313dcfe0c9e3
-      Proposal posted: 313dcfe0c9e3c25034ab9a945bc2b179a61db3a9a2e8b05d3e661822c8cba0fc (1 file(s))
-      Proposal rejected: 313dcfe0c9e3c25034ab9a945bc2b179a61db3a9a2e8b05d3e661822c8cba0fc
+      [poll] hash changed: null → 09d47db47995
+      Proposal posted: 09d47db4799536b594b1de5f2a8fdd2bb74558cb8e15d132e1e04aadd3f052a3 (2 file(s))
+      Proposal rejected: 09d47db4799536b594b1de5f2a8fdd2bb74558cb8e15d132e1e04aadd3f052a3
     `)
     .exits(0);
 
@@ -250,9 +250,9 @@ e2e("proposal: reject then re-edit triggers new proposal", (t) => {
     .expect(`
       exit 0
       Daemon running (channel: auto-test, sync: disabled)
-      [poll] hash changed: null → c7c8a7771e9d
-      Proposal posted: c7c8a7771e9db7e1f838d23154028d12b139f55d9910d4cc3686504e268b467e (1 file(s))
-      Proposal rejected: c7c8a7771e9db7e1f838d23154028d12b139f55d9910d4cc3686504e268b467e
+      [poll] hash changed: null → 71cedf65af77
+      Proposal posted: 71cedf65af779d5d3956767e92ca66f056665224bfe507df191e435652adc0ca (2 file(s))
+      Proposal rejected: 71cedf65af779d5d3956767e92ca66f056665224bfe507df191e435652adc0ca
     `)
     .exits(0);
 
@@ -324,9 +324,9 @@ e2e("proposal: reset after rejection shows clean state", (t) => {
     .expect(`
       exit 0
       Daemon running (channel: auto-test, sync: disabled)
-      [poll] hash changed: null → c7c8a7771e9d
-      Proposal posted: c7c8a7771e9db7e1f838d23154028d12b139f55d9910d4cc3686504e268b467e (1 file(s))
-      Proposal rejected: c7c8a7771e9db7e1f838d23154028d12b139f55d9910d4cc3686504e268b467e
+      [poll] hash changed: null → 71cedf65af77
+      Proposal posted: 71cedf65af779d5d3956767e92ca66f056665224bfe507df191e435652adc0ca (2 file(s))
+      Proposal rejected: 71cedf65af779d5d3956767e92ca66f056665224bfe507df191e435652adc0ca
     `)
     .exits(0);
 

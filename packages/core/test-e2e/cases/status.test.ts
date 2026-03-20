@@ -25,9 +25,7 @@ e2e("status: reports all files ok when clean", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-        Refreshed 1 staging copy.
-
-      All files now ok.
+      Nothing to fix — all files ok.
     `)
     .exits(0);
 
@@ -68,9 +66,7 @@ e2e("status: reports drifted ownership and permissions", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-        Refreshed 1 staging copy.
-
-      All files now ok.
+      Nothing to fix — all files ok.
     `)
     .exits(0);
 
@@ -131,9 +127,7 @@ e2e("status: shows staged change indicators", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-        Refreshed 1 staging copy.
-
-      All files now ok.
+      Nothing to fix — all files ok.
     `)
     .exits(0);
 
@@ -181,9 +175,7 @@ e2e("status: shows directory protection", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-        Refreshed 1 staging copy.
-
-      All files now ok.
+      Nothing to fix — all files ok.
     `)
     .exits(0);
 
@@ -224,9 +216,7 @@ e2e("status: shows new file in protected directory as created", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-        Refreshed 1 staging copy.
-
-      All files now ok.
+      Nothing to fix — all files ok.
     `)
     .exits(0);
 
@@ -282,9 +272,7 @@ e2e("status: shows deleted protected file", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-        Refreshed 1 staging copy.
-
-      All files now ok.
+      Nothing to fix — all files ok.
     `)
     .exits(0);
 
@@ -334,9 +322,7 @@ e2e("status: shows deleted file in protected directory", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-        Refreshed 1 staging copy.
-
-      All files now ok.
+      Nothing to fix — all files ok.
     `)
     .exits(0);
 
@@ -388,9 +374,7 @@ e2e("status: shows deleted protected directory with all children", (t) => {
       exit 0
       Soulguard Sync — /workspace
 
-        Refreshed 1 staging copy.
-
-      All files now ok.
+      Nothing to fix — all files ok.
     `)
     .exits(0);
 

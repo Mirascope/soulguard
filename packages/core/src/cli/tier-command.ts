@@ -208,6 +208,16 @@ export class TierCommand {
       return 1;
     }
 
+    // Keep soulguard.json staging copy in sync with canonical after config write
+    const sgCopyResult = await createStagingCopy(
+      ops,
+      "soulguard.json",
+      configResult.value.defaultOwnership ?? undefined,
+    );
+    if (!sgCopyResult.ok) {
+      this.out.warn(`  Warning: staging copy failed for soulguard.json: ${sgCopyResult.error}`);
+    }
+
     // ── Surgical enforcement (no full sync) ────────────────────────────
 
     if (action.kind === "set" && action.tier === "protect") {
