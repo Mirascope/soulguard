@@ -24,6 +24,10 @@ import type { SyncResult } from "../sdk/sync.js";
 export type DaemonOptions = {
   ops: SystemOperations;
   config: SoulguardConfig;
+  /** Override the channel from config (used by test flags). */
+  channelOverride?: ApprovalChannel;
+  /** Stop the daemon after handling N proposals. Used for deterministic e2e tests. */
+  maxProposals?: number;
 };
 
 /** All events the daemon can emit. */
@@ -44,17 +48,22 @@ export type DaemonEvents = {
 export class SoulguardDaemon extends EventEmitter<DaemonEvents> {
   private readonly _ops: SystemOperations;
   private readonly _config: SoulguardConfig;
+  private readonly _channelOverride: ApprovalChannel | null;
+  private readonly _maxProposals: number | null;
 
   private _channel: ApprovalChannel | null = null;
   private _proposalManager: ProposalManager | null = null;
   private _syncTimer: ReturnType<typeof setInterval> | null = null;
   private _syncRunning = false;
   private _running = false;
+  private _doneResolve: (() => void) | null = null;
 
   constructor(options: DaemonOptions) {
     super();
     this._ops = options.ops;
     this._config = options.config;
+    this._channelOverride = options.channelOverride ?? null;
+    this._maxProposals = options.maxProposals ?? null;
   }
 
   get running(): boolean {
@@ -74,18 +83,23 @@ export class SoulguardDaemon extends EventEmitter<DaemonEvents> {
     }
 
     // ── Channel + ProposalManager (optional) ────────────────────────────
-    const channelName = daemonConfig.channel;
-    if (channelName) {
-      const createChannelFn = getChannel(channelName);
-      if (!createChannelFn) {
-        throw new Error(
-          `No channel registered for "${channelName}". Register it with registerChannel() before starting the daemon.`,
-        );
+    if (this._channelOverride) {
+      this._channel = this._channelOverride;
+    } else {
+      const channelName = daemonConfig.channel;
+      if (channelName) {
+        const createChannelFn = getChannel(channelName);
+        if (!createChannelFn) {
+          throw new Error(
+            `No channel registered for "${channelName}". Register it with registerChannel() before starting the daemon.`,
+          );
+        }
+        const channelConfig = daemonConfig[channelName];
+        this._channel = createChannelFn(channelConfig);
       }
+    }
 
-      const channelConfig = daemonConfig[channelName];
-      this._channel = createChannelFn(channelConfig);
-
+    if (this._channel) {
       this._proposalManager = new ProposalManager({
         ops: this._ops,
         config: this._config,
@@ -99,6 +113,19 @@ export class SoulguardDaemon extends EventEmitter<DaemonEvents> {
       this._proposalManager.on("superseded", (...args) => this.emit("superseded", ...args));
       this._proposalManager.on("error", (...args) => this.emit("proposal:error", ...args));
 
+      // maxProposals: auto-stop after N proposals handled
+      if (this._maxProposals != null) {
+        let count = 0;
+        const checkDone = () => {
+          count++;
+          if (count >= this._maxProposals!) {
+            this.stop();
+          }
+        };
+        this._proposalManager.on("applied", checkDone);
+        this._proposalManager.on("rejected", checkDone);
+      }
+
       this._proposalManager.start();
     }
 
@@ -110,6 +137,14 @@ export class SoulguardDaemon extends EventEmitter<DaemonEvents> {
     }
 
     this._running = true;
+  }
+
+  /** Returns a promise that resolves when the daemon stops (e.g. maxProposals reached). */
+  done(): Promise<void> {
+    if (!this._running) return Promise.resolve();
+    return new Promise((resolve) => {
+      this._doneResolve = resolve;
+    });
   }
 
   async stop(): Promise<void> {
@@ -126,10 +161,13 @@ export class SoulguardDaemon extends EventEmitter<DaemonEvents> {
       this._proposalManager = null;
     }
 
-    if (this._channel) {
+    if (this._channel && !this._channelOverride) {
       await this._channel.dispose();
       this._channel = null;
     }
+
+    this._doneResolve?.();
+    this._doneResolve = null;
   }
 
   // ── Private ─────────────────────────────────────────────────────────

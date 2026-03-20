@@ -14,6 +14,8 @@ import type { ApprovalChannel, Proposal, ProposalPayload, ProposalFile } from ".
 import { diff } from "../sdk/diff.js";
 import { apply } from "../sdk/apply.js";
 import { StateTree } from "../sdk/state.js";
+import { createStagingCopy } from "../sdk/staging-ops.js";
+import { stagingPath } from "../sdk/staging.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -196,18 +198,12 @@ export class ProposalManager extends EventEmitter<ProposalManagerEvents> {
         if (!freshTree.ok) {
           const error = new Error(`Failed to build fresh state tree: ${freshTree.error.message}`);
           this.emit("error", error, "approval:verification");
-          proposal.state = "rejected";
-          this._activeProposal = null;
-          await this._channel.postResult(proposal.externalId, "rejected");
-          this.emit("rejected", proposal);
+          await this._rejectProposal(proposal);
           return;
         }
 
         if (freshTree.value.approvalHash !== proposal.payload.hash) {
-          proposal.state = "rejected";
-          this._activeProposal = null;
-          await this._channel.postResult(proposal.externalId, "rejected");
-          this.emit("rejected", proposal);
+          await this._rejectProposal(proposal);
           return;
         }
 
@@ -220,10 +216,7 @@ export class ProposalManager extends EventEmitter<ProposalManagerEvents> {
         if (!applyResult.ok) {
           const error = new Error(`Apply failed: ${applyResult.error.kind}`);
           this.emit("error", error, "approval:apply");
-          proposal.state = "rejected";
-          this._activeProposal = null;
-          await this._channel.postResult(proposal.externalId, "rejected");
-          this.emit("rejected", proposal);
+          await this._rejectProposal(proposal);
           return;
         }
 
@@ -232,19 +225,24 @@ export class ProposalManager extends EventEmitter<ProposalManagerEvents> {
         await this._channel.postResult(proposal.externalId, "applied");
         this.emit("applied", proposal);
       } else {
-        proposal.state = "rejected";
-        this._activeProposal = null;
-        await this._channel.postResult(proposal.externalId, "rejected");
-        this.emit("rejected", proposal);
+        await this._rejectProposal(proposal);
       }
     } catch (e: unknown) {
       if (e instanceof DOMException && e.name === "AbortError") return;
       if (e instanceof Error && e.name === "AbortError") return;
       const error = e instanceof Error ? e : new Error(String(e));
       this.emit("error", error, "approval:wait");
-      proposal.state = "rejected";
-      this._activeProposal = null;
+      await this._rejectProposal(proposal);
     }
+  }
+
+  private async _rejectProposal(proposal: Proposal): Promise<void> {
+    proposal.state = "rejected";
+    await this._resetStaging(proposal);
+    this._pendingProposalHash = null;
+    this._activeProposal = null;
+    await this._channel.postResult(proposal.externalId, "rejected");
+    this.emit("rejected", proposal);
   }
 
   private async _supersedePending(): Promise<void> {
@@ -252,7 +250,6 @@ export class ProposalManager extends EventEmitter<ProposalManagerEvents> {
       const oldProposal = this._activeProposal;
       const oldController = this._abortController;
 
-      oldProposal.state = "superseded";
       this._activeProposal = null;
       this._abortController = null;
 
@@ -262,6 +259,11 @@ export class ProposalManager extends EventEmitter<ProposalManagerEvents> {
         this._pendingFlow = null;
       }
 
+      // If the approval flow already completed (applied/rejected) before
+      // the abort took effect, don't also emit superseded.
+      if (oldProposal.state !== "pending") return;
+
+      oldProposal.state = "superseded";
       await this._channel.postResult(oldProposal.externalId, "superseded");
       this.emit("superseded", oldProposal);
     }
@@ -275,5 +277,31 @@ export class ProposalManager extends EventEmitter<ProposalManagerEvents> {
     }
     this._activeProposal = null;
     this._abortController = null;
+  }
+
+  /**
+   * Reset staging copies for all files in a rejected proposal.
+   *
+   * Modified/deleted files: re-copy canonical → staging (agent-writable).
+   * Created files: delete the staging copy (no canonical to restore from).
+   *
+   * Best-effort per file — errors are emitted but don't block the rejection.
+   */
+  private async _resetStaging(proposal: Proposal): Promise<void> {
+    const defaultOwnership = this._config.defaultOwnership;
+
+    for (const file of proposal.payload.files) {
+      const result =
+        file.status === "created"
+          ? await this._ops.deleteFile(stagingPath(file.path))
+          : await createStagingCopy(this._ops, file.path, defaultOwnership);
+      if (!result.ok) {
+        this.emit(
+          "error",
+          new Error(`Reset staging failed for ${file.path}: ${String(result.error)}`),
+          `resetStaging:${file.path}`,
+        );
+      }
+    }
   }
 }
